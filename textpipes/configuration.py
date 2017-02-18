@@ -1,10 +1,10 @@
 import configparser
 
-class Config(object)
-    def __init__(self):
+class Config(object):
+    def __init__(self, main_conf_file):
         self.conf = configparser.ConfigParser(
             interpolation=configparser.ExtendedInterpolation())
-        # FIXME: read in main conf
+        self.conf.read_file(open(main_conf_file, 'r'))
         # FIXME: for all keys in subconf section, read and union
 
     def get_path(self, section, key):

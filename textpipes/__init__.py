@@ -22,3 +22,5 @@ def get_version():
 # when they are imported.
 
 from .recipe import Recipe
+from .configuration import Config
+from . import ext

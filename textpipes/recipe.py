@@ -44,9 +44,9 @@ class Recipe(object):
 
     def get_next_step_for(self, conf, output, cli_args=None):
         # -> Done
-        # or Running
-        # or [Available(rule)]
-        # or MissingInput(input)
+        # or Running(outputs)
+        # or [Available(output, rule)]
+        # or MissingInputs(inputs)
         if isinstance(output, RecipeFile):
             rf = output 
         else:
@@ -88,7 +88,7 @@ class Recipe(object):
             if rule in triggered_rules:
                 continue
             if all(inp in seen_done for inp in rule.inputs):
-                available.append(Available((cursor, rule)))
+                available.append(Available(cursor, rule))
                 triggered_rules.add(rule)
         return available
 
