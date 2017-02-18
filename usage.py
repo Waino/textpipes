@@ -2,9 +2,11 @@ import textpipes as tp
 
 recipe = tp.Recipe()
 
-foo = recipe.add_input('data/corpora/foo.{src_lang}.gz')
-bar = recipe.add_input('data/corpora/bar.{src_lang}.gz')
+# all paths are in config, use interpolation
+# section [paths.corpora] key foo
+foo = recipe.use_input('corpora', 'foo')
+bar = recipe.use_input('corpora', 'bar')
 
 recipe.add_rule(tp.ext.DummyPipe,
                 inputs=foo,
-                outputs='data/generated/foo.dummypiped.{src_lang}.gz')
+                outputs=('gen', 'foo.dummypiped'))

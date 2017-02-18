@@ -4,13 +4,13 @@ class Recipe(object):
         # path_template -> Rule or None
         self.files = {}
 
-    def add_input(self, path_template):
+    def use_input(self, section, key):
         # -> RecipeFile
         pass
 
     def add_rule(self, step, inputs=None, outputs=None):
         # inputs: {key: RecipeFile} or RecipeFile
-        # outputs: {key: path_template} or path_template
+        # outputs: {key: (section, key)} or (section, key)
         # -> Rule
         pass
 
