@@ -13,4 +13,6 @@ class Config(object)
 # clunky: can use dict notation
 # '{FILE[corpus]}.{resection[some]}.{resection[wtf]}.{resection[lulz]}.gz'.format(**conf)
 # alternative: use interpolation in configparser
-# '${FILE:corpus}.{resection:some}'
+# '${FILE:corpus}.${resection:some}'
+# can also include dollar-free, which can be formatted from command line args
+# '${resection:some}.mb{minibatch}'

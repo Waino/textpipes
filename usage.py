@@ -7,6 +7,12 @@ recipe = tp.Recipe()
 foo = recipe.use_input('corpora', 'foo')
 bar = recipe.use_input('corpora', 'bar')
 
-recipe.add_rule(tp.ext.DummyPipe,
-                inputs=foo,
-                outputs=('gen', 'foo.dummypiped'))
+def preprocess(key, corpus):
+    dp = recipe.add_rule(
+        tp.ext.DummyPipe,
+        inputs=corpus,
+        outputs=('gen', '{}.dummypiped'.format(key)))
+    return dp
+
+foo_pre = preprocess('foo', foo)
+bar_pre = preprocess('bar', bar)
