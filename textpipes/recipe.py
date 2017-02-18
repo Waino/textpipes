@@ -92,6 +92,18 @@ class Recipe(object):
                 triggered_rules.add(rule)
         return available
 
+    def make_output(self, conf, output, cli_args=None):
+        if isinstance(output, RecipeFile):
+            rf = output 
+        else:
+            rf = RecipeFile(*output.split(':'))
+        if rf not in self.files:
+            raise Exception('No rule to make target {}'.format(output))
+        if rf.exists(conf, cli_args):
+            return Done()
+
+        rule = self.files[rf]
+        return rule.make(conf, cli_args)
 
 
 class RecipeFile(object):

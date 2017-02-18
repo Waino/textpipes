@@ -10,3 +10,6 @@ class Step(object):
             self.outputs = (outputs,)
         else:
             self.outputs = tuple(outputs.values())
+
+    def make(self, conf, cli_args=None):
+        raise NotImplementedError()

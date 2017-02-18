@@ -23,4 +23,4 @@ def get_version():
 
 from .recipe import Recipe
 from .configuration import Config
-from . import ext
+from . import external
