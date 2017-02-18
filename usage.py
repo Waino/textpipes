@@ -4,8 +4,8 @@ recipe = tp.Recipe()
 
 # all paths are in config, use interpolation
 # section [paths.corpora] key foo
-foo = recipe.use_input('corpora', 'foo')
-bar = recipe.use_input('corpora', 'bar')
+foo = recipe.add_input('corpora', 'foo')
+bar = recipe.add_input('corpora', 'bar')
 
 def preprocess(key, corpus):
     dp = recipe.add_rule(
