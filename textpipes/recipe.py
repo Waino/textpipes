@@ -2,10 +2,9 @@ import collections
 import os
 
 Done = collections.namedtuple('Done', [])
-Running = collections.namedtuple('Running', [])
-Available = collections.namedtuple('Available', ['rule'])
-Needs = collections.namedtuple('Needs', ['inputs'])
-MissingInput = collections.namedtuple('MissingInput', ['input'])
+Running = collections.namedtuple('Running', ['outputs'])
+Available = collections.namedtuple('Available', ['output', 'rule'])
+MissingInputs = collections.namedtuple('MissingInputs', ['inputs'])
 
 class Recipe(object):
     """Main class for building experiment recipes"""
@@ -43,43 +42,56 @@ class Recipe(object):
         # FIXME: do we need to make index of rules?
         return rule.outputs
 
-    def status(self, conf, output, cli_args=None):
+    def get_next_step_for(self, conf, output, cli_args=None):
         # -> Done
         # or Running
-        # or Available(rule)
+        # or [Available(rule)]
         # or MissingInput(input)
-        # or Needs(inputs)
-        # or raise NoRule(output)
         if isinstance(output, RecipeFile):
             rf = output 
         else:
             rf = RecipeFile(*output.split(':'))
         if rf not in self.files:
-            raise NoRule(output)
+            raise Exception('No rule to make target {}'.format(output))
         if rf.exists(conf, cli_args):
             return Done()
-        # FIXME: check log for running jobs
-        rule = self.files[rf]
-        if rule is None:
-            # an original input, but failed the exists check above
-            return MissingInput(output)
-        # FIXME: this recursion is wasteful
-        input_statuses = [self.status(conf, inp, cli_args)
-                          for inp in rule.inputs]
-        if all(status == Done() for status in input_statuses):
-            # all inputs satisfied: available for running
-            return Available(rule)
-        missing = [status.inputs
-        if any(isinstance(status, MissingInput) for status in input_statuses):
 
+        # traverse the DAG
+        border = set((rf,))
+        running = set()
+        potential = set()
+        seen_done = set()
+        missing = set()
+        while len(border) > 0:
+            cursor = border.pop()
+            if cursor.exists(conf, cli_args):
+                seen_done.add(cursor)
+                continue
+            # FIXME: check log for running jobs
+            rule = self.files[cursor]
+            if rule is None:
+                # an original input, but failed the exists check above
+                missing.add(cursor)
+                continue
+            border.update(rule.inputs)
+            potential.add((cursor, rule))
 
+        if len(missing) > 0:
+            return MissingInputs(tuple(missing))
+        if len(running) > 0:
+            # FIXME: should not block other possible availables?
+            return Running(tuple(running))
 
-    def get_next_step_for(self, conf, output, cli_args=None):
-        # -> Done
-        # or Running
-        # or Available(rule)
-        # or MissingInput(input)
-        pass
+        available = []
+        triggered_rules = set()
+        for cursor, rule in potential:
+            if rule in triggered_rules:
+                continue
+            if all(inp in seen_done for inp in rule.inputs):
+                available.append(Available((cursor, rule)))
+                triggered_rules.add(rule)
+        return available
+
 
 
 class RecipeFile(object):
