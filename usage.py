@@ -16,8 +16,8 @@ class SomePipe(tp.MonoPipe):
              #                  max_chars_per_token=80,
              #                  log_to=toolong),
              tp.components.europarl.RemoveLanguageTags(),
-             #tp.Clean(),
-             #tp.MapChars(),
+             tp.Clean(),
+             tp.MapChars(),
              #tp.Deduplicate()
             ],
             [inp], [out], side_outputs=[toolong])
