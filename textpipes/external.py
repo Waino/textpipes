@@ -1,7 +1,7 @@
 import os
 import subprocess
 
-from .step import Step
+from .recipe import Rule
 
 # FIXME: use package resources instead
 WRAPPER_DIR = os.path.join(
@@ -23,7 +23,7 @@ def maybe_gz_out(outfile):
         return 'tee', outfile
 
 
-class DummyPipe(Step):
+class DummyPipe(Rule):
     def make(self, conf, cli_args):
         inpair = maybe_gz_in(self.inputs[0](conf, cli_args))
         outpair = maybe_gz_out(self.outputs[0](conf, cli_args))
@@ -33,5 +33,3 @@ class DummyPipe(Step):
             + inpair
             + ('tac',)  # this is the dummy command
             + outpair)
-
-

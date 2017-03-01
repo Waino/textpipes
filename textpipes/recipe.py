@@ -27,18 +27,8 @@ class Recipe(object):
             self.main_out.append(rf)
         return rf
 
-    def add_rule(self, step, inputs=None, outputs=None, **kwargs):
-        """A rule tells how to make a particular output RecipeFile(s),
-        by applying a Step to some input RecipeFile(s)
-        """
-        # inputs: {key: RecipeFile} or RecipeFile
-        # outputs: {key: RecipeFile} or RecipeFile
-        rule = step(inputs, outputs, **kwargs)
-        if isinstance(outputs, RecipeFile):
-            outlist = [outputs]
-        else:
-            outlist = outputs.values()
-        for rf in outlist:
+    def add_rule(self, rule):
+        for rf in rule.outputs:
             if rf in self.files:
                 raise Exception('There is already a rule for {}'.format(rf))
             self.files[rf] = rule
@@ -107,6 +97,28 @@ class Recipe(object):
 
         rule = self.files[rf]
         return rule.make(conf, cli_args)
+
+
+class Rule(object):
+    """A part of a recipe.
+
+    a Rule tells how to make some particular output RecipeFile(s)
+    The subclass defines how to make the output.
+    The object is initialized with RecipeFiles defining
+    input and output paths.
+    """
+    def __init__(self, inputs, outputs):
+        if isinstance(inputs, RecipeFile):
+            self.inputs = (inputs,)
+        else:
+            self.inputs = tuple(inputs)
+        if isinstance(outputs, RecipeFile):
+            self.outputs = (outputs,)
+        else:
+            self.outputs = tuple(outputs)
+
+    def make(self, conf, cli_args=None):
+        raise NotImplementedError()
 
 
 class RecipeFile(object):

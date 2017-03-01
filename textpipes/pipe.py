@@ -1,7 +1,9 @@
-"""Pipes are text processing operations expressed as Python generators,
-which can be composed into Steps"""
+from .recipe import Rule
 
-class Pipe(Step):
+"""Pipes are text processing operations expressed as Python generators,
+which can be composed into Rules"""
+
+class Pipe(Rule):
     def __init__(self, components,
                  main_inputs, main_outputs,
                  side_inputs=None, side_outputs=None):
@@ -9,7 +11,7 @@ class Pipe(Step):
         side_outputs = side_inputs if side_inputs is not None else tuple()
         inputs = tuple(main_inputs) + tuple(side_inputs)
         outputs = tuple(main_inputs) + tuple(side_inputs)
-        super(self).__init__(inputs, outputs)
+        super().__init__(inputs, outputs)
         self.components = components
         self.main_inputs = main_inputs
         self.main_outputs = main_outputs
@@ -24,7 +26,6 @@ class MonoPipe(Pipe):
         #   give pipeline and appropriate sides to component
         # Drain pipeline into main_output
         pass
-    pass
 
 class ParellelPipe(Pipe):
     def make(self, conf, cli_args=None):
@@ -32,4 +33,4 @@ class ParellelPipe(Pipe):
         # iterate over components
         #   give pipeline and appropriate sides to component
         # Round-robin drain pipeline into main_outputs
-    pass
+        pass
