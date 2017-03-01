@@ -10,11 +10,11 @@ class ParellelPipeComponent(PipeComponent):
     pass
 
 class SingleCellComponent(MonoPipeComponent):
-    def apply(stream):
-        for val in stream:
-            yield self.single_cell(val)
+    def __call__(self, stream):
+        for line in stream:
+            yield self.single_cell(line)
 
-    def single_cell(self, val):
+    def single_cell(self, line):
         raise NotImplementedError()
 
 class ForEach(ParellelPipeComponent):
@@ -32,8 +32,8 @@ class RegexSubstitution(SingleCellComponent):
         self.expressions = [(re.compile(exp, flags=re.UNICODE), repl)
                             for (exp, repl) in expressions]
 
-    def single_cell(self, val):
+    def single_cell(self, line):
         for (exp, repl) in self.expressions:
-            val = exp.sub(repl, val)
-        return val
+            line = exp.sub(repl, line)
+        return line
 

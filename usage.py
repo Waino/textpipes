@@ -42,6 +42,7 @@ bar_pre = preprocess('bar', bar)
 
 # debug
 conf = tp.Config('dummy.ini')
-print(recipe.get_next_step_for(conf, foo_pre))
+nextstep = recipe.get_next_step_for(conf, foo_pre)
+print(nextstep)
 
-print(recipe.make_output(conf, foo_pre))
+print(recipe.make_output(conf, nextstep[0].output))
