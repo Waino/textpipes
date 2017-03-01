@@ -1,6 +1,12 @@
 from .recipe import RecipeFile
 
 class Step(object):
+    """A part of a recipe.
+    
+    The subclass defines how to make the output.
+    The object is initialized with RecipeFiles defining
+    input and output paths.
+    """
     def __init__(self, inputs, outputs):
         if isinstance(inputs, RecipeFile):
             self.inputs = (inputs,)

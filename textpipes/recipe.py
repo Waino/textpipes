@@ -28,6 +28,9 @@ class Recipe(object):
         return rf
 
     def add_rule(self, step, inputs=None, outputs=None, **kwargs):
+        """A rule tells how to make a particular output RecipeFile(s),
+        by applying a Step to some input RecipeFile(s)
+        """
         # inputs: {key: RecipeFile} or RecipeFile
         # outputs: {key: RecipeFile} or RecipeFile
         rule = step(inputs, outputs, **kwargs)
@@ -107,6 +110,9 @@ class Recipe(object):
 
 
 class RecipeFile(object):
+    """A RecipeFile is a file template
+    that points to a concrete file when given conf and cli_args
+    """
     def __init__(self, section, key):
         self.section = section
         self.key = key
