@@ -6,7 +6,7 @@ class PipeComponent(object):
 class MonoPipeComponent(PipeComponent):
     pass
 
-class ParellelPipeComponent(PipeComponent):
+class ParallelPipeComponent(PipeComponent):
     pass
 
 class SingleCellComponent(MonoPipeComponent):
@@ -17,8 +17,8 @@ class SingleCellComponent(MonoPipeComponent):
     def single_cell(self, line):
         raise NotImplementedError()
 
-class ForEach(ParellelPipeComponent):
-    """Wraps a SingleCellComponent for use in a ParellelPipe.
+class ForEach(ParallelPipeComponent):
+    """Wraps a SingleCellComponent for use in a ParallelPipe.
 
     The operation will be applied to each parallel stream.
     The operation MUST NOT filter out any lines.

@@ -5,7 +5,9 @@ import codecs
 import gzip
 import bz2
 
+from .components import *
 from .recipe import Rule
+from .utils import safe_zip
 
 class Pipe(Rule):
     def __init__(self, components,
@@ -24,6 +26,13 @@ class Pipe(Rule):
         
 
 class MonoPipe(Pipe):
+    def __init__(self, components, *args, **args):
+        for component in components:
+            if not isinstance(component, MonoPipeComponent):
+                raise Exception('MonoPipe expected MonoPipeComponent, '
+                    'received {}'.format(component))
+        super(components, *args, **args)
+
     def make(self, conf, cli_args=None):
         if len(self.main_inputs) != 1:
             raise Exception('MonoPipe must have exactly 1 main input. '
@@ -45,14 +54,53 @@ class MonoPipe(Pipe):
                 fobj.write(line)
                 fobj.write('\n')
 
-class ParellelPipe(Pipe):
-    # wrap any MonoPipeComponents in ForEach
+class ParallelPipe(Pipe):
+    def __init__(self, components, *args, **args):
+        wrapped = []
+        for component in components:
+            if isinstance(component, SingleCellComponent):
+                # SingleCellComponent automatically wrapped in ForEach,
+                # which applies it to all 
+                component = ForEach(component)
+            if not isinstance(component, ParallelPipeComponent):
+                raise Exception('ParallelPipe expected ParallelPipeComponent, '
+                    'received {}'.format(component))
+            wrapped.append(component)
+        super(wrapped, *args, **args)
+
     def make(self, conf, cli_args=None):
         # Make a tuple of generators that reads from main_inputs
-        # iterate over components
-        #   give pipeline and appropriate sides to component
+        readers = [open_text_file_read(inp(conf, cli_args))
+                   for inp in self.main_inputs]
+        # read one line from each and yield it as a tuple
+        stream = self._merge(readers)
+
+        for component in self.components:
+            stream = component(stream)
+
         # Round-robin drain pipeline into main_outputs
-        pass
+        writers = [open_text_file_write(out(conf, cli_args))
+                   for out in self.main_outputs]
+        for (i, tpl) in enumerate(stream):
+            if len(tpl) != len(writers)
+                raise Exception('{} line {}: Invalid number of columns '
+                    'received {}, expecting {}'.format(
+                        self.file_path, i,
+                        len(tpl), len(writers))
+            for (val, fobj) in zip(tpl, writers):
+                fobj.write(val)
+                fobj.write('\n')
+        for fobj in writers:
+            fobj.close()
+
+    def _merge(self, readers):
+        for tpl in safe_zip(*incoming_pipes):
+            result = []
+            for sub_tpl in tpl:
+                result.extend(sub_tpl)
+            tpl = tuple(result)
+            yield tpl
+
 
 # FIXME: perhaps these should be in RecipeFile?
 def open_text_file_read(file_path, encoding='utf-8'):
