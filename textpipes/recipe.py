@@ -1,6 +1,8 @@
 import collections
 import os
 
+from .utils import *
+
 Done = collections.namedtuple('Done', [])
 Running = collections.namedtuple('Running', ['outputs'])
 Available = collections.namedtuple('Available', ['output', 'rule'])
@@ -146,6 +148,9 @@ class RecipeFile(object):
 
     def exists(self, conf, cli_args=None):
         return os.path.exists(self(conf, cli_args))
+
+    def open(self, conf, cli_args=None, mode='rb'):
+        return open_text_file(self(conf, cli_args), mode)
 
     def __eq__(self, other):
         return (self.section, self.key) == (other.section, other.key)
