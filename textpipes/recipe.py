@@ -30,7 +30,10 @@ class Recipe(object):
     def add_rule(self, rule):
         for rf in rule.outputs:
             if rf in self.files:
-                raise Exception('There is already a rule for {}'.format(rf))
+                print(self.files)
+                raise Exception(
+                    'Not adding rule {}. '
+                    'There is already a rule for {}'.format(rule, rf))
             self.files[rf] = rule
         # FIXME: do we need to make index of rules?
         return rule.outputs
@@ -119,6 +122,12 @@ class Rule(object):
 
     def make(self, conf, cli_args=None):
         raise NotImplementedError()
+
+    def __repr__(self):
+        return '{}(inputs={}, outputs={})'.format(
+            self.__class__.__name__,
+            self.inputs,
+            self.outputs)
 
 
 class RecipeFile(object):

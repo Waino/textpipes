@@ -8,9 +8,9 @@ class Pipe(Rule):
                  main_inputs, main_outputs,
                  side_inputs=None, side_outputs=None):
         side_inputs = side_inputs if side_inputs is not None else tuple()
-        side_outputs = side_inputs if side_inputs is not None else tuple()
+        side_outputs = side_outputs if side_outputs is not None else tuple()
         inputs = tuple(main_inputs) + tuple(side_inputs)
-        outputs = tuple(main_inputs) + tuple(side_inputs)
+        outputs = tuple(main_outputs) + tuple(side_outputs)
         super().__init__(inputs, outputs)
         self.components = components
         self.main_inputs = main_inputs
@@ -28,6 +28,7 @@ class MonoPipe(Pipe):
         pass
 
 class ParellelPipe(Pipe):
+    # wrap any MonoPipeComponents in ForEach
     def make(self, conf, cli_args=None):
         # Make a tuple of generators that reads from main_inputs
         # iterate over components

@@ -10,15 +10,16 @@ bar = recipe.add_input('corpora', 'bar')
 class SomePipe(tp.MonoPipe):
     def __init__(self, inp, out, toolong):
         super().__init__(
-            [tp.FilterByLength(min_tokens=1,
-                               max_tokens=100,
-                               max_chars=1500,
-                               max_chars_per_token=80,
-                               log_to=toolong),
-             tp.RemoveLanguageTags(),
-             tp.Clean(),
-             tp.MapChars(),
-             tp.Deduplicate()],
+            [#tp.FilterByLength(min_tokens=1,
+             #                  max_tokens=100,
+             #                  max_chars=1500,
+             #                  max_chars_per_token=80,
+             #                  log_to=toolong),
+             tp.components.europarl.RemoveLanguageTags(),
+             #tp.Clean(),
+             #tp.MapChars(),
+             #tp.Deduplicate()
+            ],
             [inp], [out], side_outputs=[toolong])
 
 def preprocess(key, corpus):
@@ -27,7 +28,7 @@ def preprocess(key, corpus):
             corpus,
             recipe.add_output('gen', '{}.dummypiped'.format(key))
         ))
-    sp, = recipe.add_rule(
+    sp, _ = recipe.add_rule(
         SomePipe(
             dp,
             recipe.add_output('gen', '{}.somepiped'.format(key)),
