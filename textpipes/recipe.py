@@ -38,6 +38,7 @@ class Recipe(object):
                     'There is already a rule for {}'.format(rule, rf))
             self.files[rf] = rule
         # FIXME: do we need to make index of rules?
+        # FIXME: inconvenient to return all outputs. Only do main
         return rule.outputs
 
     def get_next_step_for(self, conf, output, cli_args=None):

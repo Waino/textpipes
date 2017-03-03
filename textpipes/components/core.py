@@ -23,7 +23,14 @@ class ForEach(ParallelPipeComponent):
     The operation will be applied to each parallel stream.
     The operation MUST NOT filter out any lines.
     """
-    pass
+    def __init__(self, mono_component):
+        self.mono_component = mono_component
+
+    def __call__(self, stream):
+        for tpl in stream:
+            yield tuple(self.mono_component.single_cell(line)
+                        for line in tpl)
+
 
 class RegexSubstitution(SingleCellComponent):
     """Arbitrary regular expression substitutions"""
@@ -36,4 +43,3 @@ class RegexSubstitution(SingleCellComponent):
         for (exp, repl) in self.expressions:
             line = exp.sub(repl, line)
         return line
-

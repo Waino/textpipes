@@ -29,3 +29,4 @@ from . import external, components
 # Most common components for easy access
 # more are available by importing from tp.components
 from .components.preprocessing import Clean, MapChars
+from .components.filtering import MonoFilter, ParallelFilter, FilterByLength

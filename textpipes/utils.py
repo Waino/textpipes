@@ -1,3 +1,9 @@
+import bz2
+import codecs
+import gzip
+import itertools
+
+
 def safe_zip(*iterables):
     iters = [iter(x) for x in iterables]
     sentinel = object()

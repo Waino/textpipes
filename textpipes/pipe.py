@@ -1,10 +1,6 @@
 """Pipes are text processing operations expressed as Python generators,
 which can be composed into Rules"""
 
-import codecs
-import gzip
-import bz2
-
 from .components import *
 from .recipe import Rule
 from .utils import safe_zip
@@ -26,12 +22,12 @@ class Pipe(Rule):
         
 
 class MonoPipe(Pipe):
-    def __init__(self, components, *args, **args):
+    def __init__(self, components, *args, **kwargs):
         for component in components:
             if not isinstance(component, MonoPipeComponent):
                 raise Exception('MonoPipe expected MonoPipeComponent, '
                     'received {}'.format(component))
-        super(components, *args, **args)
+        super().__init__(components, *args, **kwargs)
 
     def make(self, conf, cli_args=None):
         if len(self.main_inputs) != 1:
@@ -49,13 +45,13 @@ class MonoPipe(Pipe):
             stream = component(stream)
 
         # Drain pipeline into main_output
-        with open_text_file_write(self.main_outputs[0](conf, cli_args)) as fobj:
+        with self.main_outputs[0].open(conf, cli_args, mode='wb') as fobj:
             for line in stream:
                 fobj.write(line)
                 fobj.write('\n')
 
 class ParallelPipe(Pipe):
-    def __init__(self, components, *args, **args):
+    def __init__(self, components, *args, **kwargs):
         wrapped = []
         for component in components:
             if isinstance(component, SingleCellComponent):
@@ -66,7 +62,7 @@ class ParallelPipe(Pipe):
                 raise Exception('ParallelPipe expected ParallelPipeComponent, '
                     'received {}'.format(component))
             wrapped.append(component)
-        super(wrapped, *args, **args)
+        super().__init__(wrapped, *args, **kwargs)
 
     def make(self, conf, cli_args=None):
         # Make a tuple of generators that reads from main_inputs
@@ -82,11 +78,11 @@ class ParallelPipe(Pipe):
         writers = [out.open(conf, cli_args, mode='wb')
                    for out in self.main_outputs]
         for (i, tpl) in enumerate(stream):
-            if len(tpl) != len(writers)
+            if len(tpl) != len(writers):
                 raise Exception('{} line {}: Invalid number of columns '
                     'received {}, expecting {}'.format(
                         self.file_path, i,
-                        len(tpl), len(writers))
+                        len(tpl), len(writers)))
             for (val, fobj) in zip(tpl, writers):
                 fobj.write(val)
                 fobj.write('\n')
