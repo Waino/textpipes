@@ -62,7 +62,7 @@ class DedupFilter(Filter):
     def __call__(self, line):
         if line in self.potential:
             line_trunc = line[:self.truncate]
-            if line_trunc in seen:
+            if line_trunc in self.seen:
                 return True
-            seen.add(line_trunc)
+            self.seen.add(line_trunc)
         return False

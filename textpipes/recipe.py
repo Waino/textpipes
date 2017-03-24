@@ -43,8 +43,7 @@ class Recipe(object):
 
     def get_next_step_for(self, conf, output, cli_args=None):
         # -> Done
-        # or Running(outputs)
-        # or [Available(output, rule)]
+        # or [Available(output, rule)], [Running(output)]
         # or MissingInputs(inputs)
         if isinstance(output, RecipeFile):
             rf = output 
@@ -78,8 +77,7 @@ class Recipe(object):
         if len(missing) > 0:
             return MissingInputs(tuple(missing))
         if len(running) > 0:
-            # FIXME: should not block other possible availables?
-            return Running(tuple(running))
+            running = [Running(output) for output in running]
 
         available = []
         triggered_rules = set()
@@ -89,7 +87,22 @@ class Recipe(object):
             if all(inp in seen_done for inp in rule.inputs):
                 available.append(Available(cursor, rule))
                 triggered_rules.add(rule)
-        return available
+        return available, running
+
+    def get_all_next_steps_for(self, conf, outputs, cli_args=None):
+        available = []
+        running = []
+        for output in outputs:
+            ns = self.get_next_step_for(conf, output)
+            if isinstance(ns, Done):
+                continue
+            if isinstance(ns, MissingInputs):
+                return ns
+            available.extend(ns[0])
+            running.extend(ns[1])
+        if len(available) + len(running) == 0:
+            return Done()
+        return available, running   # FIXME: bad API
 
     def make_output(self, conf, output, cli_args=None):
         if isinstance(output, RecipeFile):
@@ -150,8 +163,11 @@ class RecipeFile(object):
     def exists(self, conf, cli_args=None):
         return os.path.exists(self(conf, cli_args))
 
-    def open(self, conf, cli_args=None, mode='rb'):
-        return open_text_file(self(conf, cli_args), mode)
+    def open(self, conf, cli_args=None, mode='rb', strip_newlines=True):
+        lines = open_text_file(self(conf, cli_args), mode)
+        if strip_newlines and not 'w' in mode:
+            lines = (line.rstrip('\n') for line in lines)
+        return lines
 
     def __eq__(self, other):
         return (self.section, self.key) == (other.section, other.key)

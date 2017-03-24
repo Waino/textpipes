@@ -67,11 +67,16 @@ foo_pre = preprocess('foo', foo)
 bar_pre = preprocess('bar', bar)
 
 pp = paraprep(para, parapiped)
-print(pp)
+
+outputs = [foo_pre, bar_pre] + list(pp)
+print(outputs)
 
 # debug
 conf = tp.Config('dummy.ini')
-nextstep = recipe.get_next_step_for(conf, foo_pre)
-print(nextstep)
+nextsteps = recipe.get_all_next_steps_for(conf, outputs)
+print(nextsteps)
 
-print(recipe.make_output(conf, nextstep[0].output))
+if len(nextsteps) == 0:
+    print('all done')
+else:
+    print(recipe.make_output(conf, nextsteps[0][0].output))

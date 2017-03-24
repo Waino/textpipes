@@ -38,8 +38,6 @@ class MonoPipe(Pipe):
                 'Received: {}'.format(self.main_outputs))
         # Make a generator that reads from main_input
         stream = self.main_inputs[0].open(conf, cli_args, mode='rb')
-        # strip newlines
-        stream = (line.rstrip('\n') for line in stream)
 
         for component in self.components:
             stream = component(stream)
@@ -70,9 +68,6 @@ class ParallelPipe(Pipe):
                    for inp in self.main_inputs]
         # read one line from each and yield it as a tuple
         stream = safe_zip(*readers)
-        # strip newlines
-        stream = (tuple(line.rstrip('\n') for line in tpl)
-                  for tpl in stream)
 
         for component in self.components:
             stream = component(stream)
