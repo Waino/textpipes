@@ -25,6 +25,8 @@ def get_parser(recipe):
                         help='Name of the experiment conf file')
     parser.add_argument('output', type=str, nargs='*', metavar='OUTPUT',
                         help='Output(s) to schedule, in section:key format')
+    parser.add_argument('--status', default=False, action='store_true',
+                        help='Status of ongoing experiments')
     parser.add_argument('--check', default=False, action='store_true',
                         help='Perform validity check')
     parser.add_argument('--make', default=None, type=str, metavar='OUTPUT',
