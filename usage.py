@@ -1,6 +1,6 @@
 import textpipes as tp
 
-recipe = tp.Recipe()
+recipe = tp.Recipe('usage')
 
 # all paths are in config, use interpolation
 # section [paths.corpora] key foo
@@ -72,16 +72,6 @@ bar_pre = preprocess('bar', bar)
 
 pp = paraprep(para, parapiped)
 
-outputs = [foo_pre, bar_pre] + list(pp)
-print(outputs)
+recipe.add_main_outputs([foo_pre, bar_pre] + list(pp))
 
-# debug
-conf = tp.Config('dummy.ini')
-nextsteps = recipe.get_all_next_steps_for(conf, outputs)
-print(nextsteps)
-
-if len(nextsteps) == 0:
-    print('all done')
-else:
-    for ns in nextsteps[0]:
-        print(recipe.make_output(conf, ns.output))
+recipe.main()

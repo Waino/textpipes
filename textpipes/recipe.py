@@ -10,11 +10,12 @@ MissingInputs = collections.namedtuple('MissingInputs', ['inputs'])
 
 class Recipe(object):
     """Main class for building experiment recipes"""
-    def __init__(self):
+    def __init__(self, name):
+        self.name = name
         # RecipeFile -> Rule or None
         self.files = {}
         # Main outputs, for easy CLI access
-        self.main_out = []
+        self._main_out = set()
 
     def add_input(self, section, key):
         rf = RecipeFile(section, key)
@@ -26,7 +27,7 @@ class Recipe(object):
         if rf in self.files:
             raise Exception('There is already a rule for {}'.format(rf))
         if main:
-            self.main_out.append(rf)
+            self._main_out.add(rf)
         return rf
 
     def add_rule(self, rule):
@@ -89,7 +90,8 @@ class Recipe(object):
                 triggered_rules.add(rule)
         return available, running
 
-    def get_all_next_steps_for(self, conf, outputs, cli_args=None):
+    def get_all_next_steps_for(self, conf, outputs=None, cli_args=None):
+        outputs = outputs if outputs is not None else self.main_outputs
         available = []
         running = []
         for output in outputs:
@@ -116,6 +118,17 @@ class Recipe(object):
 
         rule = self.files[rf]
         return rule.make(conf, cli_args)
+
+    def add_main_outputs(self, outputs):
+        self._main_out.update(outputs)
+    
+    def main(self):
+        from . import cli
+        cli.main(self)
+
+    @property
+    def main_outputs(self):
+        return sorted(self._main_out)
 
 
 class Rule(object):
@@ -174,6 +187,9 @@ class RecipeFile(object):
 
     def __hash__(self):
         return hash((self.section, self.key))
+
+    def __lt__(self, other):
+        return self.section + self.key < other.section + other.key
 
     def __repr__(self):
         return 'RecipeFile({}, {})'.format(self.section, self.key)
