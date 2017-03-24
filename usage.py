@@ -79,4 +79,5 @@ print(nextsteps)
 if len(nextsteps) == 0:
     print('all done')
 else:
-    print(recipe.make_output(conf, nextsteps[0][0].output))
+    for ns in nextsteps[0]:
+        print(recipe.make_output(conf, ns.output))
