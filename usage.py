@@ -11,6 +11,8 @@ para = [recipe.add_input('corpora', 'para.{}'.format(side))
 
 parapiped = [recipe.add_output('gen', 'para.{}.parapiped'.format(side))
              for side in ('src', 'tgt')]
+paradedup = [recipe.add_output('gen', 'para.{}.dedup'.format(side))
+             for side in ('src', 'tgt')]
 
 fbl = tp.FilterByLength(min_tokens=1,
                         max_tokens=80,
@@ -57,10 +59,12 @@ def preprocess(key, corpus):
     return dedup
 
 def paraprep(inputs, outputs):
-    pp = recipe.add_rule(
+    pp0, pp1, _ = recipe.add_rule(
         ParaPipe(inputs, outputs, recipe.add_output('gen', 'para.toolong'))
         )
-    return pp
+    dedup = recipe.add_rule(
+        tp.Deduplicate([pp0, pp1], paradedup))
+    return dedup
 
 
 foo_pre = preprocess('foo', foo)
