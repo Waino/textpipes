@@ -1,6 +1,8 @@
 import logging
 
 from .recipe import Rule
+from .pipe import ParallelPipe
+from .components.filtering import Filter, ParallelFilter
 
 logger = logging.getLogger(__name__)
 
@@ -12,43 +14,55 @@ except ImportError:
     logger.warning('To fix this, install a python3 compatible pybloom.')
 
 
-class Deduplicate(Rule):    # FIXME: rewrite as Rule
+class Deduplicate(Rule):
     def __init__(self,
-                 estimated_lines=500000000,
+                 inputs, outputs,
                  dup_proportion=.1,
                  truncate=30):
-        # capacity of big bloom filter
-        self.estimated_lines = estimated_lines
-        # capacity of small bloom filter
-        self.estimated_dups = estimated_lines * dup_proportion
+        super().__init__(inputs, outputs)
+        # capacity ratio of bloom filters
+        self.dup_proportion = dup_proportion
         # if this many initial chars match, consider it a dup
         self.truncate = truncate
 
-        self.potential = BloomFilter(capacity=self.estimated_dups,
-                                     error_rate=0.001)
-        super().__init__([self._collisions, self._dups])
+    def make(self, conf, cli_args):
+        estimated_lines = conf.conf['exp'].getint('n_lines', 500000000)
+        # first pass: collect collisions
+        pipes = [inp.open(conf, cli_args, mode='rb')
+                 for inp in self.inputs]
+        filters = [DedupFilter(pipe,
+                               estimated_lines=estimated_lines,
+                               dup_proportion=self.dup_proportion,
+                               truncate=self.truncate)
+                   for pipe in pipes]
+        # second pass: filter
+        pp = ParallelPipe(
+            [ParallelFilter(filters)],
+            self.inputs, self.outputs)
+        pp.make(conf, cli_args)
 
-    def _collisions(self, incoming_pipes, column_tags=None):
-        bloom_all = BloomFilter(capacity=self.estimated_lines,
+
+class DedupFilter(Filter):
+    def __init__(self, lines, estimated_lines, dup_proportion, truncate):
+        estimated_dups = estimated_lines * dup_proportion
+        self.truncate = truncate
+        self.potential = BloomFilter(capacity=estimated_dups,
+                                     error_rate=0.001)
+        self.seen = set()
+        self._find_collisions(lines, estimated_lines)
+        
+    def _find_collisions(self, lines, estimated_lines):
+        bloom_all = BloomFilter(capacity=estimated_lines,
                                 error_rate=0.005)
-        for tpl in unwrap_single(incoming_pipes, assert_single=True):
-            line, = tpl     # extract only column
+        for line in lines:
             if line in bloom_all:
                 self.potential.add(line)
             bloom_all.add(line)
 
-    def _dups(self, incoming_pipes, column_tags=None):
-        seen = set()
-        for (i, tpl) in enumerate(unwrap_single(incoming_pipes,
-                                                assert_single=True)):
-            line, = tpl     # extract only column
-            if line in self.potential:
-                line_trunc = line[:self.truncate]
-                if line_trunc in seen:
-                    self.filter_indices.add(i)
-                    continue
-                seen.add(line_trunc)
-
-    def make(self, conf, cli_args):
-        # 2-pass: collect indices, use them to filter
-        pass
+    def __call__(self, line):
+        if line in self.potential:
+            line_trunc = line[:self.truncate]
+            if line_trunc in seen:
+                return True
+            seen.add(line_trunc)
+        return False

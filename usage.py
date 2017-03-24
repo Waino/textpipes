@@ -49,8 +49,12 @@ def preprocess(key, corpus):
             recipe.add_output('gen', '{}.somepiped'.format(key)),
             recipe.add_output('gen', '{}.toolong'.format(key))
         ))
-        #tp.Deduplicate()
-    return sp
+    dedup, = recipe.add_rule(
+        tp.Deduplicate(
+            sp,
+            recipe.add_output('gen', '{}.dedup'.format(key))
+        ))
+    return dedup
 
 def paraprep(inputs, outputs):
     pp = recipe.add_rule(

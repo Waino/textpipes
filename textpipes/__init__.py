@@ -25,6 +25,7 @@ from .recipe import Recipe
 from .configuration import Config
 from .pipe import *     # FIXME
 from . import external, components
+from .dedup import Deduplicate
 
 # Most common components for easy access
 # more are available by importing from tp.components

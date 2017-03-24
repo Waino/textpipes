@@ -46,7 +46,7 @@ class ParallelFilter(ParallelPipeComponent):
 class Filter(object):
     """Base class for filter implementations"""
     def __call__(self, line):
-        """Returns true if the line should be filtered out"""
+        """Returns True if the line should be filtered out"""
         raise NotImplementedError()
 
 

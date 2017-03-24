@@ -69,7 +69,10 @@ class ParallelPipe(Pipe):
         readers = [inp.open(conf, cli_args, mode='rb')
                    for inp in self.main_inputs]
         # read one line from each and yield it as a tuple
-        stream = self._merge(readers)
+        stream = safe_zip(*readers)
+        # strip newlines
+        stream = (tuple(line.rstrip('\n') for line in tpl)
+                  for tpl in stream)
 
         for component in self.components:
             stream = component(stream)
@@ -79,20 +82,11 @@ class ParallelPipe(Pipe):
                    for out in self.main_outputs]
         for (i, tpl) in enumerate(stream):
             if len(tpl) != len(writers):
-                raise Exception('{} line {}: Invalid number of columns '
+                raise Exception('line {}: Invalid number of columns '
                     'received {}, expecting {}'.format(
-                        self.file_path, i,
-                        len(tpl), len(writers)))
+                        i, len(tpl), len(writers)))
             for (val, fobj) in zip(tpl, writers):
                 fobj.write(val)
                 fobj.write('\n')
         for fobj in writers:
             fobj.close()
-
-    def _merge(self, readers):
-        for tpl in safe_zip(*incoming_pipes):
-            result = []
-            for sub_tpl in tpl:
-                result.extend(sub_tpl)
-            tpl = tuple(result)
-            yield tpl
