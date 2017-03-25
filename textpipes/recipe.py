@@ -3,10 +3,11 @@ import os
 
 from .utils import *
 
-Done = collections.namedtuple('Done', [])
-Running = collections.namedtuple('Running', ['outputs'])
+Done = collections.namedtuple('Done', ['output'])
+Waiting = collections.namedtuple('Waiting', ['output'])
+Running = collections.namedtuple('Running', ['output'])
 Available = collections.namedtuple('Available', ['output', 'rule'])
-MissingInputs = collections.namedtuple('MissingInputs', ['inputs'])
+MissingInput = collections.namedtuple('MissingInputs', ['input'])
 
 class Recipe(object):
     """Main class for building experiment recipes"""
@@ -42,21 +43,36 @@ class Recipe(object):
         # FIXME: inconvenient to return all outputs. Only do main
         return rule.outputs
 
-    def get_next_step_for(self, conf, output, cli_args=None):
-        # -> Done
-        # or [Available(output, rule)], [Running(output)]
-        # or MissingInputs(inputs)
+    def _rf(self, output):
         if isinstance(output, RecipeFile):
             rf = output 
         else:
             rf = RecipeFile(*output.split(':'))
         if rf not in self.files:
             raise Exception('No rule to make target {}'.format(output))
-        if rf.exists(conf, cli_args):
-            return Done()
+        return rf
+
+    def get_next_steps_for(self, conf, outputs=None, cli_args=None):
+        # -> [Done(output)]
+        # or [Available(output, rule), ... Running(output)]
+        # or [MissingInput(input)]
+        outputs = outputs 
+        if outputs is None:
+            outputs = self.main_outputs
+        else:
+            if isinstance(outputs, str):
+                outputs = [outputs]
+            outputs = [self._rf(out) for out in outputs]
+
+        border = set()
+        done = []
+        for rf in outputs:
+            if rf.exists(conf, cli_args):
+                done.append(Done(rf))
+            else:
+                border.add(rf)
 
         # traverse the DAG
-        border = set((rf,))
         running = set()
         potential = set()
         seen_done = set()
@@ -66,7 +82,7 @@ class Recipe(object):
             if cursor.exists(conf, cli_args):
                 seen_done.add(cursor)
                 continue
-            # FIXME: check log for running jobs
+            # FIXME: check log for waiting/running jobs
             rule = self.files[cursor]
             if rule is None:
                 # an original input, but failed the exists check above
@@ -76,9 +92,9 @@ class Recipe(object):
             potential.add((cursor, rule))
 
         if len(missing) > 0:
-            return MissingInputs(tuple(missing))
-        if len(running) > 0:
-            running = [Running(output) for output in running]
+            # missing inputs block anything from running
+            return [MissingInput(inp) for inp in missing]
+        running = [Running(output) for output in running]
 
         available = []
         triggered_rules = set()
@@ -88,23 +104,7 @@ class Recipe(object):
             if all(inp in seen_done for inp in rule.inputs):
                 available.append(Available(cursor, rule))
                 triggered_rules.add(rule)
-        return available, running
-
-    def get_all_next_steps_for(self, conf, outputs=None, cli_args=None):
-        outputs = outputs if outputs is not None else self.main_outputs
-        available = []
-        running = []
-        for output in outputs:
-            ns = self.get_next_step_for(conf, output)
-            if isinstance(ns, Done):
-                continue
-            if isinstance(ns, MissingInputs):
-                return ns
-            available.extend(ns[0])
-            running.extend(ns[1])
-        if len(available) + len(running) == 0:
-            return Done()
-        return available, running   # FIXME: bad API
+        return done + available + running
 
     def make_output(self, conf, output, cli_args=None):
         if isinstance(output, RecipeFile):

@@ -16,6 +16,7 @@
 import argparse
 
 from .configuration import Config
+from .recipe import *
 
 def get_parser(recipe):
     parser = argparse.ArgumentParser(
@@ -41,10 +42,30 @@ def main(recipe):
     conf = Config(args.conf)
 
     # debug
-    nextsteps = recipe.get_all_next_steps_for(conf)
-    print(nextsteps)
+    nextsteps = recipe.get_next_steps_for(conf)
+    show_next_steps(nextsteps, conf, None)
 
     #f len(nextsteps) == 0:
     #    print('all done')
     #else:
     #    for ns in nextsteps[0]:
+
+
+def show_next_steps(nextsteps, conf, cli_args=None, dryrun=False):
+    for step in nextsteps:
+        if isinstance(step, Done):
+            print('Done: {}'.format(step.output(conf, cli_args)))
+    print('-' * 80)
+    # FIXME: show job ids? monitoring for running?
+    for step in nextsteps:
+        if isinstance(step, Waiting):
+            print('Waiting: {}'.format(step.output(conf, cli_args)))
+    for step in nextsteps:
+        if isinstance(step, Running):
+            print('Running: {}'.format(step.output(conf, cli_args)))
+    print('-' * 80)
+    # FIXME: actually schedule and show job id?
+    lbl = 'Available' if dryrun else 'Scheduled'
+    for step in nextsteps:
+        if isinstance(step, Available):
+            print('{}: {}'.format(lbl, step.output(conf, cli_args)))
