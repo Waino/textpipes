@@ -1,7 +1,11 @@
 import argparse
+from datetime import datetime
+import os
+import re
 
 from .configuration import Config
 from .recipe import *
+from .utils import *
 
 def get_parser(recipe):
     parser = argparse.ArgumentParser(
@@ -41,12 +45,13 @@ def show_next_steps(nextsteps, conf, cli_args=None, dryrun=False):
         if isinstance(step, Done):
             print('Done: {}'.format(step.output(conf, cli_args)))
     print('-' * 80)
-    # FIXME: show job ids? monitoring for running?
+    # FIXME: show job ids?
     for step in nextsteps:
         if isinstance(step, Waiting):
             print('Waiting: {}'.format(step.output(conf, cli_args)))
     for step in nextsteps:
         if isinstance(step, Running):
+            # FIXME: monitoring? seckey -> Rule
             print('Running: {}'.format(step.output(conf, cli_args)))
     print('-' * 80)
     # FIXME: actually schedule and show job id?
@@ -63,6 +68,7 @@ def show_next_steps(nextsteps, conf, cli_args=None, dryrun=False):
 #   - which file(s) are being made
 # - when it starts running
 #   - git commit:  git --git-dir=/path/to/.git rev-parse HEAD  (or: git describe --always)
+#   - git branch?
 # - when it finishes running
 #   - ended successfully
 # - when you check status
@@ -75,4 +81,71 @@ def show_next_steps(nextsteps, conf, cli_args=None, dryrun=False):
 
 TIMESTAMP = '%d.%m.%Y %H:%M:%S'
 GIT_FMT = '{time} {recipe} {exp} : git commit {git}'
-LOG_FMT = '{time} {recipe} {exp} : {status} {job} {seckey} {step} {files}'
+LOG_FMT = '{time} {recipe} {exp} : {status} {job} {seckey} {step}'
+FILE_FMT = '{time} {recipe} {exp} : output {job} {seckey} {filename}'
+END_FMT = '{time} {recipe} {exp} : experiment ended'
+
+LOG_RE = re.compile(r'([0-9\.]+ [0-9:]+) ([^ ]+) ([^ ]+) : ([^ ]+) ([^ ]+) ([^ ]+) (.*)')
+
+class ExperimentLog(object):
+    def __init__(self, recipe, conf, platform):
+        self.recipe = recipe
+        self.conf = conf
+        self.platform = platform
+        self.logfile = os.path.join('logs', 'experiment.{}.log'.format(self.recipe.name))
+
+    def get_running_jobs(self):
+        """Returns Waiting and Running output files"""
+#   - parse log to find jobs that should be waiting/running
+#       - check their status (platform dependent), log the failed ones
+        pass
+
+    def scheduled(self, available, sec_key, job_id):
+        timestamp = datetime.now().strftime(TIMESTAMP)
+#   - job id (platform dependent, e.g. slurm or pid)
+        self._append(LOG_FMT.format(
+            time=timestamp,
+            recipe=self.recipe.name,
+            exp=self.conf,
+            status='scheduled',
+            job=job_id,
+            seckey=sec_key,
+            step=available.rule.name,
+            ))
+#   - which file(s) are being made
+        for output in available.outputs:
+            self._append(FILE_FMT.format(
+                time=timestamp,
+                recipe=self.recipe.name,
+                exp=self.conf,
+                job=job_id,
+                seckey=output.sec_key(),
+                filename=FIXME
+                ))
+
+    def started_running(self, available, job_id):
+#   - git commit:  git --git-dir=/path/to/.git rev-parse HEAD  (or: git describe --always)
+        pass
+
+    def finished_running(self, available, job_id):
+        pass
+
+    def failed(self, available, job_id):
+        pass
+
+    def status(self):
+        pass
+
+    def _append(self, msg):
+        with open_text_file(self.logfile, mode='ab') as fobj:
+            fobj.write(msg)
+            fobj.write('\n')
+
+    def _parse_log(self):
+        lines = open_text_file(self.logfile, mode='rb')
+        for line in lines:
+            line = line.strip()
+            # ignore git lines
+            m = LOG_RE.match(line)
+            if m:
+                print(m.groups())
