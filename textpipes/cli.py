@@ -1,18 +1,3 @@
-# keep a log of jobs
-# - always: experiment id, timestamp
-# - when something is launched
-#   - job id (platform dependent, e.g. slurm or pid)
-#   - which file(s) are being made
-# - when it starts running
-#   - git commit:  git --git-dir=/path/to/.git rev-parse HEAD  (or: git describe --always)
-# - when it finishes running
-#   - ended successfully
-# - when you check status
-#   - parse log to find jobs that should be waiting/running
-#       - check their status (platform dependent), log the failed ones
-#   - display some monitoring (app and step dependent, e.g. last saved model, dev loss, number of output lines, eval, ...)
-# - manually: mark an experiment as ended (won't show up in status list anymore)
-
 import argparse
 
 from .configuration import Config
@@ -68,4 +53,26 @@ def show_next_steps(nextsteps, conf, cli_args=None, dryrun=False):
     lbl = 'Available' if dryrun else 'Scheduled'
     for step in nextsteps:
         if isinstance(step, Available):
-            print('{}: {}'.format(lbl, step.output(conf, cli_args)))
+            print('{}: {}\t{}\t{}'.format(
+                lbl, step.output.sec_key(), step.rule.name, step.output(conf, cli_args)))
+
+# keep a log of jobs
+# - always: recipe, experiment id, timestamp
+# - when something is launched
+#   - job id (platform dependent, e.g. slurm or pid)
+#   - which file(s) are being made
+# - when it starts running
+#   - git commit:  git --git-dir=/path/to/.git rev-parse HEAD  (or: git describe --always)
+# - when it finishes running
+#   - ended successfully
+# - when you check status
+#   - parse log to find jobs that should be waiting/running
+#       - check their status (platform dependent), log the failed ones
+#   - display some monitoring
+#       - app and step dependent, e.g. last saved model, dev loss, number of output lines, eval, ...
+#       - how long has it been running
+# - manually: mark an experiment as ended (won't show up in status list anymore)
+
+TIMESTAMP = '%d.%m.%Y %H:%M:%S'
+GIT_FMT = '{time} {recipe} {exp} : git commit {git}'
+LOG_FMT = '{time} {recipe} {exp} : {status} {job} {seckey} {step} {files}'

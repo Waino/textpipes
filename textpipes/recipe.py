@@ -83,6 +83,7 @@ class Recipe(object):
                 seen_done.add(cursor)
                 continue
             # FIXME: check log for waiting/running jobs
+            # FIXME: need to identify on (rule, conf, cli_args) level: use concrete filenames?
             rule = self.files[cursor]
             if rule is None:
                 # an original input, but failed the exists check above
@@ -152,9 +153,13 @@ class Rule(object):
     def make(self, conf, cli_args=None):
         raise NotImplementedError()
 
+    @property
+    def name(self):
+        return self.__class__.__name__
+
     def __repr__(self):
         return '{}(inputs={}, outputs={})'.format(
-            self.__class__.__name__,
+            self.name,
             self.inputs,
             self.outputs)
 
@@ -181,6 +186,9 @@ class RecipeFile(object):
         if strip_newlines and not 'w' in mode:
             lines = (line.rstrip('\n') for line in lines)
         return lines
+
+    def sec_key(self):
+        return '{}:{}'.format(self.section, self.key)
 
     def __eq__(self, other):
         return (self.section, self.key) == (other.section, other.key)
