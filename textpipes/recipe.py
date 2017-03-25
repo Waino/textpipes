@@ -6,7 +6,7 @@ from .utils import *
 Done = collections.namedtuple('Done', ['output'])
 Waiting = collections.namedtuple('Waiting', ['output'])
 Running = collections.namedtuple('Running', ['output'])
-Available = collections.namedtuple('Available', ['output', 'rule'])
+Available = collections.namedtuple('Available', ['outputs', 'rule'])
 MissingInput = collections.namedtuple('MissingInputs', ['input'])
 
 class Recipe(object):
@@ -54,7 +54,7 @@ class Recipe(object):
 
     def get_next_steps_for(self, conf, outputs=None, cli_args=None):
         # -> [Done(output)]
-        # or [Available(output, rule), ... Running(output)]
+        # or [Available(outputs, rule), ... Running(output)]
         # or [MissingInput(input)]
         outputs = outputs 
         if outputs is None:
@@ -98,13 +98,10 @@ class Recipe(object):
         running = [Running(output) for output in running]
 
         available = []
-        triggered_rules = set()
-        for cursor, rule in potential:
-            if rule in triggered_rules:
-                continue
-            if all(inp in seen_done for inp in rule.inputs):
-                available.append(Available(cursor, rule))
-                triggered_rules.add(rule)
+        for (rule, pairs) in itertools.groupby(potential, lambda x: x[1]):
+            available.append(
+                Available(tuple(output for (output, rule) in pairs), rule))
+
         return done + available + running
 
     def make_output(self, conf, output, cli_args=None):

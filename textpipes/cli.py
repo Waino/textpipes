@@ -19,6 +19,8 @@ def get_parser(recipe):
                         help='Status of ongoing experiments')
     parser.add_argument('--check', default=False, action='store_true',
                         help='Perform validity check')
+    parser.add_argument('--dryrun', default=False, action='store_true',
+                        help='Show what would be done, but dont do it')
     parser.add_argument('--make', default=None, type=str, metavar='OUTPUT',
                         help='Output to make, in section:key format. '
                         'You should NOT call this directly')
@@ -29,10 +31,16 @@ def main(recipe):
     parser = get_parser(recipe)
     args = parser.parse_args()
     conf = Config(args.conf)
+    platform = None # FIXME
+    cli_args = None # FIXME
+    log = ExperimentLog(recipe, args.conf, platform)
 
     # debug
     nextsteps = recipe.get_next_steps_for(conf)
-    show_next_steps(nextsteps, conf, None)
+    if not args.dryrun:
+        schedule(nextsteps, conf, cli_args, platform, log)
+    show_next_steps(nextsteps, conf, cli_args,
+                    dryrun=args.dryrun)
 
     #f len(nextsteps) == 0:
     #    print('all done')
@@ -40,26 +48,42 @@ def main(recipe):
     #    for ns in nextsteps[0]:
 
 
-def show_next_steps(nextsteps, conf, cli_args=None, dryrun=False):
+def schedule(nextsteps, conf, cli_args, platform, log):
+    job_ids = {}
+    for step in nextsteps:
+        if isinstance(step, Available):
+            sec_key = step.outputs[0].sec_key()
+            output_files = [(output.sec_key(), output(conf, cli_args))
+                            for output in step.outputs]
+            # FIXME: platform.foobar
+            job_id = 'dummy_id'
+            job_ids[step] = job_id
+            log.scheduled(step.rule.name, sec_key, job_id, output_files)
+    return job_ids
+
+def show_next_steps(nextsteps, conf, cli_args=None, dryrun=False, job_ids=None):
+    job_ids = job_ids if job_ids is not None else {}
     for step in nextsteps:
         if isinstance(step, Done):
             print('Done: {}'.format(step.output(conf, cli_args)))
     print('-' * 80)
-    # FIXME: show job ids?
     for step in nextsteps:
         if isinstance(step, Waiting):
-            print('Waiting: {}'.format(step.output(conf, cli_args)))
+            job_id = job_ids.get(step, '-')
+            print('Waiting: {} {}'.format(job_id, step.output(conf, cli_args)))
     for step in nextsteps:
         if isinstance(step, Running):
             # FIXME: monitoring? seckey -> Rule
-            print('Running: {}'.format(step.output(conf, cli_args)))
+            job_id = job_ids.get(step, '-')
+            print('Running: {} {}'.format(job_id, step.output(conf, cli_args)))
     print('-' * 80)
-    # FIXME: actually schedule and show job id?
     lbl = 'Available' if dryrun else 'Scheduled'
     for step in nextsteps:
         if isinstance(step, Available):
-            print('{}: {}\t{}\t{}'.format(
-                lbl, step.output.sec_key(), step.rule.name, step.output(conf, cli_args)))
+            job_id = job_ids.get(step, '-')
+            print('{}: {} {}\t{}\t{}'.format(
+                lbl, job_id, step.outputs[0].sec_key(), step.rule.name,
+                step.outputs[0](conf, cli_args)))
 
 # keep a log of jobs
 # - always: recipe, experiment id, timestamp
@@ -81,7 +105,7 @@ def show_next_steps(nextsteps, conf, cli_args=None, dryrun=False):
 
 TIMESTAMP = '%d.%m.%Y %H:%M:%S'
 GIT_FMT = '{time} {recipe} {exp} : git commit {git}'
-LOG_FMT = '{time} {recipe} {exp} : {status} {job} {seckey} {step}'
+LOG_FMT = '{time} {recipe} {exp} : {status} {job} {seckey} {rule}'
 FILE_FMT = '{time} {recipe} {exp} : output {job} {seckey} {filename}'
 END_FMT = '{time} {recipe} {exp} : experiment ended'
 
@@ -100,9 +124,11 @@ class ExperimentLog(object):
 #       - check their status (platform dependent), log the failed ones
         pass
 
-    def scheduled(self, available, sec_key, job_id):
+    def scheduled(self, rule, sec_key, job_id, output_files):
+        # main sec_key is the one used as --make argument
+        # output_files are (sec_key, concrete) tuples
+        # job id (platform dependent, e.g. slurm or pid)
         timestamp = datetime.now().strftime(TIMESTAMP)
-#   - job id (platform dependent, e.g. slurm or pid)
         self._append(LOG_FMT.format(
             time=timestamp,
             recipe=self.recipe.name,
@@ -110,17 +136,16 @@ class ExperimentLog(object):
             status='scheduled',
             job=job_id,
             seckey=sec_key,
-            step=available.rule.name,
+            rule=rule,
             ))
-#   - which file(s) are being made
-        for output in available.outputs:
+        for (sub_sec_key, output) in output_files:
             self._append(FILE_FMT.format(
                 time=timestamp,
                 recipe=self.recipe.name,
                 exp=self.conf,
                 job=job_id,
-                seckey=output.sec_key(),
-                filename=FIXME
+                seckey=sub_sec_key,
+                filename=output,
                 ))
 
     def started_running(self, available, job_id):

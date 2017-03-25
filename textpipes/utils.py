@@ -26,7 +26,7 @@ def open_text_file(file_path, mode='rb', encoding='utf-8'):
         file_obj = bz2.BZ2File(file_path, mode)
     else:
         file_obj = open(file_path, mode)
-    if 'w' in mode:
+    if 'w' in mode or 'a' in mode:
         return codecs.getwriter(encoding)(file_obj)
     else:
         return codecs.getreader(encoding)(file_obj)
