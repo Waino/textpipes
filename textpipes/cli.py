@@ -148,7 +148,6 @@ class ExperimentLog(object):
                 seckey=sub_sec_key,
                 filename=output,
                 ))
-        self.started_running(None, job_id)    # FIXME
 
     def started_running(self, available, job_id):
 #   - git commit:  git --git-dir=/path/to/.git rev-parse HEAD  (or: git describe --always, git symbolic-ref --short HEAD)
