@@ -3,6 +3,21 @@ import shlex
 import subprocess
 import threading
 
+class Platform(object):
+    def __init__(self, name, conf):
+        self.name = name
+        self.conf = conf
+
+class LogOnly(Platform):
+    """dummy platform for testing"""
+    pass
+
+classes = {
+    'logonly': LogOnly,
+    #'local': ,
+    #'slurm': ,
+}
+
 class Command(object):
     def __init__(self, cmd):
         self.cmd = cmd

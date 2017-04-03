@@ -32,7 +32,7 @@ def main(recipe):
     parser = get_parser(recipe)
     args = parser.parse_args()
     conf = Config(args.conf)
-    platform = None # FIXME (actual Platform object, not just name)
+    platform = conf.platform
     cli_args = None # FIXME
     log = ExperimentLog(recipe, args.conf, platform)
 
@@ -105,7 +105,7 @@ def show_next_steps(nextsteps, conf, cli_args=None, dryrun=False, job_ids=None):
 # - manually: mark an experiment as ended (won't show up in status list anymore)
 
 TIMESTAMP = '%d.%m.%Y %H:%M:%S'
-GIT_FMT = '{time} {recipe} {exp} : git commit {git}'
+GIT_FMT = '{time} {recipe} {exp} : git commit {commit} branch {branch}'
 LOG_FMT = '{time} {recipe} {exp} : {status} {job} {seckey} {rule}'
 FILE_FMT = '{time} {recipe} {exp} : output {job} {seckey} {filename}'
 END_FMT = '{time} {recipe} {exp} : experiment ended'
@@ -148,11 +148,21 @@ class ExperimentLog(object):
                 seckey=sub_sec_key,
                 filename=output,
                 ))
+        self.started_running(None, job_id)    # FIXME
 
     def started_running(self, available, job_id):
 #   - git commit:  git --git-dir=/path/to/.git rev-parse HEAD  (or: git describe --always, git symbolic-ref --short HEAD)
-        print(run('git --git-dir=/home/gronsti/code/python/textpipes/textpipes/.git/ rev-parse HEAD').std_out)
-        pass
+        gitdir = self.platform.conf['git']['gitdir']
+        commit = run('git --git-dir={} rev-parse HEAD'.format(gitdir)).std_out.strip()
+        branch = run('git --git-dir={} symbolic-ref --short HEAD'.format(gitdir)).std_out.strip()
+        timestamp = datetime.now().strftime(TIMESTAMP)
+        self._append(GIT_FMT.format(
+            time=timestamp,
+            recipe=self.recipe.name,
+            exp=self.conf,
+            commit=commit,
+            branch=branch,
+            ))
 
     def finished_running(self, available, job_id):
         pass

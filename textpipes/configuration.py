@@ -1,9 +1,12 @@
 import configparser
 
+from . import platform
+
 class Config(object):
     def __init__(self, main_conf_file):
-        self.platform = None
-        self.conf = self.platform_config()
+        self.platform = self.platform_config()
+        self.conf = configparser.ConfigParser(
+            interpolation=configparser.ExtendedInterpolation())
         self.conf.read_file(open(main_conf_file, 'r'))
         if 'subconf' in self.conf:
             for (key, subconf) in self.conf['subconf'].items():
@@ -15,7 +18,7 @@ class Config(object):
     def platform_config(self):
         try:
             with open('current_platform', 'r') as fobj:
-                self.platform = fobj.readline().strip()
+                platform_name = fobj.readline().strip()
         except FileNotFoundError:
             raise Exception(
                 'Expecting to find a file named "current_platform" '
@@ -24,8 +27,12 @@ class Config(object):
                 'valid platform config.')
         conf = configparser.ConfigParser(
             interpolation=configparser.ExtendedInterpolation())
-        conf.read_file(open('platform_{}.ini'.format(self.platform), 'r'))
-        return conf
+        conf.read_file(open('platform_{}.ini'.format(platform_name), 'r'))
+
+        platform_class = conf['platform']['platform']
+        platf = platform.classes[platform_class](
+            platform_name, conf)
+        return platf
         
 
 # use interpolation in configparser
