@@ -4,6 +4,7 @@ import os
 import re
 
 from .configuration import Config
+from .platform import run
 from .recipe import *
 from .utils import *
 
@@ -31,7 +32,7 @@ def main(recipe):
     parser = get_parser(recipe)
     args = parser.parse_args()
     conf = Config(args.conf)
-    platform = None # FIXME
+    platform = None # FIXME (actual Platform object, not just name)
     cli_args = None # FIXME
     log = ExperimentLog(recipe, args.conf, platform)
 
@@ -149,7 +150,8 @@ class ExperimentLog(object):
                 ))
 
     def started_running(self, available, job_id):
-#   - git commit:  git --git-dir=/path/to/.git rev-parse HEAD  (or: git describe --always)
+#   - git commit:  git --git-dir=/path/to/.git rev-parse HEAD  (or: git describe --always, git symbolic-ref --short HEAD)
+        print(run('git --git-dir=/home/gronsti/code/python/textpipes/textpipes/.git/ rev-parse HEAD').std_out)
         pass
 
     def finished_running(self, available, job_id):
