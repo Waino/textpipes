@@ -1,5 +1,6 @@
 import argparse
 from datetime import datetime
+import collections
 import os
 import re
 
@@ -73,7 +74,7 @@ def show_next_steps(nextsteps, conf, cli_args=None, dryrun=False, job_ids=None):
             print('Waiting: {} {}'.format(job_id, step.output(conf, cli_args)))
     for step in nextsteps:
         if isinstance(step, Running):
-            # FIXME: monitoring? seckey -> Rule
+            # FIXME: monitoring? sec_key -> Rule
             job_id = job_ids.get(step, '-')
             print('Running: {} {}'.format(job_id, step.output(conf, cli_args)))
     print('-' * 80)
@@ -103,13 +104,17 @@ def show_next_steps(nextsteps, conf, cli_args=None, dryrun=False, job_ids=None):
 #       - how long has it been running
 # - manually: mark an experiment as ended (won't show up in status list anymore)
 
+LogItem = collections.namedtuple('LogItem',
+    ['last_time', 'recipe', 'exp', 'status', 'job_id', 'sec_key', 'rule'])
+
 TIMESTAMP = '%d.%m.%Y %H:%M:%S'
 GIT_FMT = '{time} {recipe} {exp} : git commit {commit} branch {branch}'
-LOG_FMT = '{time} {recipe} {exp} : {status} {job} {seckey} {rule}'
-FILE_FMT = '{time} {recipe} {exp} : output {job} {seckey} {filename}'
+LOG_FMT = '{time} {recipe} {exp} : status {status} {job} {sec_key} {rule}'
+FILE_FMT = '{time} {recipe} {exp} : output {job} {sec_key} {filename}'
 END_FMT = '{time} {recipe} {exp} : experiment ended'
 
-LOG_RE = re.compile(r'([0-9\.]+ [0-9:]+) ([^ ]+) ([^ ]+) : ([^ ]+) ([^ ]+) ([^ ]+) (.*)')
+LOG_RE = re.compile(r'([0-9\.]+ [0-9:]+) ([^ ]+) ([^ ]+) : status ([^ ]+) ([^ ]+) ([^ ]+) (.*)')
+FILE_RE = re.compile(r'([0-9\.]+ [0-9:]+) ([^ ]+) ([^ ]+) : output ([^ ]+) ([^ ]+) (.*)')
 
 STATUSES = ('scheduled', 'running', 'finished', 'failed')
 
@@ -119,17 +124,13 @@ class ExperimentLog(object):
         self.conf = conf
         self.platform = platform
         self.logfile = os.path.join('logs', 'experiment.{}.log'.format(self.recipe.name))
+        self.jobs = {}
+        self.job_statuses = {}
 
     def get_running_jobs(self):
         """Returns Waiting and Running output files"""
         # parse log to find jobs that should be waiting/running
-        job_statuses = {}
-        for tpl in self._parse_log():
-            status = tpl[4]
-            job_id = tpl[5]
-            if status not in STATUSES:
-                print('unknown status {} in {}'.format(status, tpl)
-            job_statuses[job_id] = status
+        self._parse_log()
         waiting = [job_id for (job_id, status) in job_statuses.items()
                    if status == 'scheduled']
         runnning = [job_id for (job_id, status) in job_statuses.items()
@@ -164,7 +165,7 @@ class ExperimentLog(object):
             exp=self.conf,
             status='scheduled',
             job=job_id,
-            seckey=sec_key,
+            sec_key=sec_key,
             rule=rule,
             ))
         for (sub_sec_key, output) in output_files:
@@ -173,7 +174,7 @@ class ExperimentLog(object):
                 recipe=self.recipe.name,
                 exp=self.conf,
                 job=job_id,
-                seckey=sub_sec_key,
+                sec_key=sub_sec_key,
                 filename=output,
                 ))
 
@@ -210,7 +211,14 @@ class ExperimentLog(object):
             # ignore git lines
             m = LOG_RE.match(line)
             if m:
-                print(m.groups())
-                yield m.groups()
-            # FIXME: need to cache fields, keyed by job_id
+                status = m.group(4)
+                job_id = m.group(5)
+                if status not in STATUSES:
+                    print('unknown status {} in {}'.format(status, tpl)
+                job_statuses[job_id] = status
+                jobs[job_id] = LogItem(m.groups())
+                continue
+            m = FILE_RE.match(line)
+            if m:
+
             # FIXME: need to cache the output files FILE_FMT

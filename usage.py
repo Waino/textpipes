@@ -66,6 +66,10 @@ def paraprep(inputs, outputs):
         tp.Deduplicate([pp0, pp1], paradedup))
     return dedup
 
+# FIXME: loop job that produces numbered outputs
+# - ability to continue from last save
+# - human friendly output: combine into one line
+
 
 foo_pre = preprocess('foo', foo)
 bar_pre = preprocess('bar', bar)
