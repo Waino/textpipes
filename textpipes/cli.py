@@ -56,8 +56,7 @@ def schedule(nextsteps, conf, cli_args, platform, log):
             sec_key = step.outputs[0].sec_key()
             output_files = [(output.sec_key(), output(conf, cli_args))
                             for output in step.outputs]
-            # FIXME: platform.foobar
-            job_id = 'dummy_id'
+            job_id = platform.schedule(step.rule, sec_key, output_files)
             job_ids[step] = job_id
             log.scheduled(step.rule.name, sec_key, job_id, output_files)
     return job_ids
@@ -122,7 +121,42 @@ class ExperimentLog(object):
     def get_running_jobs(self):
         """Returns Waiting and Running output files"""
 #   - parse log to find jobs that should be waiting/running
+        waiting = set()
+        running = set()
+        finished = set()
+        failed = set()
+        for tpl in self._parse_log():
+            status = tpl[4]
+            job_id = tpl[5]
+            if status == 'scheduled':
+                waiting.add(job_id)
+            elif status == 'running':
+                try:
+                    waiting.remove(job_id)
+                except KeyError:
+                    pass
+                running.add(job_id)
+            elif status == 'finished':
+                try:
+                    running.remove(job_id)
+                    waiting.remove(job_id)
+                except KeyError:
+                    pass
+                finished.add(job_id)
+            elif status == 'failed':
+                try:
+                    running.remove(job_id)
+                    waiting.remove(job_id)
+                except KeyError:
+                    pass
+                failed.add(job_id)
+            else:
+                print('unknown status {} in {}'.format(status, tpl)
+
 #       - check their status (platform dependent), log the failed ones
+        pass
+
+    def get_status(self):
         pass
 
     def scheduled(self, rule, sec_key, job_id, output_files):
@@ -169,9 +203,6 @@ class ExperimentLog(object):
     def failed(self, available, job_id):
         pass
 
-    def status(self):
-        pass
-
     def _append(self, msg):
         with open_text_file(self.logfile, mode='ab') as fobj:
             fobj.write(msg)
@@ -185,3 +216,4 @@ class ExperimentLog(object):
             m = LOG_RE.match(line)
             if m:
                 print(m.groups())
+                yield m.groups()
