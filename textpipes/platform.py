@@ -8,9 +8,14 @@ class Platform(object):
         self.name = name
         self.conf = conf
 
+    def schedule(self, rule, sec_key, output_files):
+        # -> job id
+        raise NotImplementedError()
+
 class LogOnly(Platform):
     """dummy platform for testing"""
-    pass
+    def schedule(self, rule, sec_key, output_files):
+        return 'dummy_id'
 
 classes = {
     'logonly': LogOnly,

@@ -52,7 +52,7 @@ class Recipe(object):
             raise Exception('No rule to make target {}'.format(output))
         return rf
 
-    def get_next_steps_for(self, conf, outputs=None, cli_args=None):
+    def get_next_steps_for(self, conf, log, outputs=None, cli_args=None):
         # -> [Done(output)]
         # or [Available(outputs, rule), ... Running(output)]
         # or [MissingInput(input)]
@@ -71,6 +71,8 @@ class Recipe(object):
                 done.append(Done(rf))
             else:
                 border.add(rf)
+
+        # FIXME: get waiting/running from jobs here
 
         # traverse the DAG
         running = set()

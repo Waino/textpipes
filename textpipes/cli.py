@@ -37,7 +37,7 @@ def main(recipe):
     log = ExperimentLog(recipe, args.conf, platform)
 
     # debug
-    nextsteps = recipe.get_next_steps_for(conf)
+    nextsteps = recipe.get_next_steps_for(conf, log)
     if not args.dryrun:
         schedule(nextsteps, conf, cli_args, platform, log)
     show_next_steps(nextsteps, conf, cli_args,
@@ -111,6 +111,8 @@ END_FMT = '{time} {recipe} {exp} : experiment ended'
 
 LOG_RE = re.compile(r'([0-9\.]+ [0-9:]+) ([^ ]+) ([^ ]+) : ([^ ]+) ([^ ]+) ([^ ]+) (.*)')
 
+STATUSES = ('scheduled', 'running', 'finished', 'failed')
+
 class ExperimentLog(object):
     def __init__(self, recipe, conf, platform):
         self.recipe = recipe
@@ -120,41 +122,33 @@ class ExperimentLog(object):
 
     def get_running_jobs(self):
         """Returns Waiting and Running output files"""
-#   - parse log to find jobs that should be waiting/running
-        waiting = set()
-        running = set()
-        finished = set()
-        failed = set()
+        # parse log to find jobs that should be waiting/running
+        job_statuses = {}
         for tpl in self._parse_log():
             status = tpl[4]
             job_id = tpl[5]
-            if status == 'scheduled':
-                waiting.add(job_id)
-            elif status == 'running':
-                try:
-                    waiting.remove(job_id)
-                except KeyError:
-                    pass
-                running.add(job_id)
-            elif status == 'finished':
-                try:
-                    running.remove(job_id)
-                    waiting.remove(job_id)
-                except KeyError:
-                    pass
-                finished.add(job_id)
-            elif status == 'failed':
-                try:
-                    running.remove(job_id)
-                    waiting.remove(job_id)
-                except KeyError:
-                    pass
-                failed.add(job_id)
-            else:
+            if status not in STATUSES:
                 print('unknown status {} in {}'.format(status, tpl)
-
-#       - check their status (platform dependent), log the failed ones
-        pass
+            job_statuses[job_id] = status
+        waiting = [job_id for (job_id, status) in job_statuses.items()
+                   if status == 'scheduled']
+        runnning = [job_id for (job_id, status) in job_statuses.items()
+                   if status == 'running']
+        # check their status (platform dependent), log the failed ones
+        redo = False
+        for job_id in waiting + running:
+            status = self.platform.check_job(job_id)
+            if status == 'failed':
+                self.failed(job_id)
+                job_statuses[job_id] = 'failed'
+                redo = True
+        if redo:
+            waiting = [job_id for (job_id, status) in job_statuses.items()
+                    if status == 'scheduled']
+            runnning = [job_id for (job_id, status) in job_statuses.items()
+                    if status == 'running']
+        # FIXME: these are just job ids
+        return waiting, running
 
     def get_status(self):
         pass
@@ -200,7 +194,8 @@ class ExperimentLog(object):
     def finished_running(self, available, job_id):
         pass
 
-    def failed(self, available, job_id):
+    def failed(self, job_id):
+        # FIXME: need to cache fields, keyed by job_id
         pass
 
     def _append(self, msg):
@@ -217,3 +212,5 @@ class ExperimentLog(object):
             if m:
                 print(m.groups())
                 yield m.groups()
+            # FIXME: need to cache fields, keyed by job_id
+            # FIXME: need to cache the output files FILE_FMT
