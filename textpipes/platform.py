@@ -12,10 +12,16 @@ class Platform(object):
         # -> job id
         raise NotImplementedError()
 
+    def check_job(self, job_id):
+        raise NotImplementedError()
+
 class LogOnly(Platform):
     """dummy platform for testing"""
     def schedule(self, rule, sec_key, output_files):
         return 'dummy_id'
+
+    def check_job(self, job_id):
+        return 'running'    # FIXME
 
 classes = {
     'logonly': LogOnly,

@@ -72,9 +72,8 @@ class Recipe(object):
             else:
                 border.add(rf)
 
-        # FIXME: get waiting/running from jobs here
-
         # traverse the DAG
+        waiting = set()
         running = set()
         potential = set()
         seen_done = set()
@@ -84,8 +83,14 @@ class Recipe(object):
             if cursor.exists(conf, cli_args):
                 seen_done.add(cursor)
                 continue
-            # FIXME: check log for waiting/running jobs
-            # FIXME: need to identify on (rule, conf, cli_args) level: use concrete filenames?
+            # check log for waiting/running jobs
+            status, job_fields = log.get_status_of_output(cursor(conf, cli_args))
+            if status == 'scheduled':
+                waiting.add(cursor)
+                continue
+            elif status == 'running':
+                running.add(cursor)
+                continue
             rule = self.files[cursor]
             if rule is None:
                 # an original input, but failed the exists check above
@@ -97,6 +102,7 @@ class Recipe(object):
         if len(missing) > 0:
             # missing inputs block anything from running
             return [MissingInput(inp) for inp in missing]
+        waiting = [Waiting(output) for output in waiting]
         running = [Running(output) for output in running]
 
         available = []
@@ -104,7 +110,7 @@ class Recipe(object):
             available.append(
                 Available(tuple(output for (output, rule) in pairs), rule))
 
-        return done + available + running
+        return done + available + waiting + running
 
     def make_output(self, conf, output, cli_args=None):
         if isinstance(output, RecipeFile):

@@ -124,34 +124,27 @@ class ExperimentLog(object):
         self.conf = conf
         self.platform = platform
         self.logfile = os.path.join('logs', 'experiment.{}.log'.format(self.recipe.name))
+        self._log_parsed = False
         self.jobs = {}
         self.job_statuses = {}
+        self.outputs = {}
 
-    def get_running_jobs(self):
-        """Returns Waiting and Running output files"""
-        # parse log to find jobs that should be waiting/running
+    def get_jobs_with_status(self, status='running'):
+        """Returns e.g. Waiting and Running output files"""
+        return [job_id for (job_id, job_status) in self.job_statuses.items()
+                if job_status == status]
+
+    def get_status_of_output(self, outfile):
         self._parse_log()
-        waiting = [job_id for (job_id, status) in job_statuses.items()
-                   if status == 'scheduled']
-        runnning = [job_id for (job_id, status) in job_statuses.items()
-                   if status == 'running']
-        # check their status (platform dependent), log the failed ones
-        redo = False
-        for job_id in waiting + running:
-            status = self.platform.check_job(job_id)
-            if status == 'failed':
-                self.failed(job_id)
-                job_statuses[job_id] = 'failed'
-                redo = True
-        if redo:
-            waiting = [job_id for (job_id, status) in job_statuses.items()
-                    if status == 'scheduled']
-            runnning = [job_id for (job_id, status) in job_statuses.items()
-                    if status == 'running']
-        # FIXME: these are just job ids
-        return waiting, running
+        job_id = self.outputs.get(outfile, None)
+        if job_id is None:
+            return 'not scheduled', None
+        status = self.job_statuses.get(job_id, None)
+        fields = self.jobs.get(job_id, None)
+        return status, fields
 
-    def get_status(self):
+    def get_summary(self):
+        """Status summary from parsing log"""
         pass
 
     def scheduled(self, rule, sec_key, job_id, output_files):
@@ -205,20 +198,33 @@ class ExperimentLog(object):
             fobj.write('\n')
 
     def _parse_log(self):
+        if self._log_parsed:
+            return
+        self._log_parsed = True
         lines = open_text_file(self.logfile, mode='rb')
         for line in lines:
             line = line.strip()
-            # ignore git lines
+            # git lines are ignored
             m = LOG_RE.match(line)
             if m:
                 status = m.group(4)
                 job_id = m.group(5)
                 if status not in STATUSES:
-                    print('unknown status {} in {}'.format(status, tpl)
-                job_statuses[job_id] = status
-                jobs[job_id] = LogItem(m.groups())
+                    print('unknown status {} in {}'.format(status, tpl))
+                self.job_statuses[job_id] = status
+                self.jobs[job_id] = LogItem(*m.groups())
                 continue
             m = FILE_RE.match(line)
             if m:
-
-            # FIXME: need to cache the output files FILE_FMT
+                job_id = m.group(4)
+                filename = m.group(6)
+                self.outputs[filename] = job_id
+        waiting = self.get_jobs_with_status('scheduled')
+        running = self.get_jobs_with_status('running')
+        # check their status (platform dependent), log the failed ones
+        for job_id in waiting + running:
+            status = self.platform.check_job(job_id)
+            if status == 'failed':
+                self.failed(job_id)
+                job_statuses[job_id] = 'failed'
+                redo = True
