@@ -44,14 +44,7 @@ def main(recipe):
         # FIXME: implement check
         return  # don't do anything more
     if args.make is not None:
-        next_step = recipe.get_next_steps_for(
-            conf, log, outputs=[args.make], cli_args=cli_args)[0]
-        if not isinstance(next_step, Waiting):
-            raise Exception('Cannot start running {}: {}'.format(
-                args.make, next_step))
-        job_id = log.outputs[next_step.output(conf, cli_args)]
-        log.started_running(next_step, job_id)
-        recipe.make_output(conf, output=args.make, cli_args=cli_args)
+        make(args.make, recipe, conf, cli_args, platform, log)
         return  # don't do anything more
     # implicit else 
 
@@ -81,6 +74,18 @@ def schedule(nextsteps, recipe, conf, cli_args, platform, log):
             job_ids[step] = job_id
             log.scheduled(step.rule.name, sec_key, job_id, output_files)
     return job_ids
+
+def make(output, recipe, conf, cli_args, platform, log):
+    next_step = recipe.get_next_steps_for(
+        conf, log, outputs=[output], cli_args=cli_args)[0]
+    if not isinstance(next_step, Waiting):
+        raise Exception('Cannot start running {}: {}'.format(
+            output, next_step))
+    job_id = log.outputs[next_step.output(conf, cli_args)]
+    rule = recipe.files.get(next_step.output, None)
+    log.started_running(next_step, job_id, rule.name)
+    recipe.make_output(conf, output=output, cli_args=cli_args)
+    log.finished_running(next_step, job_id, rule.name)
 
 def show_next_steps(nextsteps, conf, cli_args=None, dryrun=False, job_ids=None):
     job_ids = job_ids if job_ids is not None else {}
@@ -191,8 +196,18 @@ class ExperimentLog(object):
                 filename=output,
                 ))
 
-    def started_running(self, available, job_id):
-#   - git commit:  git --git-dir=/path/to/.git rev-parse HEAD  (or: git describe --always, git symbolic-ref --short HEAD)
+    def started_running(self, waiting, job_id, rule):
+        timestamp = datetime.now().strftime(TIMESTAMP)
+        self._append(LOG_FMT.format(
+            time=timestamp,
+            recipe=self.recipe.name,
+            exp=self.conf,
+            status='running',
+            job=job_id,
+            sec_key=waiting.output.sec_key(),
+            rule=rule,
+            ))
+        # alternative would be git describe --always, but that mainly works with tags
         gitdir = self.platform.conf['git']['gitdir']
         commit = run('git --git-dir={} rev-parse HEAD'.format(gitdir)).std_out.strip()
         branch = run('git --git-dir={} symbolic-ref --short HEAD'.format(gitdir)).std_out.strip()
@@ -205,8 +220,17 @@ class ExperimentLog(object):
             branch=branch,
             ))
 
-    def finished_running(self, available, job_id):
-        pass
+    def finished_running(self, running, job_id, rule):
+        timestamp = datetime.now().strftime(TIMESTAMP)
+        self._append(LOG_FMT.format(
+            time=timestamp,
+            recipe=self.recipe.name,
+            exp=self.conf,
+            status='finished',
+            job=job_id,
+            sec_key=running.output.sec_key(),
+            rule=rule,
+            ))
 
     def failed(self, job_id):
         # FIXME: need to cache fields, keyed by job_id
@@ -221,30 +245,33 @@ class ExperimentLog(object):
         if self._log_parsed:
             return
         self._log_parsed = True
-        lines = open_text_file(self.logfile, mode='rb')
-        for line in lines:
-            line = line.strip()
-            # git lines are ignored
-            m = LOG_RE.match(line)
-            if m:
-                status = m.group(4)
-                job_id = m.group(5)
-                if status not in STATUSES:
-                    print('unknown status {} in {}'.format(status, tpl))
-                self.job_statuses[job_id] = status
-                self.jobs[job_id] = LogItem(*m.groups())
-                continue
-            m = FILE_RE.match(line)
-            if m:
-                job_id = m.group(4)
-                filename = m.group(6)
-                self.outputs[filename] = job_id
-        waiting = self.get_jobs_with_status('scheduled')
-        running = self.get_jobs_with_status('running')
-        # check their status (platform dependent), log the failed ones
-        for job_id in waiting + running:
-            status = self.platform.check_job(job_id)
-            if status == 'failed':
-                self.failed(job_id)
-                job_statuses[job_id] = 'failed'
-                redo = True
+        try:
+            lines = open_text_file(self.logfile, mode='rb')
+            for line in lines:
+                line = line.strip()
+                # git lines are ignored
+                m = LOG_RE.match(line)
+                if m:
+                    status = m.group(4)
+                    job_id = m.group(5)
+                    if status not in STATUSES:
+                        print('unknown status {} in {}'.format(status, tpl))
+                    self.job_statuses[job_id] = status
+                    self.jobs[job_id] = LogItem(*m.groups())
+                    continue
+                m = FILE_RE.match(line)
+                if m:
+                    job_id = m.group(4)
+                    filename = m.group(6)
+                    self.outputs[filename] = job_id
+            waiting = self.get_jobs_with_status('scheduled')
+            running = self.get_jobs_with_status('running')
+            # check their status (platform dependent), log the failed ones
+            for job_id in waiting + running:
+                status = self.platform.check_job(job_id)
+                if status == 'failed':
+                    self.failed(job_id)
+                    job_statuses[job_id] = 'failed'
+                    redo = True
+        except FileNotFoundError:
+            pass
