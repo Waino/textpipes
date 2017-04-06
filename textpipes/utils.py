@@ -2,6 +2,7 @@ import bz2
 import codecs
 import gzip
 import itertools
+import subprocess
 
 
 def safe_zip(*iterables):
@@ -30,3 +31,13 @@ def open_text_file(file_path, mode='rb', encoding='utf-8'):
         return codecs.getwriter(encoding)(file_obj)
     else:
         return codecs.getreader(encoding)(file_obj)
+
+
+def external_linecount(file_path):
+    if file_path.endswith('.gz'):
+        ext_lc = subprocess.check_output(
+            ['zcat {} | wc -l'.format(file_path)], shell=True).split()[0]
+    else:
+        ext_lc = subprocess.check_output(['wc', '-l', file_path]).split()[0]
+    ext_lc = int(ext_lc.decode('utf-8'))
+    return ext_lc

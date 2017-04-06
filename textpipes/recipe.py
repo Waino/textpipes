@@ -43,6 +43,9 @@ class Recipe(object):
         # FIXME: inconvenient to return all outputs. Only do main
         return rule.outputs
 
+    def get_rule(self, output):
+        return self.files.get(self._rf(output), None)
+
     def _rf(self, output):
         if isinstance(output, RecipeFile):
             rf = output 
@@ -167,6 +170,15 @@ class Rule(object):
 
     def make(self, conf, cli_args=None):
         raise NotImplementedError()
+
+    def monitor(self, platform, conf, cli_args=None):
+        """Return a short summary of the status of a running job.
+        
+        By default this is the line count of the first output file.
+        Subclasses can override this, to e.g. show a percentage,
+        minibatch number, training loss or whatever is appropriate."""
+        lc = external_linecount(self.outputs[0](conf, cli_args))
+        return '{} lines'.format(lc)
 
     @property
     def name(self):

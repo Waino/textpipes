@@ -1,6 +1,7 @@
 import argparse
 from datetime import datetime
 import collections
+import itertools
 import os
 import re
 
@@ -42,7 +43,7 @@ def main(recipe):
         check_validity(recipe, conf, cli_args)
         return  # don't do anything more
     if args.status:
-        # FIXME: implement check
+        status(recipe, log)
         return  # don't do anything more
     if args.make is not None:
         make(args.make, recipe, conf, cli_args, platform, log)
@@ -76,6 +77,21 @@ def check_validity(recipe, conf, cli_args):
     if warn:
         print('********** WARNING! Some inputs are missing print **********')
 
+
+def status(recipe, log):
+    log._parse_log()
+    keyfunc = lambda x: x.exp
+    for (exp, jobs) in itertools.groupby(
+            sorted(log.jobs.values(), key=keyfunc), keyfunc):
+        if exp not in log.ongoing_experiments:
+            continue
+        print('*** Experiment: {}'.format(exp))
+        for job in jobs:
+            status = log.job_statuses[job.job_id]
+            if status not in ('scheduled', 'running'):
+                continue
+            print(job)
+            print(recipe.get_rule(job.sec_key))
 
 def schedule(nextsteps, recipe, conf, cli_args, platform, log):
     job_ids = {}
@@ -158,6 +174,7 @@ END_FMT = '{time} {recipe} {exp} : experiment ended'
 
 LOG_RE = re.compile(r'([0-9\.]+ [0-9:]+) ([^ ]+) ([^ ]+) : status ([^ ]+) ([^ ]+) ([^ ]+) (.*)')
 FILE_RE = re.compile(r'([0-9\.]+ [0-9:]+) ([^ ]+) ([^ ]+) : output ([^ ]+) ([^ ]+) (.*)')
+END_RE = re.compile(r'([0-9\.]+ [0-9:]+) ([^ ]+) ([^ ]+) : experiment ended')
 
 STATUSES = ('scheduled', 'running', 'finished', 'failed')
 
@@ -171,6 +188,7 @@ class ExperimentLog(object):
         self.jobs = {}
         self.job_statuses = {}
         self.outputs = {}
+        self.ongoing_experiments = set()
 
     def get_jobs_with_status(self, status='running'):
         """Returns e.g. Waiting and Running output files"""
@@ -285,18 +303,29 @@ class ExperimentLog(object):
                 # git lines are ignored
                 m = LOG_RE.match(line)
                 if m:
+                    exp = m.group(3)
                     status = m.group(4)
                     job_id = m.group(5)
                     if status not in STATUSES:
                         print('unknown status {} in {}'.format(status, tpl))
                     self.job_statuses[job_id] = status
                     self.jobs[job_id] = LogItem(*m.groups())
+                    self.ongoing_experiments.add(exp)
                     continue
                 m = FILE_RE.match(line)
                 if m:
                     job_id = m.group(4)
                     filename = m.group(6)
                     self.outputs[filename] = job_id
+                    continue
+                m = END_RE.match(line)
+                if m:
+                    exp = m.group(3)
+                    try:
+                        self.ongoing_experiments.add(exp)
+                    except KeyError:
+                        pass
+
             waiting = self.get_jobs_with_status('scheduled')
             running = self.get_jobs_with_status('running')
             # check their status (platform dependent), log the failed ones
