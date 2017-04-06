@@ -138,6 +138,11 @@ class Recipe(object):
         cli.main(self)
 
     @property
+    def main_inputs(self):
+        return sorted(rf for (rf, val) in self.files.items()
+                      if val is None)
+
+    @property
     def main_outputs(self):
         return sorted(self._main_out)
 

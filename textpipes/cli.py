@@ -63,6 +63,19 @@ def check_validity(recipe, conf, cli_args):
     for section in conf.conf.sections():
         for key in conf.conf[section]:
             conf.conf[section][key]
+    print('Config interpolations OK')
+    # check existence of original inputs
+    warn = False
+    for rf in recipe.main_inputs:
+        fname = rf(conf, cli_args)
+        if rf.exists(conf, cli_args):
+            print('input OK: {}'.format(fname))
+        else:
+            print('MISSING:  {}'.format(fname))
+            warn = True
+    if warn:
+        print('********** WARNING! Some inputs are missing print **********')
+
 
 def schedule(nextsteps, recipe, conf, cli_args, platform, log):
     job_ids = {}
