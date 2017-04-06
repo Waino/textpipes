@@ -39,7 +39,7 @@ def main(recipe):
     platform.read_log(log)
 
     if args.check:
-        # FIXME: implement check
+        check_validity(recipe, conf, cli_args)
         return  # don't do anything more
     if args.status:
         # FIXME: implement check
@@ -57,11 +57,12 @@ def main(recipe):
     show_next_steps(nextsteps, conf, cli_args,
                     dryrun=args.dryrun)
 
-    #f len(nextsteps) == 0:
-    #    print('all done')
-    #else:
-    #    for ns in nextsteps[0]:
 
+def check_validity(recipe, conf, cli_args):
+    # check validity of interpolations in conf
+    for section in conf.conf.sections():
+        for key in conf.conf[section]:
+            conf.conf[section][key]
 
 def schedule(nextsteps, recipe, conf, cli_args, platform, log):
     job_ids = {}
