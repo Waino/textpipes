@@ -37,8 +37,27 @@ def main(recipe):
     cli_args = None # FIXME
     log = ExperimentLog(recipe, args.conf, platform)
 
+    if args.check:
+        # FIXME: implement check
+        return  # don't do anything more
+    if args.status:
+        # FIXME: implement check
+        return  # don't do anything more
+    if args.make is not None:
+        next_step = recipe.get_next_steps_for(
+            conf, log, outputs=[args.make], cli_args=cli_args)[0]
+        if not isinstance(next_step, Waiting):
+            raise Exception('Cannot start running {}: {}'.format(
+                args.make, next_step))
+        job_id = log.outputs[next_step.output(conf, cli_args)]
+        log.started_running(next_step, job_id)
+        recipe.make_output(conf, output=args.make, cli_args=cli_args)
+        return  # don't do anything more
+    # implicit else 
+
     # debug
-    nextsteps = recipe.get_next_steps_for(conf, log)
+    nextsteps = recipe.get_next_steps_for(
+        conf, log, outputs=args.output, cli_args=cli_args)
     if not args.dryrun:
         schedule(nextsteps, recipe, conf, cli_args, platform, log)
     show_next_steps(nextsteps, conf, cli_args,

@@ -57,7 +57,7 @@ class Recipe(object):
         # or [Available(outputs, rule), ... Running(output)]
         # or [MissingInput(input)]
         outputs = outputs 
-        if outputs is None:
+        if not outputs:
             outputs = self.main_outputs
         else:
             if isinstance(outputs, str):
