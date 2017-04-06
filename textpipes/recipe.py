@@ -107,6 +107,9 @@ class Recipe(object):
 
         available = []
         for (rule, pairs) in itertools.groupby(potential, lambda x: x[1]):
+            if any(inp not in seen_done for inp in rule.inputs):
+                # inputs need to be built first
+                continue
             available.append(
                 Available(tuple(output for (output, rule) in pairs), rule))
 

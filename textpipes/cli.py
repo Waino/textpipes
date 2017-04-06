@@ -246,6 +246,7 @@ class ExperimentLog(object):
             return
         self._log_parsed = True
         try:
+            print('PARSING THE LOG')
             lines = open_text_file(self.logfile, mode='rb')
             for line in lines:
                 line = line.strip()
