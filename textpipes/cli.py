@@ -237,7 +237,21 @@ class ExperimentLog(object):
             ))
 
     def failed(self, job_id):
-        # FIXME: need to cache fields, keyed by job_id
+        timestamp = datetime.now().strftime(TIMESTAMP)
+        if job_id in self.jobs:
+            fields = self.jobs[job_id]
+        else:
+            fields = LogItem(*['-'] * len(LogItem._fields))
+
+        self._append(LOG_FMT.format(
+            time=timestamp,
+            recipe=self.recipe.name,
+            exp=fields.exp,
+            status='failed',
+            job=job_id,
+            sec_key=fields.sec_key,
+            rule=fields.rule,
+            ))
         pass
 
     def _append(self, msg):
@@ -277,6 +291,5 @@ class ExperimentLog(object):
                 if status == 'failed':
                     self.failed(job_id)
                     job_statuses[job_id] = 'failed'
-                    redo = True
         except FileNotFoundError:
             pass
