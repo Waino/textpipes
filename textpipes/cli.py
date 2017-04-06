@@ -40,7 +40,7 @@ def main(recipe):
     # debug
     nextsteps = recipe.get_next_steps_for(conf, log)
     if not args.dryrun:
-        schedule(nextsteps, conf, cli_args, platform, log)
+        schedule(nextsteps, recipe, conf, cli_args, platform, log)
     show_next_steps(nextsteps, conf, cli_args,
                     dryrun=args.dryrun)
 
@@ -50,14 +50,15 @@ def main(recipe):
     #    for ns in nextsteps[0]:
 
 
-def schedule(nextsteps, conf, cli_args, platform, log):
+def schedule(nextsteps, recipe, conf, cli_args, platform, log):
     job_ids = {}
     for step in nextsteps:
         if isinstance(step, Available):
             sec_key = step.outputs[0].sec_key()
             output_files = [(output.sec_key(), output(conf, cli_args))
                             for output in step.outputs]
-            job_id = platform.schedule(step.rule, sec_key, output_files)
+            job_id = platform.schedule(
+                recipe, conf, step.rule, sec_key, output_files, cli_args)
             job_ids[step] = job_id
             log.scheduled(step.rule.name, sec_key, job_id, output_files)
     return job_ids

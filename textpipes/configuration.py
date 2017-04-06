@@ -1,9 +1,11 @@
 import configparser
+import os
 
 from . import platform
 
 class Config(object):
     def __init__(self, main_conf_file):
+        self.name, _ = os.path.splitext(main_conf_file)
         self.platform = self.platform_config()
         self.conf = configparser.ConfigParser(
             interpolation=configparser.ExtendedInterpolation())
