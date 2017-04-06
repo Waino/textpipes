@@ -106,10 +106,12 @@ class Recipe(object):
         running = [Running(output) for output in running]
 
         available = []
+        potential = sorted(potential, key=lambda x: hash(x[1]))
         for (rule, pairs) in itertools.groupby(potential, lambda x: x[1]):
             if any(inp not in seen_done for inp in rule.inputs):
                 # inputs need to be built first
                 continue
+            print(rule, pairs)
             available.append(
                 Available(tuple(output for (output, rule) in pairs), rule))
 
@@ -164,6 +166,13 @@ class Rule(object):
     @property
     def name(self):
         return self.__class__.__name__
+
+    def __eq__(self, other):
+        return (self.name, self.inputs, self.outputs) \
+            == (other.name, other.inputs, other.outputs)
+
+    def __hash__(self):
+        return hash((self.name, self.inputs, self.outputs))
 
     def __repr__(self):
         return '{}(inputs={}, outputs={})'.format(

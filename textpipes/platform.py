@@ -8,7 +8,10 @@ class Platform(object):
         self.name = name
         self.conf = conf
 
-    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args):
+    def read_log(self, log):
+        pass
+
+    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, log):
         # -> job id
         raise NotImplementedError()
 
@@ -17,6 +20,9 @@ class Platform(object):
 
 class LogOnly(Platform):
     """dummy platform for testing"""
+    def read_log(self, log):
+        self.job_id = max([0] + list(log.jobs.keys()))
+
     def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args):
         # FIXME: slurm params from platform conf
         # FIXME: formatting cli args
@@ -25,7 +31,9 @@ class LogOnly(Platform):
         job_name = '{}:{}'.format(conf.name, sec_key)
         print('DUMMY: sbatch --job-name {name} --wrap="{cmd}"'.format(
             name=job_name, cmd=cmd))
-        return 'dummy_id'
+        # dummy incremental job_id
+        self.job_id += 1 
+        return self.job_id
 
     def check_job(self, job_id):
         return 'running'    # FIXME

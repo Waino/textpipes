@@ -36,6 +36,7 @@ def main(recipe):
     platform = conf.platform
     cli_args = None # FIXME
     log = ExperimentLog(recipe, args.conf, platform)
+    platform.read_log(log)
 
     if args.check:
         # FIXME: implement check
