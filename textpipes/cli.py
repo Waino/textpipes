@@ -43,7 +43,7 @@ def main(recipe):
         check_validity(recipe, conf, cli_args)
         return  # don't do anything more
     if args.status:
-        status(recipe, log)
+        status(recipe, platform, log)
         return  # don't do anything more
     if args.make is not None:
         make(args.make, recipe, conf, cli_args, platform, log)
@@ -78,20 +78,34 @@ def check_validity(recipe, conf, cli_args):
         print('********** WARNING! Some inputs are missing print **********')
 
 
-def status(recipe, log):
+def status(recipe, platform, log):
     log._parse_log()
+    files_by_job_id = collections.defaultdict(list)
+    for (filepath, job_id) in log.outputs.items():
+        files_by_job_id[job_id].append(filepath)
     keyfunc = lambda x: x.exp
     for (exp, jobs) in itertools.groupby(
             sorted(log.jobs.values(), key=keyfunc), keyfunc):
         if exp not in log.ongoing_experiments:
             continue
         print('*** Experiment: {}'.format(exp))
-        for job in jobs:
+        for job in sorted(jobs, key=lambda x: (x.status, x.last_time)):
             status = log.job_statuses[job.job_id]
             if status not in ('scheduled', 'running'):
                 continue
-            print(job)
-            print(recipe.get_rule(job.sec_key))
+            rule = recipe.get_rule(job.sec_key)
+            if status == 'running':
+                monitoring = rule.monitor(platform, files_by_job_id[job.job_id])
+            else:
+                monitoring = '-'
+            # FIXME: truncate too long?
+            print('{job_id:10} {rule:15} {sec_key:25} {status:10} {monitoring}'.format(
+                job_id=job.job_id,
+                rule=rule.name,
+                sec_key=job.sec_key,
+                status=status,
+                monitoring=monitoring))
+        # FIXME: if nothing is scheduled or running, check if more is available?
 
 def schedule(nextsteps, recipe, conf, cli_args, platform, log):
     job_ids = {}
