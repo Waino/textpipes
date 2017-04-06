@@ -72,6 +72,9 @@ def schedule(nextsteps, recipe, conf, cli_args, platform, log):
                             for output in step.outputs]
             job_id = platform.schedule(
                 recipe, conf, step.rule, sec_key, output_files, cli_args)
+            if job_id is None:
+                # not scheduled for some reason
+                continue
             job_ids[step] = job_id
             log.scheduled(step.rule.name, sec_key, job_id, output_files)
     return job_ids
