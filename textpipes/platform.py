@@ -21,7 +21,6 @@ class Platform(object):
 class LogOnly(Platform):
     """dummy platform for testing"""
     def read_log(self, log):
-        log._parse_log()
         self.job_id = max([0] + list(int(x) for x in log.jobs.keys()))
 
     def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args):

@@ -31,6 +31,23 @@ class ForEach(ParallelPipeComponent):
             yield tuple(self.mono_component.single_cell(line)
                         for line in tpl)
 
+class PerColumn(ParallelPipeComponent):
+    """Wraps multiple SingleCellComponents for use in a ParallelPipe,
+    such that each column of the parallel pipe gets a different component."""
+    def __init__(self, components):
+        self.components = [component if component is not None
+                           else IdentityComponent()
+                           for component in components]
+
+    def __call__(self, stream):
+        for tpl in stream:
+            assert len(tpl) == len(self.components)
+            yield tuple(component.single_cell(line)
+                        for (component, line) in zip(component, tpl))
+
+class IdentityComponent(SingleCellComponent):
+    def single_cell(self, line):
+        return line
 
 class RegexSubstitution(SingleCellComponent):
     """Arbitrary regular expression substitutions"""

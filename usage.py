@@ -1,6 +1,7 @@
 import textpipes as tp
 
 recipe = tp.Recipe('usage')
+conf = recipe.conf
 
 # all paths are in config, use interpolation
 # section [paths.corpora] key foo
@@ -19,6 +20,11 @@ fbl = tp.FilterByLength(min_tokens=1,
                         max_chars=250,
                         max_chars_per_token=80)
 
+para_tokenizer = tp.PerColumn((
+    tp.components.tokenizer.Tokenize(conf['exp']['src.lang']),
+    tp.components.tokenizer.Tokenize(conf['exp']['tgt.lang']),
+    ))
+
 class SomePipe(tp.MonoPipe):
     def __init__(self, inp, out, toolong):
         super().__init__(
@@ -36,6 +42,7 @@ class ParaPipe(tp.ParallelPipe):
              tp.components.europarl.RemoveLanguageTags(),
              tp.Clean(),
              tp.MapChars(),
+             para_tokenizer,
             ],
             inp, out, side_outputs=[toolong])
 

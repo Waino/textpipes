@@ -36,6 +36,9 @@ class Config(object):
             platform_name, conf)
         return platf
         
+    def __getitem__(self, key):
+        return self.conf[key]
+        
 
 # use interpolation in configparser
 # '${FILE:corpus}.${resection:some}'

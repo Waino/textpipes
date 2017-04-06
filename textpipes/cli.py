@@ -30,134 +30,140 @@ def get_parser(recipe):
 
     return parser
 
-def main(recipe):
-    parser = get_parser(recipe)
-    args = parser.parse_args()
-    conf = Config(args.conf)
-    platform = conf.platform
-    cli_args = None # FIXME
-    log = ExperimentLog(recipe, args.conf, platform)
-    platform.read_log(log)
+class CLI(object):
+    def __init__(self, recipe):
+        """Called before building the recipe"""
+        self.recipe = recipe
+        parser = get_parser(recipe)
+        self.args = parser.parse_args()
+        self.conf = Config(self.args.conf)
+        # the recipe-altering cli args
+        self.cli_args = None # FIXME
+        self.platform = self.conf.platform
+        self.log = ExperimentLog(self.recipe, self.args.conf, self.platform)
+        self.platform.read_log(self.log)
 
-    if args.check:
-        check_validity(recipe, conf, cli_args)
-        return  # don't do anything more
-    if args.status:
-        status(recipe, platform, log)
-        return  # don't do anything more
-    if args.make is not None:
-        make(args.make, recipe, conf, cli_args, platform, log)
-        return  # don't do anything more
-    # implicit else 
+    def main(self):
+        """Called after building the recipe,
+        when we are ready for action"""
+        if self.args.check:
+            self.check_validity()
+            return  # don't do anything more
+        if self.args.status:
+            self.status()
+            return  # don't do anything more
+        if self.args.make is not None:
+            self.make(self.args.make)
+            return  # don't do anything more
+        # implicit else 
 
-    # debug
-    nextsteps = recipe.get_next_steps_for(
-        conf, log, outputs=args.output, cli_args=cli_args)
-    if not args.dryrun:
-        schedule(nextsteps, recipe, conf, cli_args, platform, log)
-    show_next_steps(nextsteps, conf, cli_args,
-                    dryrun=args.dryrun)
-
-
-def check_validity(recipe, conf, cli_args):
-    # check validity of interpolations in conf
-    for section in conf.conf.sections():
-        for key in conf.conf[section]:
-            conf.conf[section][key]
-    print('Config interpolations OK')
-    # check existence of original inputs
-    warn = False
-    for rf in recipe.main_inputs:
-        fname = rf(conf, cli_args)
-        if rf.exists(conf, cli_args):
-            print('input OK: {}'.format(fname))
-        else:
-            print('MISSING:  {}'.format(fname))
-            warn = True
-    if warn:
-        print('********** WARNING! Some inputs are missing print **********')
+        # debug
+        nextsteps = self.recipe.get_next_steps_for(
+            outputs=self.args.output, cli_args=self.cli_args)
+        if not self.args.dryrun:
+            self.schedule(nextsteps)
+        self.show_next_steps(nextsteps, dryrun=self.args.dryrun)
 
 
-def status(recipe, platform, log):
-    log._parse_log()
-    files_by_job_id = collections.defaultdict(list)
-    for (filepath, job_id) in log.outputs.items():
-        files_by_job_id[job_id].append(filepath)
-    keyfunc = lambda x: x.exp
-    for (exp, jobs) in itertools.groupby(
-            sorted(log.jobs.values(), key=keyfunc), keyfunc):
-        if exp not in log.ongoing_experiments:
-            continue
-        print('*** Experiment: {}'.format(exp))
-        for job in sorted(jobs, key=lambda x: (x.status, x.last_time)):
-            status = log.job_statuses[job.job_id]
-            if status not in ('scheduled', 'running'):
-                continue
-            rule = recipe.get_rule(job.sec_key)
-            if status == 'running':
-                monitoring = rule.monitor(platform, files_by_job_id[job.job_id])
+    def check_validity(self):
+        # check validity of interpolations in conf
+        for section in self.conf.conf.sections():
+            for key in self.conf.conf[section]:
+                self.conf.conf[section][key]
+        print('Config interpolations OK')
+        # check existence of original inputs
+        warn = False
+        for rf in self.recipe.main_inputs:
+            fname = rf(self.conf, self.cli_args)
+            if rf.exists(self.conf, self.cli_args):
+                print('input OK: {}'.format(fname))
             else:
-                monitoring = '-'
-            # FIXME: truncate too long?
-            print('{job_id:10} {rule:15} {sec_key:25} {status:10} {monitoring}'.format(
-                job_id=job.job_id,
-                rule=rule.name,
-                sec_key=job.sec_key,
-                status=status,
-                monitoring=monitoring))
-        # FIXME: if nothing is scheduled or running, check if more is available?
+                print('MISSING:  {}'.format(fname))
+                warn = True
+        if warn:
+            print('********** WARNING! Some inputs are missing print **********')
 
-def schedule(nextsteps, recipe, conf, cli_args, platform, log):
-    job_ids = {}
-    for step in nextsteps:
-        if isinstance(step, Available):
-            sec_key = step.outputs[0].sec_key()
-            output_files = [(output.sec_key(), output(conf, cli_args))
-                            for output in step.outputs]
-            job_id = platform.schedule(
-                recipe, conf, step.rule, sec_key, output_files, cli_args)
-            if job_id is None:
-                # not scheduled for some reason
+
+    def status(self):
+        files_by_job_id = collections.defaultdict(list)
+        for (filepath, job_id) in self.log.outputs.items():
+            files_by_job_id[job_id].append(filepath)
+        keyfunc = lambda x: x.exp
+        for (exp, jobs) in itertools.groupby(
+                sorted(self.log.jobs.values(), key=keyfunc), keyfunc):
+            if exp not in self.log.ongoing_experiments:
                 continue
-            job_ids[step] = job_id
-            log.scheduled(step.rule.name, sec_key, job_id, output_files)
-    return job_ids
+            print('*** Experiment: {}'.format(exp))
+            for job in sorted(jobs, key=lambda x: (x.status, x.last_time)):
+                status = self.log.job_statuses[job.job_id]
+                if status not in ('scheduled', 'running'):
+                    continue
+                rule = self.recipe.get_rule(job.sec_key)
+                if status == 'running':
+                    monitoring = rule.monitor(self.platform, files_by_job_id[job.job_id])
+                else:
+                    monitoring = '-'
+                # FIXME: truncate too long?
+                print('{job_id:10} {rule:15} {sec_key:25} {status:10} {monitoring}'.format(
+                    job_id=job.job_id,
+                    rule=rule.name,
+                    sec_key=job.sec_key,
+                    status=status,
+                    monitoring=monitoring))
+            # FIXME: if nothing is scheduled or running, check if more is available?
 
-def make(output, recipe, conf, cli_args, platform, log):
-    next_step = recipe.get_next_steps_for(
-        conf, log, outputs=[output], cli_args=cli_args)[0]
-    if not isinstance(next_step, Waiting):
-        raise Exception('Cannot start running {}: {}'.format(
-            output, next_step))
-    job_id = log.outputs[next_step.output(conf, cli_args)]
-    rule = recipe.files.get(next_step.output, None)
-    log.started_running(next_step, job_id, rule.name)
-    recipe.make_output(conf, output=output, cli_args=cli_args)
-    log.finished_running(next_step, job_id, rule.name)
+    def schedule(self, nextsteps):
+        job_ids = {}
+        for step in nextsteps:
+            if isinstance(step, Available):
+                sec_key = step.outputs[0].sec_key()
+                output_files = [(output.sec_key(), output(self.conf, self.cli_args))
+                                for output in step.outputs]
+                job_id = self.platform.schedule(
+                    self.recipe, self.conf, step.rule, sec_key,
+                    output_files, self.cli_args)
+                if job_id is None:
+                    # not scheduled for some reason
+                    continue
+                job_ids[step] = job_id
+                self.log.scheduled(step.rule.name, sec_key, job_id, output_files)
+        return job_ids
 
-def show_next_steps(nextsteps, conf, cli_args=None, dryrun=False, job_ids=None):
-    job_ids = job_ids if job_ids is not None else {}
-    for step in nextsteps:
-        if isinstance(step, Done):
-            print('Done: {}'.format(step.output(conf, cli_args)))
-    print('-' * 80)
-    for step in nextsteps:
-        if isinstance(step, Waiting):
-            job_id = job_ids.get(step, '-')
-            print('Waiting: {} {}'.format(job_id, step.output(conf, cli_args)))
-    for step in nextsteps:
-        if isinstance(step, Running):
-            # FIXME: monitoring? sec_key -> Rule
-            job_id = job_ids.get(step, '-')
-            print('Running: {} {}'.format(job_id, step.output(conf, cli_args)))
-    print('-' * 80)
-    lbl = 'Available' if dryrun else 'Scheduled'
-    for step in nextsteps:
-        if isinstance(step, Available):
-            job_id = job_ids.get(step, '-')
-            print('{}: {} {}\t{}\t{}'.format(
-                lbl, job_id, step.outputs[0].sec_key(), step.rule.name,
-                step.outputs[0](conf, cli_args)))
+    def make(self, output):
+        next_step = self.recipe.get_next_steps_for(
+            outputs=[output], cli_args=self.cli_args)[0]
+        if not isinstance(next_step, Waiting):
+            raise Exception('Cannot start running {}: {}'.format(
+                output, next_step))
+        job_id = self.log.outputs[next_step.output(self.conf, self.cli_args)]
+        rule = self.recipe.files.get(next_step.output, None)
+        self.log.started_running(next_step, job_id, rule.name)
+        self.recipe.make_output(output=output, cli_args=self.cli_args)
+        self.log.finished_running(next_step, job_id, rule.name)
+
+    def show_next_steps(self, nextsteps, dryrun=False):
+        job_ids = {}    # FIXME
+        for step in nextsteps:
+            if isinstance(step, Done):
+                print('Done: {}'.format(step.output(self.conf, self.cli_args)))
+        print('-' * 80)
+        for step in nextsteps:
+            if isinstance(step, Waiting):
+                job_id = job_ids.get(step, '-')
+                print('Waiting: {} {}'.format(job_id, step.output(self.conf, self.cli_args)))
+        for step in nextsteps:
+            if isinstance(step, Running):
+                # FIXME: monitoring? sec_key -> Rule
+                job_id = job_ids.get(step, '-')
+                print('Running: {} {}'.format(job_id, step.output(self.conf, self.cli_args)))
+        print('-' * 80)
+        lbl = 'Available' if dryrun else 'Scheduled'
+        for step in nextsteps:
+            if isinstance(step, Available):
+                job_id = job_ids.get(step, '-')
+                print('{}: {} {}\t{}\t{}'.format(
+                    lbl, job_id, step.outputs[0].sec_key(), step.rule.name,
+                    step.outputs[0](self.conf, self.cli_args)))
 
 # keep a log of jobs
 # - always: recipe, experiment id, timestamp
@@ -203,6 +209,7 @@ class ExperimentLog(object):
         self.job_statuses = {}
         self.outputs = {}
         self.ongoing_experiments = set()
+        self._parse_log()
 
     def get_jobs_with_status(self, status='running'):
         """Returns e.g. Waiting and Running output files"""
@@ -210,7 +217,6 @@ class ExperimentLog(object):
                 if job_status == status]
 
     def get_status_of_output(self, outfile):
-        self._parse_log()
         job_id = self.outputs.get(outfile, None)
         if job_id is None:
             return 'not scheduled', None
@@ -321,7 +327,7 @@ class ExperimentLog(object):
                     status = m.group(4)
                     job_id = m.group(5)
                     if status not in STATUSES:
-                        print('unknown status {} in {}'.format(status, tpl))
+                        print('unknown status {} in {}'.format(status, m.groups()))
                     self.job_statuses[job_id] = status
                     self.jobs[job_id] = LogItem(*m.groups())
                     self.ongoing_experiments.add(exp)
@@ -347,6 +353,6 @@ class ExperimentLog(object):
                 status = self.platform.check_job(job_id)
                 if status == 'failed':
                     self.failed(job_id)
-                    job_statuses[job_id] = 'failed'
+                    self.job_statuses[job_id] = 'failed'
         except FileNotFoundError:
             pass

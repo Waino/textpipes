@@ -1,6 +1,7 @@
 import collections
 import os
 
+from . import cli
 from .utils import *
 
 Done = collections.namedtuple('Done', ['output'])
@@ -17,6 +18,10 @@ class Recipe(object):
         self.files = {}
         # Main outputs, for easy CLI access
         self._main_out = set()
+        # conf will be needed before main is called
+        self.cli = cli.CLI(self)
+        self.conf = self.cli.conf
+        self.log = self.cli.log
 
     def add_input(self, section, key):
         rf = RecipeFile(section, key)
@@ -55,7 +60,7 @@ class Recipe(object):
             raise Exception('No rule to make target {}'.format(output))
         return rf
 
-    def get_next_steps_for(self, conf, log, outputs=None, cli_args=None):
+    def get_next_steps_for(self, outputs=None, cli_args=None):
         # -> [Done(output)]
         # or [Available(outputs, rule), ... Running(output)]
         # or [MissingInput(input)]
@@ -70,7 +75,7 @@ class Recipe(object):
         border = set()
         done = []
         for rf in outputs:
-            if rf.exists(conf, cli_args):
+            if rf.exists(self.conf, cli_args):
                 done.append(Done(rf))
             else:
                 border.add(rf)
@@ -83,11 +88,12 @@ class Recipe(object):
         missing = set()
         while len(border) > 0:
             cursor = border.pop()
-            if cursor.exists(conf, cli_args):
+            if cursor.exists(self.conf, cli_args):
                 seen_done.add(cursor)
                 continue
             # check log for waiting/running jobs
-            status, job_fields = log.get_status_of_output(cursor(conf, cli_args))
+            status, job_fields = self.log.get_status_of_output(
+                cursor(self.conf, cli_args))
             if status == 'scheduled':
                 waiting.add(cursor)
                 continue
@@ -120,25 +126,24 @@ class Recipe(object):
 
         return done + available + waiting + running
 
-    def make_output(self, conf, output, cli_args=None):
+    def make_output(self, output, cli_args=None):
         if isinstance(output, RecipeFile):
             rf = output 
         else:
             rf = RecipeFile(*output.split(':'))
         if rf not in self.files:
             raise Exception('No rule to make target {}'.format(output))
-        if rf.exists(conf, cli_args):
+        if rf.exists(self.conf, cli_args):
             return Done()
 
         rule = self.files[rf]
-        return rule.make(conf, cli_args)
+        return rule.make(self.conf, cli_args)
 
     def add_main_outputs(self, outputs):
         self._main_out.update(outputs)
     
     def main(self):
-        from . import cli
-        cli.main(self)
+        self.cli.main()
 
     @property
     def main_inputs(self):
