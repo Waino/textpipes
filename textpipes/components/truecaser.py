@@ -27,18 +27,18 @@ class TrainTrueCaser(SingleCellComponent):
         self.counts = collections.defaultdict(collections.Counter)
 
     def single_cell(self, sentence):
-            seen_first = False
-            for token in sentence.split():
-                if not seen_first:
-                    # skip fully nonalnum tokens in beginning
-                    if ALNUM_RE.search(token):
-                        seen_first = True
-                    continue
-                elif self.punctuation_re.match(token):
-                    seen_first = False
-                lower = token.lower()
-                self.counts[lower][token] += 1
-                # FIXME: also count prefixes with reduced weight?
+        seen_first = False
+        for token in sentence.split():
+            if not seen_first:
+                # skip fully nonalnum tokens in beginning
+                if ALNUM_RE.search(token):
+                    seen_first = True
+                continue
+            elif self.punctuation_re.match(token):
+                seen_first = False
+            lower = token.lower()
+            self.counts[lower][token] += 1
+            # FIXME: also count prefixes with reduced weight?
 
     def save(self):
         self.words = dict()
@@ -49,7 +49,7 @@ class TrainTrueCaser(SingleCellComponent):
             sure = (float(bestcount) / total) > self.sure_thresh
             self.words[word] = (best, sure)
         # yield model serialized into rows
-        # FIXME: write into file?
+        # FIXME: write into file? requires handing down conf, cli_args
         for (word, (best, sure)) in self.words.items():
             yield (word, best, str(sure))
 
