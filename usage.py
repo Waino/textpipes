@@ -33,7 +33,7 @@ class SomePipe(tp.MonoPipe):
              tp.Clean(),
              tp.MapChars(),
             ],
-            [inp], [out], side_outputs=[toolong])
+            [inp], [out])
 
 class ParaPipe(tp.ParallelPipe):
     def __init__(self, inp, out, toolong):
@@ -44,7 +44,7 @@ class ParaPipe(tp.ParallelPipe):
              tp.MapChars(),
              para_tokenizer,
             ],
-            inp, out, side_outputs=[toolong])
+            inp, out)
 
 def preprocess(key, corpus):
     dp, = recipe.add_rule(

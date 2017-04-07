@@ -5,6 +5,7 @@ from .preprocessing import Clean
 
 class MonoFilter(MonoPipeComponent):
     def __init__(self, filtr, logfile=None):
+        super().__init__(side_outputs=[logfile])
         self.filtr = filtr
         self.logfile = logfile
 
@@ -22,6 +23,7 @@ class MonoFilter(MonoPipeComponent):
 
 class ParallelFilter(ParallelPipeComponent):
     def __init__(self, filters, logfile=None):
+        super().__init__(side_outputs=[logfile])
         self.filters = filters
         self.logfile = logfile
 

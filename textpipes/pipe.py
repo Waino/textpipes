@@ -7,10 +7,13 @@ from .utils import safe_zip
 
 class Pipe(Rule):
     def __init__(self, components,
-                 main_inputs, main_outputs,
-                 side_inputs=None, side_outputs=None):
-        side_inputs = side_inputs if side_inputs is not None else tuple()
-        side_outputs = side_outputs if side_outputs is not None else tuple()
+                 main_inputs, main_outputs):
+        side_inputs = tuple(set(inp for component in components
+                                for inp in component.side_inputs
+                                if inp is not None))
+        side_outputs = tuple(set(out for component in components
+                                 for out in component.side_outputs
+                                 if out is not None))
         inputs = tuple(main_inputs) + tuple(side_inputs)
         outputs = tuple(main_outputs) + tuple(side_outputs)
         super().__init__(inputs, outputs)
