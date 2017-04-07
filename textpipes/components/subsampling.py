@@ -5,7 +5,7 @@ class Head(MonoPipeComponent):
         self.limit = limit
 
     def __call__(self, stream):
-        for (i, line) in enumerate(lines):
+        for (i, line) in enumerate(stream):
             if i >= self.limit:
                 break
             yield line

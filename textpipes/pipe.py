@@ -23,7 +23,7 @@ class Pipe(Rule):
         self.side_inputs = side_inputs
         self.side_outputs = side_outputs
 
-    def _make_helper(self, stream):
+    def _make_helper(self, stream, conf, cli_args):
         # Open side inputs and outputs
         side_fobjs = {}
         for inp in self.side_inputs:
@@ -61,7 +61,7 @@ class MonoPipe(Pipe):
         main_in_fobj = self.main_inputs[0].open(conf, cli_args, mode='rb')
         stream = main_in_fobj
 
-        stream, side_fobjs = self._make_helper(stream)
+        stream, side_fobjs = self._make_helper(stream, conf, cli_args)
 
         # Drain pipeline into main_output
         with self.main_outputs[0].open(conf, cli_args, mode='wb') as fobj:
@@ -95,7 +95,7 @@ class ParallelPipe(Pipe):
         # read one line from each and yield it as a tuple
         stream = safe_zip(*readers)
 
-        stream, side_fobjs = self._make_helper(stream)
+        stream, side_fobjs = self._make_helper(stream, conf, cli_args)
 
         # Round-robin drain pipeline into main_outputs
         writers = [out.open(conf, cli_args, mode='wb')
@@ -108,7 +108,7 @@ class ParallelPipe(Pipe):
             for (val, fobj) in zip(tpl, writers):
                 fobj.write(val)
                 fobj.write('\n')
-        for fobj in readers + writers + list[side_fobjs.values()]:
+        for fobj in readers + writers + list(side_fobjs.values()):
             fobj.close()
 
 
@@ -136,7 +136,7 @@ class DeadEndPipe(MonoPipe):
         main_in_fobj = self.main_inputs[0].open(conf, cli_args, mode='rb')
         stream = main_in_fobj
 
-        stream, side_fobjs = self._make_helper(stream)
+        stream, side_fobjs = self._make_helper(stream, conf, cli_args)
 
         # Drain pipeline, throwing the output away
         for line in stream:

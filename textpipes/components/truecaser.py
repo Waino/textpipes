@@ -1,4 +1,5 @@
 import codecs
+import collections
 import re
 import os
 import logging
@@ -19,12 +20,15 @@ LANG_DIR = os.path.join(
     os.path.dirname(__file__), 'langs')
 
 class TrainTrueCaser(SingleCellComponent):
-    def __init__(self, model_file, sure_thresh=.6)
+    def __init__(self, model_file, sure_thresh=.6):
         # sure_thresh: truecase also within sentence if common enough
         super().__init__(side_outputs=[model_file])
         self.model_file = model_file
         self.sure_thresh = sure_thresh
         self.counts = collections.defaultdict(collections.Counter)
+        # punctuation that resets seen_first
+        # note that this is a smaller set than tokenizer punctuation
+        self.punctuation_re = CASE_PUNC_RE
 
     def single_cell(self, sentence, side_fobjs=None):
         seen_first = False
@@ -51,7 +55,7 @@ class TrainTrueCaser(SingleCellComponent):
         # write model serialized into rows
         fobj = side_fobjs[self.model_file]
         for (word, (best, sure)) in self.words.items():
-            fobj.write('{}\t{}\t{}\n'.format(word, best, str(sure))
+            fobj.write('{}\t{}\t{}\n'.format(word, best, str(sure)))
 
 
 class TrueCase(SingleCellComponent):
@@ -76,7 +80,7 @@ class TrueCase(SingleCellComponent):
                 sure = (sure == 'True')
             except ValueError:
                 raise Exception(
-                    'Unable to load truecaser line {} "{}"'.format(i, tpl))
+                    'Unable to load truecaser line {} "{}"'.format(i, line))
             self.words[word] = (best, sure)
 
     def single_cell(self, sentence, side_fobjs=None):
@@ -121,7 +125,7 @@ class TrueCase(SingleCellComponent):
 
 # FIXME: detruecase: MWE:s
 # FIXME: using LM, alignment to source, ...
-class DeTrueCase(SingleCellOperation):
+class DeTrueCase(SingleCellComponent):
     def __init__(self):
         super().__init__()
         #self.lang = node_in.column_tags.get_joined('lang')

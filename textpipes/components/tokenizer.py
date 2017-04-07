@@ -35,10 +35,10 @@ class Tokenize(SingleCellComponent):
         self.lang = lang
         # FIXME: customizable punctuation?
         self.punctuation_re = TOK_PUNC_RE
-        self.protected_str = read_list_file('nonbreaking_prefix', self.lang)
+        protected_str = read_list_file('nonbreaking_prefix', self.lang)
         # these are specified in the over-tokenized form
         # all contained spaces are removed
-        self.protected_re = [
+        protected_re = [
             # decimal and thousand separators, IPs (note: non-grouping)
             r'\d (?:[\.,] \d)+',
             #r'\d %',           # percentages
@@ -50,7 +50,7 @@ class Tokenize(SingleCellComponent):
             # emails. stops at first original space
             r'[a-z\. ]* @ [a-z\. ]*',
             ]
-        self.map_re = [
+        map_re = [
             # Abbreviations protected if followed by a number.
             (r'(No|Art|pp) \.(\s+\d)', r"\1.\2"),
             # name clitics: O' D' (don't split at all)
@@ -60,25 +60,25 @@ class Tokenize(SingleCellComponent):
             ('(\u001F) ?\\. (\\d)', r'\1 .\2'),
             ]
         if self.lang == 'en':
-            self.map_re.extend(
+            map_re.extend(
                 ((r'(?<=\w) \'\s+([a-z]) ', r" '\1 "),    # english suffix clitics. FIXME: fr and others
                  (r'(?<=\w) \'\s+(ll|re|ve) ', r" '\1 "), # longer clitics: 'll 're 've
                  (r'(?<=\d) \'\s+s ', r" 's "),           # special case: 1990's
                 ))
         elif self.lang == 'fi':
-            self.protected_re.extend(
+            protected_re.extend(
                 (r'\d \. ',  # ordinals
                 ))
             # not trying to correct if split in input
-            self.map_re.extend(
+            map_re.extend(
                 ((r'(?<=\w) : ([a-zåäö]{1,3}) ', r" :\1 "),    # finnish abbrevation suffixes
                  (r'(?<=\w) : (nneksi|ista) ', r" :\1 "),      # longer suffixes
                 ))
 
         # process and compile expressions
-        self.protected_str = self._compile_str(self.protected_str)
-        self.protected_re = self._compile_re(self.protected_re)
-        self.map_re = self._compile_map(self.map_re)
+        self.protected_str = self._compile_str(protected_str)
+        self.protected_re = self._compile_re(protected_re)
+        self.map_re = self._compile_map(map_re)
 
     def single_cell(self, sentence, side_fobjs=None):
         out = sentence
@@ -138,12 +138,12 @@ class DeTokenize(SingleCellComponent):
     def __init__(self, lang):
         super().__init__()
         self.lang = lang
-        self.expressions = [
+        expressions = [
             # collapse multispace
             (r' +', ' '),
         ]
         if self.lang == 'en':
-            self.expressions.extend([
+            expressions.extend([
                 # english suffix clitics
                 (r' (\'[a-z]) ', r'\1 '),
                 (r' (\'(ll|re|ve)) ', r'\1 '),
@@ -152,13 +152,13 @@ class DeTokenize(SingleCellComponent):
                 ])
         elif self.lang == 'fi':
             # finnish abbrevation suffixes
-            self.expressions.extend([
+            expressions.extend([
                 (r' (:[a-zåäö]{1,3}) ', r"\1 "),
                 (r' (:(nneksi|ista)) ', r"\1 "),
                 ])
             # in finnish, would joining apos from both sides make sense?
         # must come after clitics
-        self.expressions.extend([
+        expressions.extend([
             # colon joined from both sides if between numbers
             (r'(\d) : (\d)', r'\1:\2'),
             # join left
@@ -179,7 +179,7 @@ class DeTokenize(SingleCellComponent):
             (r' ("[\.,]) ', r'\1 '),
             ])
         self.expressions = [(re.compile(exp, flags=re.UNICODE), repl)
-                            for (exp, repl) in self.expressions]
+                            for (exp, repl) in expressions]
 
     def single_cell(self, val, side_fobjs=None):
         val = ' ' + val + ' '
