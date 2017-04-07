@@ -88,17 +88,17 @@ class Recipe(object):
         missing = set()
         while len(border) > 0:
             cursor = border.pop()
-            if cursor.exists(self.conf, cli_args):
-                seen_done.add(cursor)
-                continue
             # check log for waiting/running jobs
             status, job_fields = self.log.get_status_of_output(
                 cursor(self.conf, cli_args))
+            if status == 'running':
+                running.add(cursor)
+                continue
+            if cursor.exists(self.conf, cli_args):
+                seen_done.add(cursor)
+                continue
             if status == 'scheduled':
                 waiting.add(cursor)
-                continue
-            elif status == 'running':
-                running.add(cursor)
                 continue
             rule = self.files[cursor]
             if rule is None:
