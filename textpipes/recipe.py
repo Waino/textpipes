@@ -1,7 +1,6 @@
 import collections
 import os
 
-from . import cli
 from .utils import *
 
 Done = collections.namedtuple('Done', ['output'])
@@ -13,6 +12,7 @@ MissingInput = collections.namedtuple('MissingInputs', ['input'])
 class Recipe(object):
     """Main class for building experiment recipes"""
     def __init__(self, name):
+        from . import cli
         self.name = name
         # RecipeFile -> Rule or None
         self.files = {}
