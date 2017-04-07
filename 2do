@@ -1,0 +1,21 @@
+- side inputs and outputs
+    - files need to be opened, requires handing down conf, cli_args
+        - don't want to do this in init: only when make is called
+        - hand it down in __call__ / single_cell ?
+            - single_cell has do do bookkeeping to only open it once
+            - only in __call__, with handling in SingleCellComponent or PipeComponent ?
+        - pre/post-make call ?
+            - a lot of boilerplate
+
+- slurm params from platform conf
+- cli_args
+
+- loop Rule that produces numbered outputs
+    - helper to find highest numbered file
+    - continuing from last
+    - only show one line in human-friendly output
+
+- tokenizer and truecaser have some rough edges
+
+- use package resources instead of data in source tree
+
