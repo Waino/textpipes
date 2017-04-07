@@ -30,7 +30,7 @@ class Clean(SingleCellComponent):
             'max_decode_length': 1000000}
         self.params.update(kwargs)
 
-    def single_cell(self, line):
+    def single_cell(self, line, side_fobjs=None):
         return ftfy.fix_text(line, **self.params)
 
 class MapChars(SingleCellComponent):
@@ -108,7 +108,7 @@ class MapChars(SingleCellComponent):
         }
         self.overrides.update(overrides)
 
-    def single_cell(self, line):
+    def single_cell(self, line, side_fobjs=None):
         result = []
         for char in line:
             if char not in self._cache:

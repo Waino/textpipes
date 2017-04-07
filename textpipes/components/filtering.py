@@ -64,8 +64,8 @@ class FilterUnclean(Filter):
                     self.operation,
                     self.__class__.__name__))
 
-    def __call__(self, line):
-        cleaned = self.operation.single_cell(line)
+    def __call__(self, line, side_fobjs=None):
+        cleaned = self.operation.single_cell(line, side_fobjs=side_fobjs)
         return cleaned != line
 
 

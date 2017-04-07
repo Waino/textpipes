@@ -26,7 +26,7 @@ class TrainTrueCaser(SingleCellComponent):
         self.sure_thresh = sure_thresh
         self.counts = collections.defaultdict(collections.Counter)
 
-    def single_cell(self, sentence):
+    def single_cell(self, sentence, side_fobjs=None):
         seen_first = False
         for token in sentence.split():
             if not seen_first:
@@ -40,7 +40,7 @@ class TrainTrueCaser(SingleCellComponent):
             self.counts[lower][token] += 1
             # FIXME: also count prefixes with reduced weight?
 
-    def save(self):
+    def post_make(self, side_fobjs):
         self.words = dict()
         for (word, counts) in self.counts.items():
             # FIXME: use prefix counts
@@ -48,10 +48,10 @@ class TrainTrueCaser(SingleCellComponent):
             best, bestcount = counts.most_common(1)[0]
             sure = (float(bestcount) / total) > self.sure_thresh
             self.words[word] = (best, sure)
-        # yield model serialized into rows
-        # FIXME: write into file? requires handing down conf, cli_args
+        # write model serialized into rows
+        fobj = side_fobjs[self.model_file]
         for (word, (best, sure)) in self.words.items():
-            yield (word, best, str(sure))
+            fobj.write('{}\t{}\t{}\n'.format(word, best, str(sure))
 
 
 class TrueCase(SingleCellComponent):
@@ -67,20 +67,19 @@ class TrueCase(SingleCellComponent):
         # note that this is a smaller set than tokenizer punctuation
         self.punctuation_re = CASE_PUNC_RE
 
-    def load(self):
+    def pre_make(self, side_fobjs):
         self.counts = None
         self.words = dict()
-        for (i, tpl) in enumerate(self.persist_file.read()):
+        for (i, line) in enumerate(side_fobjs[self.model_file]):
             try:
-                (word, best, sure) = tpl
+                (word, best, sure) = line.strip.split('\t')
                 sure = (sure == 'True')
             except ValueError:
                 raise Exception(
                     'Unable to load truecaser line {} "{}"'.format(i, tpl))
             self.words[word] = (best, sure)
-        return None
 
-    def single_cell(self, sentence):
+    def single_cell(self, sentence, side_fobjs=None):
         result = []
         seen_first = False
         tokens = sentence.split()
@@ -129,7 +128,7 @@ class DeTrueCase(SingleCellOperation):
         # FIXME: customizable punctuation?
         self.punctuation_re = CASE_PUNC_RE
 
-    def single_cell(self, sentence, tags):
+    def single_cell(self, sentence, side_fobjs=None):
         result = []
         seen_first = False
         tokens = sentence.split()

@@ -5,6 +5,14 @@ class PipeComponent(object):
         self.side_inputs = side_inputs if side_inputs is not None else ()
         self.side_outputs = side_outputs if side_outputs is not None else ()
 
+    def pre_make(self, side_fobjs):
+        """Called before __call__ (or all the single_cell calls)"""
+        pass
+
+    def post_make(self, side_fobjs):
+        """Called after __call__ (or all the single_cell calls)"""
+        pass
+
 class MonoPipeComponent(PipeComponent):
     pass
 
@@ -12,11 +20,11 @@ class ParallelPipeComponent(PipeComponent):
     pass
 
 class SingleCellComponent(MonoPipeComponent):
-    def __call__(self, stream):
+    def __call__(self, stream, side_fobjs=None):
         for line in stream:
-            yield self.single_cell(line)
+            yield self.single_cell(line, side_fobjs=side_fobjs)
 
-    def single_cell(self, line):
+    def single_cell(self, line, side_fobjs=None):
         raise NotImplementedError()
 
 class ForEach(ParallelPipeComponent):
@@ -28,9 +36,10 @@ class ForEach(ParallelPipeComponent):
     def __init__(self, mono_component):
         self.mono_component = mono_component
 
-    def __call__(self, stream):
+    def __call__(self, stream, side_fobjs=None):
         for tpl in stream:
-            yield tuple(self.mono_component.single_cell(line)
+            yield tuple(self.mono_component.single_cell(
+                            line, side_fobjs=side_fobjs)
                         for line in tpl)
 
     @property
@@ -49,10 +58,10 @@ class PerColumn(ParallelPipeComponent):
                            else IdentityComponent()
                            for component in components]
 
-    def __call__(self, stream):
+    def __call__(self, stream, side_fobjs=None):
         for tpl in stream:
             assert len(tpl) == len(self.components)
-            yield tuple(component.single_cell(line)
+            yield tuple(component.single_cell(line, side_fobjs=side_fobjs)
                         for (component, line) in zip(component, tpl))
 
     @property
@@ -66,7 +75,7 @@ class PerColumn(ParallelPipeComponent):
                          for inp in component.side_outputs))
 
 class IdentityComponent(SingleCellComponent):
-    def single_cell(self, line):
+    def single_cell(self, line, side_fobjs=None):
         return line
 
 class RegexSubstitution(SingleCellComponent):
@@ -76,7 +85,7 @@ class RegexSubstitution(SingleCellComponent):
         self.expressions = [(re.compile(exp, flags=re.UNICODE), repl)
                             for (exp, repl) in expressions]
 
-    def single_cell(self, line):
+    def single_cell(self, line, side_fobjs=None):
         for (exp, repl) in self.expressions:
             line = exp.sub(repl, line)
         return line
