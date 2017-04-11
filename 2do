@@ -19,17 +19,14 @@
 - cli_args
 
 - loop Rule that produces numbered outputs
-    - helper to find highest numbered file
-    - continuing from last
-    - early saves should be available to evaluate before run has finished
+    % early saves should be available to evaluate before run has finished
         - need to separate two types of file
             - atomic: e.g. model pickles
                 - if the file exists, it can be assumed to be done
             - non-atomic: pipeline output, built up over time
                 - file is not done while the job making it is still running
-    - only show one line in human-friendly output
-    - do we need a special RecipeFile with section:key:loop ?
-        - pro
+    % do we need a special RecipeFile with section:key:loop ?
+        % pro
             - recipe DAG traversal is on RF level, cannot differentiate by cli_args
             - abuse of cli_args might cause bugs in future
         - neutral
@@ -37,6 +34,9 @@
         - con
             - would need an extra class
             - would need non-encapsulated special handling (e.g. recipe._rf)
+    - continuing from last
+        - helper to find highest numbered file
+    - only show one line in human-friendly output
 
 - tokenizer and truecaser have some rough edges
 
@@ -45,6 +45,10 @@
     - a grid search recipe has the ranges of possible values
     - helper combines the two into a subgrid
         - previously tried values will be done already, so no special handling needed
+
+- cli usability issues
+    - dryrun output is in random order
+    - default monitoring picks asciibetically first output
 
 - use package resources instead of data in source tree
 
