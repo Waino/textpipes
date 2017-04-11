@@ -82,6 +82,10 @@ class CLI(object):
                 warn = True
         if warn:
             print('********** WARNING! Some inputs are missing **********')
+        else:
+            # ensure that subdirs exist
+            for subdir in self.conf.conf['paths.dirs'].values():
+                os.makedirs(subdir, exist_ok=True)
         # check that output paths are in config
         warn = False
         for rf in self.recipe.files:
@@ -96,7 +100,7 @@ class CLI(object):
 
     def status(self):
         files_by_job_id = collections.defaultdict(list)
-        for (filepath, job_id) in self.log.outputs.items():
+        for (filepath, job_id) in sorted(self.log.outputs.items()):
             files_by_job_id[job_id].append(filepath)
         keyfunc = lambda x: x.exp
         for (exp, jobs) in itertools.groupby(
@@ -152,28 +156,29 @@ class CLI(object):
         self.log.finished_running(next_step, job_id, rule.name)
 
     def show_next_steps(self, nextsteps, dryrun=False):
-        job_ids = {}    # FIXME
         for step in nextsteps:
             if isinstance(step, Done):
                 print('Done: {}'.format(step.output(self.conf, self.cli_args)))
         print('-' * 80)
         for step in nextsteps:
             if isinstance(step, Waiting):
-                job_id = job_ids.get(step, '-')
-                print('Waiting: {} {}'.format(job_id, step.output(self.conf, self.cli_args)))
+                outfile = step.output(self.conf, self.cli_args)
+                job_id = self.log.outputs.get(outfile, '-')
+                print('Waiting: {} {}'.format(job_id, outfile))
         for step in nextsteps:
             if isinstance(step, Running):
-                # FIXME: monitoring? sec_key -> Rule
-                job_id = job_ids.get(step, '-')
-                print('Running: {} {}'.format(job_id, step.output(self.conf, self.cli_args)))
+                # FIXME: show monitoring here?
+                outfile = step.output(self.conf, self.cli_args)
+                job_id = self.log.outputs.get(outfile, '-')
+                print('Running: {} {}'.format(job_id, outfile))
         print('-' * 80)
         lbl = 'Available' if dryrun else 'Scheduled'
         for step in nextsteps:
             if isinstance(step, Available):
-                job_id = job_ids.get(step, '-')
+                outfile = step.outputs[0](self.conf, self.cli_args)
+                job_id = self.log.outputs.get(outfile, '-')
                 print('{}: {} {}\t{}\t{}'.format(
-                    lbl, job_id, step.outputs[0].sec_key(), step.rule.name,
-                    step.outputs[0](self.conf, self.cli_args)))
+                    lbl, job_id, step.outputs[0].sec_key(), step.rule.name, outfile))
 
 # keep a log of jobs
 # - always: recipe, experiment id, timestamp
@@ -253,6 +258,7 @@ class ExperimentLog(object):
             rule=rule,
             ))
         for (sub_sec_key, output) in output_files:
+            self.outputs[output] = job_id
             self._append(FILE_FMT.format(
                 time=timestamp,
                 recipe=self.recipe.name,

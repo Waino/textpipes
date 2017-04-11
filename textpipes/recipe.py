@@ -66,6 +66,8 @@ class Recipe(object):
             else:
                 raise Exception('Cannot parse section:key "{}"'.format(output))
         if check and rf not in self.files:
+            print(rf)
+            print(self.files.keys())
             raise Exception('No rule to make target {}'.format(output))
         return rf
 
@@ -101,9 +103,13 @@ class Recipe(object):
             # check log for waiting/running jobs
             status, job_fields = self.log.get_status_of_output(
                 cursor(self.conf, cli_args))
-            if status == 'running' and not rule.is_atomic(cursor):
-                running.add(cursor)
-                continue
+            #print(status, rule.is_atomic(cursor), cursor)
+            if status == 'running':
+                if not (rule.is_atomic(cursor) and cursor.exists(self.conf, cli_args)):
+                    # must wait for non-atomic files until job stops running
+                    # also wait for an atomic file that doesn't yet exist
+                    running.add(cursor)
+                    continue
             if cursor.exists(self.conf, cli_args):
                 seen_done.add(cursor)
                 continue
@@ -267,7 +273,7 @@ class LoopRecipeFile(RecipeFile):
     loop index in the file path template."""
     def __init__(self, section, key, loop_index):
         super().__init__(section, key)
-        self.loop_index = loop_index
+        self.loop_index = int(loop_index)
 
     def __call__(self, conf, cli_args=None):
         path = conf.get_path(self.section, self.key)
