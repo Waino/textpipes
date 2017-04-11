@@ -87,10 +87,15 @@ pp = paraprep(para, parapiped)
 loop_indices = (2, 4, 6, 30)
 foo_models = recipe.add_rule(
     tp.dummy.DummyTrainLoop(foo_pre, ('mod', 'foo.models'), loop_indices))
-foo_evals = [recipe.add_rule(
-                tp.external.DummyPipe(
-                    model,
-                    recipe.add_output('gen', 'foo.{}.eval'.format(idx))))
+
+def eval(model, idx):
+    ev, = recipe.add_rule(
+        tp.external.DummyPipe(
+            model,
+            recipe.add_output('gen', 'foo.evals', loop_index=idx)
+        ))
+    return ev
+foo_evals = [eval(model, idx)
              for (model, idx) in zip(foo_models, loop_indices)]
 
 recipe.add_main_outputs([foo_pre, bar_pre] + list(pp) + foo_evals)

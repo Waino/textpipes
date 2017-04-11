@@ -9,7 +9,7 @@ class MonoFilter(MonoPipeComponent):
         self.filtr = filtr
         self.logfile = logfile
 
-    def __call__(self, stream):
+    def __call__(self, stream, side_fobjs=None):
         for line in stream:
             if self.filtr(line):
                 # filter out this line
@@ -27,7 +27,7 @@ class ParallelFilter(ParallelPipeComponent):
         self.filters = filters
         self.logfile = logfile
 
-    def __call__(self, stream):
+    def __call__(self, stream, side_fobjs=None):
         filters = self.filters
         for tpl in stream:
             if isinstance(filters, Filter):
@@ -47,7 +47,7 @@ class ParallelFilter(ParallelPipeComponent):
 
 class Filter(object):
     """Base class for filter implementations"""
-    def __call__(self, line):
+    def __call__(self, line, side_fobjs=None):
         """Returns True if the line should be filtered out"""
         raise NotImplementedError()
 
@@ -80,7 +80,7 @@ class FilterByLength(Filter):
         self.max_chars = max_chars
         self.max_chars_per_token = max_chars_per_token
 
-    def __call__(self, line):
+    def __call__(self, line, side_fobjs=None):
         if self.max_chars and len(line) > self.max_chars:
             return True
         tokens = line.split()

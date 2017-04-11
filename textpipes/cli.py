@@ -128,7 +128,7 @@ class CLI(object):
             if isinstance(step, Available):
                 sec_key = step.outputs[0].sec_key()
                 output_files = [(output.sec_key(), output(self.conf, self.cli_args))
-                                for output in step.outputs]
+                                for output in sorted(step.outputs)]
                 job_id = self.platform.schedule(
                     self.recipe, self.conf, step.rule, sec_key,
                     output_files, self.cli_args)

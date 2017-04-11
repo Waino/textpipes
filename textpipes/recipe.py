@@ -28,8 +28,11 @@ class Recipe(object):
         self.files[rf] = None
         return rf
 
-    def add_output(self, section, key, main=False):
-        rf = RecipeFile(section, key)
+    def add_output(self, section, key, loop_index=None, main=False):
+        if loop_index is None:
+            rf = RecipeFile(section, key)
+        else:
+            rf = LoopRecipeFile(section, key, loop_index)
         if rf in self.files:
             raise Exception('There is already a rule for {}'.format(rf))
         if main:
@@ -51,7 +54,7 @@ class Recipe(object):
     def get_rule(self, output):
         return self.files.get(self._rf(output), None)
 
-    def _rf(self, output):
+    def _rf(self, output, check=True):
         if isinstance(output, RecipeFile):
             rf = output 
         else:
@@ -62,7 +65,7 @@ class Recipe(object):
                 rf = LoopRecipeFile(*sec_key)
             else:
                 raise Exception('Cannot parse section:key "{}"'.format(output))
-        if rf not in self.files:
+        if check and rf not in self.files:
             raise Exception('No rule to make target {}'.format(output))
         return rf
 
@@ -121,12 +124,11 @@ class Recipe(object):
         running = [Running(output) for output in running]
 
         available = []
-        potential = sorted(potential, key=lambda x: hash(x[1]))
+        potential = sorted(potential, key=lambda x: (hash(x[1]), x[0]))
         for (rule, pairs) in itertools.groupby(potential, lambda x: x[1]):
             if any(inp not in seen_done for inp in rule.inputs):
                 # inputs need to be built first
                 continue
-            print(rule, pairs)
             available.append(
                 Available(tuple(output for (output, rule) in pairs), rule))
 
@@ -143,6 +145,9 @@ class Recipe(object):
         return rule.make(self.conf, cli_args)
 
     def add_main_outputs(self, outputs):
+        for out in outputs:
+            if not isinstance(out, RecipeFile):
+                raise Exception('output {} is not a RecipeFile'.format(out))
         self._main_out.update(outputs)
     
     def main(self):
