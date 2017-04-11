@@ -94,10 +94,11 @@ class Recipe(object):
         missing = set()
         while len(border) > 0:
             cursor = border.pop()
+            rule = self.files[cursor]
             # check log for waiting/running jobs
             status, job_fields = self.log.get_status_of_output(
                 cursor(self.conf, cli_args))
-            if status == 'running':
+            if status == 'running' and not rule.is_atomic(cursor):
                 running.add(cursor)
                 continue
             if cursor.exists(self.conf, cli_args):
@@ -106,7 +107,6 @@ class Recipe(object):
             if status == 'scheduled':
                 waiting.add(cursor)
                 continue
-            rule = self.files[cursor]
             if rule is None:
                 # an original input, but failed the exists check above
                 missing.add(cursor)
