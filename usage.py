@@ -83,6 +83,16 @@ bar_pre = preprocess('bar', bar)
 
 pp = paraprep(para, parapiped)
 
-recipe.add_main_outputs([foo_pre, bar_pre] + list(pp))
+# dummy training with foo
+loop_indices = (2, 4, 6, 30)
+foo_models = recipe.add_rule(
+    tp.dummy.DummyTrainLoop(foo_pre, ('mod', 'foo.models'), loop_indices))
+foo_evals = [recipe.add_rule(
+                tp.external.DummyPipe(
+                    model,
+                    recipe.add_output('gen', 'foo.{}.eval'.format(idx))))
+             for (model, idx) in zip(foo_models, loop_indices)]
+
+recipe.add_main_outputs([foo_pre, bar_pre] + list(pp) + foo_evals)
 
 recipe.main()

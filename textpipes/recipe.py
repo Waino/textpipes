@@ -55,7 +55,7 @@ class Recipe(object):
         if isinstance(output, RecipeFile):
             rf = output 
         else:
-            sec_key = *output.split(':')
+            sec_key = output.split(':')
             if len(sec_key) == 2:
                 rf = RecipeFile(*sec_key)
             elif len(sec_key) == 3:

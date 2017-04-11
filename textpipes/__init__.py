@@ -31,3 +31,5 @@ from .dedup import Deduplicate
 # more are available by importing from tp.components
 from .components.preprocessing import Clean, MapChars
 from .components.filtering import MonoFilter, ParallelFilter, FilterByLength
+
+from . import dummy     # FIXME debug

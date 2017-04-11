@@ -81,7 +81,17 @@ class CLI(object):
                 print('MISSING:  {}'.format(fname))
                 warn = True
         if warn:
-            print('********** WARNING! Some inputs are missing print **********')
+            print('********** WARNING! Some inputs are missing **********')
+        # check that output paths are in config
+        warn = False
+        for rf in self.recipe.files:
+            try:
+                fname = rf(self.conf, self.cli_args)
+            except KeyError:
+                print('config is missing path: {}'.format(rf))
+                warn = True
+        if warn:
+            print('********** WARNING! Some paths are missing **********')
 
 
     def status(self):
