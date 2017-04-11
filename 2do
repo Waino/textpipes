@@ -21,6 +21,12 @@
 - loop Rule that produces numbered outputs
     - helper to find highest numbered file
     - continuing from last
+    - early saves should be available to evaluate before run has finished
+        - need to separate two types of file
+            - atomic: e.g. model pickles
+                - if the file exists, it can be assumed to be done
+            - non-atomic: pipeline output, built up over time
+                - file is not done while the job making it is still running
     - only show one line in human-friendly output
 
 - tokenizer and truecaser have some rough edges

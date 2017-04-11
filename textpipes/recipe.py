@@ -187,6 +187,16 @@ class Rule(object):
         lc = external_linecount(file_paths[0])
         return '{} lines'.format(lc)
 
+    def is_atomic(self, output):
+        """Returns True, if the existence of the output file can be
+        assumed to indicate that it is ready.
+        Returning False indicates the normal condition:
+        contents are piped into output during the entire course of the
+        job, so clients must wait until the job finishes.
+        """
+        # Subclasses with atomic outputs should override this
+        return False
+
     @property
     def name(self):
         return self.__class__.__name__
