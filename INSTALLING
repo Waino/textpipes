@@ -1,0 +1,8 @@
+virtualenv -p python3 textpipes
+cd textpipes/
+source bin/activate
+git clone git@github.com:Waino/textpipes.git
+cd textpipes/
+python setup.py develop
+pip install ftfy
+

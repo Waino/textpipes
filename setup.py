@@ -9,7 +9,7 @@ import re
 main_py = open('textpipes/__init__.py').read()
 metadata = dict(re.findall("__([a-z]+)__ = '([^']+)'", main_py))
 
-#requires = [ ]
+#requires = ['ftfy',]
 
 setup(name='textpipes',
       version=metadata['version'],
