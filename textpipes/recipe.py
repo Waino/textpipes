@@ -55,7 +55,13 @@ class Recipe(object):
         if isinstance(output, RecipeFile):
             rf = output 
         else:
-            rf = RecipeFile(*output.split(':'))
+            sec_key = *output.split(':')
+            if len(sec_key) == 2:
+                rf = RecipeFile(*sec_key)
+            elif len(sec_key) == 3:
+                rf = LoopRecipeFile(*sec_key)
+            else:
+                raise Exception('Cannot parse section:key "{}"'.format(output))
         if rf not in self.files:
             raise Exception('No rule to make target {}'.format(output))
         return rf
@@ -127,10 +133,7 @@ class Recipe(object):
         return done + available + waiting + running
 
     def make_output(self, output, cli_args=None):
-        if isinstance(output, RecipeFile):
-            rf = output 
-        else:
-            rf = RecipeFile(*output.split(':'))
+        rf = self._rf(output)
         if rf not in self.files:
             raise Exception('No rule to make target {}'.format(output))
         if rf.exists(self.conf, cli_args):
@@ -252,3 +255,44 @@ class RecipeFile(object):
 
     def __repr__(self):
         return 'RecipeFile({}, {})'.format(self.section, self.key)
+
+
+class LoopRecipeFile(RecipeFile):
+    """ Use special formatting {_loop_index} to include the
+    loop index in the file path template."""
+    def __init__(self, section, key, loop_index):
+        super().__init__(section, key)
+        self.loop_index = loop_index
+
+    def __call__(self, conf, cli_args=None):
+        path = conf.get_path(self.section, self.key)
+        fmt_args = {}
+        if cli_args is not None:
+            fmt_args.update(cli_args)
+        fmt_args['_loop_index'] = self.loop_index
+        path = path.format(**fmt_args)
+        return path
+
+    def sec_key(self):
+        return '{}:{}:{}'.format(self.section, self.key, self.loop_index)
+
+    def __eq__(self, other):
+        return (self.section, self.key, self.loop_index) == \
+               (other.section, other.key, other.loop_index)
+
+    def __hash__(self):
+        return hash((self.section, self.key, self.loop_index))
+
+    def __lt__(self, other):
+        if (self.section, self.key) == (other.section, other.key):
+            return self.loop_index < other.loop_index
+        return self.section + self.key < other.section + other.key
+
+    def __repr__(self):
+        return 'LoopRecipeFile({}, {}, {})'.format(
+            self.section, self.key, self.loop_index)
+
+    @staticmethod
+    def loop_output(section, key, loop_indices):
+        return [LoopRecipeFile(section, key, loop_index)
+                for loop_index in loop_indices]
