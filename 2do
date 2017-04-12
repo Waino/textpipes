@@ -20,9 +20,11 @@
 
 - tokenizer and truecaser have some rough edges
 
-- Concatenate(Rule)
-- multiple inputs when e.g. training truecaser (no need to concatenate first)
-- MonoPipe subclass that reads multiple inputs concatenated?
+½ Concatenate(Rule)
+½ multiple inputs when e.g. training truecaser (no need to concatenate first)
+    % MonoPipe subclass that reads multiple inputs concatenated?
+    - subclass hierarchy would clash with DeadEndPipe
+        % otoh this training is exactly the usecase for both, so maybe combine?
 
 - loop Rule that produces numbered outputs
     % early saves should be available to evaluate before run has finished
