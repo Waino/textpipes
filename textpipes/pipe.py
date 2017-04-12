@@ -1,6 +1,8 @@
 """Pipes are text processing operations expressed as Python generators,
 which can be composed into Rules"""
 
+import itertools
+
 from .components import *
 from .recipe import Rule
 from .utils import safe_zip
@@ -113,10 +115,11 @@ class ParallelPipe(Pipe):
 
 
 class DeadEndPipe(MonoPipe):
-    """Has no main output.
+    """Has (potentially) multiple inputs (read in sequence and concatenated),
+    but no main output.
 
     Useful e.g. if you just want to train a model (such as a truecaser)
-    from a corpus file, and don't need the lines for anything else.
+    from a number of corpus files, and don't need the lines for anything else.
     """
     def __init__(self, components, *args, **kwargs):
         for component in components:
@@ -126,15 +129,13 @@ class DeadEndPipe(MonoPipe):
         super().__init__(components, *args, **kwargs)
 
     def make(self, conf, cli_args=None):
-        if len(self.main_inputs) != 1:
-            raise Exception('DeadEndPipe must have exactly 1 main input. '
-                'Received: {}'.format(self.main_inputs))
         if len(self.main_outputs) != 0:
             raise Exception('DeadEndPipe cannot have a main output. '
                 'Received: {}'.format(self.main_outputs))
-        # Make a generator that reads from main_input
-        main_in_fobj = self.main_inputs[0].open(conf, cli_args, mode='rb')
-        stream = main_in_fobj
+        # Make a tuple of generators that reads from main_inputs
+        readers = [inp.open(conf, cli_args, mode='rb')
+                   for inp in self.main_inputs]
+        stream = itertools.chain(*readers)
 
         stream, side_fobjs = self._make_helper(stream, conf, cli_args)
 
@@ -142,6 +143,5 @@ class DeadEndPipe(MonoPipe):
         for line in stream:
             pass
         # close all file objects
-        main_in_fobj.close()
-        for fobj in side_fobjs.values():
+        for fobj in readers + list(side_fobjs.values()):
             fobj.close()
