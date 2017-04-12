@@ -6,7 +6,7 @@ import os
 import re
 
 from .configuration import Config
-from .platform import run
+from .platform import run, MakeImmediately
 from .recipe import *
 from .utils import *
 
@@ -139,6 +139,10 @@ class CLI(object):
                 if job_id is None:
                     # not scheduled for some reason
                     continue
+                elif job_id == MakeImmediately:
+                    # (small) local job to make instead of schedule
+                    # FIXME: will missing job_id break stuff?
+                    self._make_helper(step.outputs[0], step, '-')
                 job_ids[step] = job_id
                 self.log.scheduled(step.rule.name, sec_key, job_id, output_files)
         return job_ids
@@ -150,6 +154,9 @@ class CLI(object):
             raise Exception('Cannot start running {}: {}'.format(
                 output, next_step))
         job_id = self.log.outputs[next_step.output(self.conf, self.cli_args)]
+        self._make_helper(output, next_step, job_id)
+
+    def _make_helper(self, output, next_step, job_id):
         rule = self.recipe.files.get(next_step.output, None)
         self.log.started_running(next_step, job_id, rule.name)
         self.recipe.make_output(output=output, cli_args=self.cli_args)
@@ -344,21 +351,23 @@ class ExperimentLog(object):
                     job_id = m.group(5)
                     if status not in STATUSES:
                         print('unknown status {} in {}'.format(status, m.groups()))
-                    self.job_statuses[job_id] = status
-                    self.jobs[job_id] = LogItem(*m.groups())
+                    if not job_id == '-':
+                        self.job_statuses[job_id] = status
+                        self.jobs[job_id] = LogItem(*m.groups())
                     self.ongoing_experiments.add(exp)
                     continue
                 m = FILE_RE.match(line)
                 if m:
                     job_id = m.group(4)
                     filename = m.group(6)
-                    self.outputs[filename] = job_id
+                    if not job_id == '-':
+                        self.outputs[filename] = job_id
                     continue
                 m = END_RE.match(line)
                 if m:
                     exp = m.group(3)
                     try:
-                        self.ongoing_experiments.add(exp)
+                        self.ongoing_experiments.remove(exp)
                     except KeyError:
                         pass
 

@@ -3,6 +3,8 @@ import shlex
 import subprocess
 import threading
 
+MakeImmediately = object()
+
 class Platform(object):
     def __init__(self, name, conf):
         self.name = name
@@ -12,7 +14,7 @@ class Platform(object):
         pass
 
     def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, log):
-        # -> job id
+        # -> job id (or None if not scheduled)
         raise NotImplementedError()
 
     def check_job(self, job_id):
@@ -38,9 +40,17 @@ class LogOnly(Platform):
     def check_job(self, job_id):
         return 'running'    # FIXME
 
+class Local(Platform):
+    """Run immediately, instead of scheduling"""
+    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args):
+        return MakeImmediately
+
+    def check_job(self, job_id):
+        return 'unknown'
+
 classes = {
     'logonly': LogOnly,
-    #'local': ,
+    'local': Local,
     #'slurm': ,
 }
 
