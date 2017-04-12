@@ -74,6 +74,11 @@ class Tokenize(SingleCellComponent):
                 ((r'(?<=\w) : ([a-zåäö]{1,3}) ', r" :\1 "),    # finnish abbrevation suffixes
                  (r'(?<=\w) : (nneksi|ista) ', r" :\1 "),      # longer suffixes
                 ))
+        if self.lang not in ('en',):
+            # languages without specific clitic rules
+            map_re.extend(
+                ((r'([a-z][a-z][a-z]) \' ([a-z]) ', r"\1'\2 "), # join obvious clitics
+                ))
 
         # process and compile expressions
         self.protected_str = self._compile_str(protected_str)

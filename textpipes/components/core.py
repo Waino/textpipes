@@ -62,7 +62,7 @@ class PerColumn(ParallelPipeComponent):
         for tpl in stream:
             assert len(tpl) == len(self.components)
             yield tuple(component.single_cell(line, side_fobjs=side_fobjs)
-                        for (component, line) in zip(component, tpl))
+                        for (component, line) in zip(self.components, tpl))
 
     @property
     def side_inputs(self):

@@ -13,10 +13,16 @@
 % what if there is no main_output to drive the generator?
     % e.g. if you just want to train a truecaser from a corpus file, and don't need the lines for anything else
     % third type of Pipe? DeadEndPipe
-    - make a TokenizerRule that uses DeadEndPipe, for convenience?
+    - make a TrainTruecaserRule that uses DeadEndPipe, for convenience?
 
 - slurm params from platform conf
-- cli_args
+- local platform
+
+- tokenizer and truecaser have some rough edges
+
+- Concatenate(Rule)
+- multiple inputs when e.g. training truecaser (no need to concatenate first)
+- MonoPipe subclass that reads multiple inputs concatenated?
 
 - loop Rule that produces numbered outputs
     % early saves should be available to evaluate before run has finished
@@ -38,8 +44,6 @@
         - helper to find highest numbered file
     - only show one line in human-friendly output
 
-- tokenizer and truecaser have some rough edges
-
 - tooling for parameter grid search
     - conf has current best params
     - a grid search recipe has the ranges of possible values
@@ -50,5 +54,6 @@
     - dryrun output is in random order
     - default monitoring picks asciibetically first output
 
+- cli_args
 - use package resources instead of data in source tree
 
