@@ -142,7 +142,10 @@ class CLI(object):
                 elif job_id == MakeImmediately:
                     # (small) local job to make instead of schedule
                     # FIXME: will missing job_id break stuff?
-                    self._make_helper(step.outputs[0], step, '-')
+                    self._make_helper(step.outputs[0],
+                                      Waiting(step.outputs[0]),
+                                      '-')
+                    continue
                 job_ids[step] = job_id
                 self.log.scheduled(step.rule.name, sec_key, job_id, output_files)
         return job_ids
@@ -184,6 +187,8 @@ class CLI(object):
             if isinstance(step, Available):
                 outfile = step.outputs[0](self.conf, self.cli_args)
                 job_id = self.log.outputs.get(outfile, '-')
+                if job_id == MakeImmediately:
+                    job_id = '-'
                 print('{}: {} {}\t{}\t{}'.format(
                     lbl, job_id, step.outputs[0].sec_key(), step.rule.name, outfile))
 
@@ -330,6 +335,7 @@ class ExperimentLog(object):
         pass
 
     def _append(self, msg):
+        os.makedirs('logs', exist_ok=True)
         with open_text_file(self.logfile, mode='ab') as fobj:
             fobj.write(msg)
             fobj.write('\n')

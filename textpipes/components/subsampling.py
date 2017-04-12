@@ -2,6 +2,7 @@ from .core import MonoPipeComponent
 
 class Head(MonoPipeComponent):
     def __init__(self, limit):
+        super().__init__()
         self.limit = limit
 
     def __call__(self, stream, side_fobjs=None):

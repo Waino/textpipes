@@ -33,6 +33,53 @@ class Clean(SingleCellComponent):
     def single_cell(self, line, side_fobjs=None):
         return ftfy.fix_text(line, **self.params)
 
+
+class NormalizePunctuation(RegexSubstitution):
+    def __init__(self):
+        expressions = [
+            ('[\u002d\u058a\u05be\u2011\u2012\u2013\u2014\u2015\u2e3a\u2e3b'
+              '\u2212\ufe58\ufe63\uff0d\xad]', '-'),
+            ('(?<=\w)[\u2018\u2019](?=\w)', "'"),   # clitics
+            ('[`´]', "'"),
+            ('[\u201e\u201c\u201d\u2018\u201a\u2019\u2039\u203a\u02ee'
+              '\xab\xbb\u27ea\u27eb\u300a\u300b]', '"'),
+            ("''", '"'),    # quote using apostrophes
+            ('\u2044', '/'),
+            ('\uff3f', '_'),
+            ('\u066A', '%'),
+            ('\u0609', '\u2030'),   # promille
+            ]
+        super().__init__(expressions)
+
+
+# FIXME: use of fancy quotes is really inconsistent between corpora
+class DeNormalizePunctuation(RegexSubstitution):
+    def __init__(self, node_in):
+        self.expressions = [
+            # fancy quotes FIXME: some langs have assymmetric
+            (r'"', '\u201d'),
+            # fancy apostrophe
+            (r"'", '\u2019'),
+            ]
+        super().__init__(expressions)
+
+
+# FIXME: separate components to (de)normalize order of punctuation, if desired
+        ## quotpunc normalizes english "foo." into internal standard "foo".
+        ## but tries not to when comma comes, "before quoted phrase"
+        ## use language-specific DeNormalizePunctuation to postprocess
+        #if quotpunc:
+        #    expressions.append((r'("[^"]+)([,\.])( ?)"', r'\1"\3\2'))
+        ## FIXME: thousand seps?
+
+        ## FIXME en-dash \u2013 (under what conditions?)
+        ## FIXME: thousand seps?
+        #if self.lang == 'en':
+        #    self.expressions.extend((
+        #        # quotpunc FIXME: make configurable?
+        #        (r'"( ?)([,\.])', r'\2\1"'),
+        #        ))
+
 class MapChars(SingleCellComponent):
     """Character mangling based on unicode character category,
     with individual overrides.

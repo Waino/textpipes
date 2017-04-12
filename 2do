@@ -55,6 +55,7 @@
 - cli usability issues
     - dryrun output is in random order
     - default monitoring picks asciibetically first output
+    - --check should check that gitdir is valid
 
 - cli_args
 - use package resources instead of data in source tree
