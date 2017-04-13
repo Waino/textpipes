@@ -26,7 +26,7 @@ class Deduplicate(Rule):
         self.truncate = truncate
 
     def make(self, conf, cli_args):
-        estimated_lines = conf.conf['exp'].getint('n_lines', 500000000)
+        estimated_lines = 1.2 * conf.conf['exp'].getint('n_lines', 500000000)
         # first pass: collect collisions
         pipes = [inp.open(conf, cli_args, mode='rb')
                  for inp in self.inputs]

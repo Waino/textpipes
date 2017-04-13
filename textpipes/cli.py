@@ -71,6 +71,9 @@ class CLI(object):
             for key in self.conf.conf[section]:
                 self.conf.conf[section][key]
         print('Config interpolations OK')
+        # exp section is assumed to always exist
+        if 'exp' not in self.conf.conf.sections():
+            print('********** WARNING! NO "exp" SECTION in conf **********')
         # check existence of original inputs
         warn = False
         for rf in self.recipe.main_inputs:
@@ -194,7 +197,7 @@ class CLI(object):
                 if dryrun:
                     lbl = 'Available'
                 else:
-                    if job_id == MakeImmediately:
+                    if job_id in ('-', MakeImmediately):
                         lbl = 'Immediate'
                     else:
                         lbl = 'Scheduled'

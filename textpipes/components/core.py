@@ -27,6 +27,7 @@ class SingleCellComponent(MonoPipeComponent):
     def single_cell(self, line, side_fobjs=None):
         raise NotImplementedError()
 
+
 class ForEach(ParallelPipeComponent):
     """Wraps a SingleCellComponent for use in a ParallelPipe.
 
@@ -42,6 +43,14 @@ class ForEach(ParallelPipeComponent):
                             line, side_fobjs=side_fobjs)
                         for line in tpl)
 
+    def pre_make(self, side_fobjs):
+        """Called before __call__ (or all the single_cell calls)"""
+        self.mono_component.pre_make(side_fobjs)
+
+    def post_make(self, side_fobjs):
+        """Called after __call__ (or all the single_cell calls)"""
+        self.mono_component.post_make(side_fobjs)
+
     @property
     def side_inputs(self):
         return self.mono_component.side_inputs
@@ -49,6 +58,7 @@ class ForEach(ParallelPipeComponent):
     @property
     def side_outputs(self):
         return self.mono_component.side_outputs
+
 
 class PerColumn(ParallelPipeComponent):
     """Wraps multiple SingleCellComponents for use in a ParallelPipe,
@@ -64,6 +74,16 @@ class PerColumn(ParallelPipeComponent):
             yield tuple(component.single_cell(line, side_fobjs=side_fobjs)
                         for (component, line) in zip(self.components, tpl))
 
+    def pre_make(self, side_fobjs):
+        """Called before __call__ (or all the single_cell calls)"""
+        for component in self.components:
+            component.pre_make(side_fobjs)
+
+    def post_make(self, side_fobjs):
+        """Called after __call__ (or all the single_cell calls)"""
+        for component in self.components:
+            component.post_make(side_fobjs)
+
     @property
     def side_inputs(self):
         return tuple(set(inp for component in self.components
@@ -74,9 +94,11 @@ class PerColumn(ParallelPipeComponent):
         return tuple(set(inp for component in self.components
                          for inp in component.side_outputs))
 
+
 class IdentityComponent(SingleCellComponent):
     def single_cell(self, line, side_fobjs=None):
         return line
+
 
 class RegexSubstitution(SingleCellComponent):
     """Arbitrary regular expression substitutions"""

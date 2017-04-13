@@ -56,6 +56,10 @@
     - dryrun output is in random order
     - default monitoring picks asciibetically first output
     - --check should check that gitdir is valid
+    - --status is failing to output useful stuff (e.g. failed local jobs)
+        - --dryrun also not showing it as running/failed
+        - missing job_id is probably the problem
+        - --status should also show available jobs, not just --dryrun ?
 
 - recipe usability issues
     - lots of boilerplate in preprocssing recipe
