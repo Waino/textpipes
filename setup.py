@@ -27,8 +27,8 @@ setup(name='textpipes',
           #'Topic :: Scientific/Engineering',
       ],
       license="BSD",
-      #scripts=['scripts/textpipes',
-      #        ],
+      scripts=['scripts/check.py',
+              ],
       #install_requires=requires,
       #extras_require={
       #    'docs': [l.strip() for l in open('docs/build_requirements.txt')]

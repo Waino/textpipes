@@ -24,7 +24,7 @@ def get_version():
 from .recipe import Recipe
 from .configuration import Config
 from .pipe import *     # FIXME
-from . import external, components
+from . import external, components, check
 
 # Most common pipes for easy access
 from .external import Concatenate

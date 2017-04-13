@@ -4,6 +4,8 @@ import gzip
 import itertools
 import subprocess
 
+UNICODE_UNIT_SEP = '\u001F'
+FIVEDOT = '\u2059' # 5-dot punctuation
 
 def safe_zip(*iterables):
     iters = [iter(x) for x in iterables]
