@@ -38,10 +38,12 @@ class Pipe(Rule):
             component.pre_make(side_fobjs)
         for component in self.components:
             stream = component(stream, side_fobjs=side_fobjs)
-        for component in self.components:
-            component.post_make(side_fobjs)
 
         return stream, side_fobjs
+
+    def _post_make(self, side_fobjs):
+        for component in self.components:
+            component.post_make(side_fobjs)
         
 
 class MonoPipe(Pipe):
@@ -70,6 +72,9 @@ class MonoPipe(Pipe):
             for line in stream:
                 fobj.write(line)
                 fobj.write('\n')
+
+        # post_make must be done after draining
+        self._post_make(side_fobjs)
         # close all file objects
         main_in_fobj.close()
         for fobj in side_fobjs.values():
@@ -110,6 +115,9 @@ class ParallelPipe(Pipe):
             for (val, fobj) in zip(tpl, writers):
                 fobj.write(val)
                 fobj.write('\n')
+        # post_make must be done after draining
+        self._post_make(side_fobjs)
+        # close all file objects
         for fobj in readers + writers + list(side_fobjs.values()):
             fobj.close()
 
@@ -142,6 +150,8 @@ class DeadEndPipe(MonoPipe):
         # Drain pipeline, throwing the output away
         for line in stream:
             pass
+        # post_make must be done after draining
+        self._post_make(side_fobjs)
         # close all file objects
         for fobj in readers + list(side_fobjs.values()):
             fobj.close()

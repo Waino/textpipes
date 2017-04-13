@@ -54,6 +54,8 @@ class TrainTrueCaser(SingleCellComponent):
             best, bestcount = counts.most_common(1)[0]
             sure = (float(bestcount) / total) > self.sure_thresh
             self.words[word] = (best, sure)
+        if len(self.words) == 0:
+            logger.warning('Saved TrueCaser model was empty')
         # write model serialized into rows
         fobj = side_fobjs[self.model_file]
         for (word, (best, sure)) in self.words.items():
@@ -84,8 +86,8 @@ class TrueCase(SingleCellComponent):
                 raise Exception(
                     'Unable to load truecaser line {} "{}"'.format(i, line))
             self.words[word] = (best, sure)
-        if i == 0:
-            logger.warning('Truecaser model was empty')
+        if len(self.words) == 0:
+            logger.warning('Loaded TrueCaser model was empty')
 
     def single_cell(self, sentence, side_fobjs=None):
         result = []
