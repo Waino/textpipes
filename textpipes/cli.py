@@ -182,11 +182,17 @@ class CLI(object):
                 job_id = self.log.outputs.get(outfile, '-')
                 print('Running: {} {}'.format(job_id, outfile))
         print('-' * 80)
-        lbl = 'Available' if dryrun else 'Scheduled'
         for step in nextsteps:
             if isinstance(step, Available):
                 outfile = step.outputs[0](self.conf, self.cli_args)
                 job_id = self.log.outputs.get(outfile, '-')
+                if dryrun:
+                    lbl = 'Available'
+                else:
+                    if job_id == MakeImmediately:
+                        lbl = 'Immediate'
+                    else:
+                        lbl = 'Scheduled'
                 if job_id == MakeImmediately:
                     job_id = '-'
                 print('{}: {} {}\t{}\t{}'.format(

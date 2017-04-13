@@ -5,3 +5,4 @@ from . import filtering
 from . import preprocessing
 from . import subsampling
 from . import tokenizer
+from . import truecaser

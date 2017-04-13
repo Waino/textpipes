@@ -25,7 +25,8 @@ class Recipe(object):
 
     def add_input(self, section, key):
         rf = RecipeFile(section, key)
-        self.files[rf] = None
+        if rf not in self.files:
+            self.files[rf] = None
         return rf
 
     def add_output(self, section, key, loop_index=None, main=False):

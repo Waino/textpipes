@@ -57,6 +57,11 @@
     - default monitoring picks asciibetically first output
     - --check should check that gitdir is valid
 
+- recipe usability issues
+    - lots of boilerplate in preprocssing recipe
+        - helpers for creating parallel processing paths for multiple corpora
+
 - cli_args
 - use package resources instead of data in source tree
-
+- appended side outputs for e.g. anomaly logging
+    - should be ignored in DAG

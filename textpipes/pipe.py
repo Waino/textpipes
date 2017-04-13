@@ -3,7 +3,7 @@ which can be composed into Rules"""
 
 import itertools
 
-from .components import *
+from .components.core import *
 from .recipe import Rule
 from .utils import safe_zip
 
@@ -126,7 +126,7 @@ class DeadEndPipe(MonoPipe):
             if not isinstance(component, MonoPipeComponent):
                 raise Exception('DeadEndPipe expected MonoPipeComponent, '
                     'received {}'.format(component))
-        super().__init__(components, *args, **kwargs)
+        super().__init__(components, *args, main_outputs=[], **kwargs)
 
     def make(self, conf, cli_args=None):
         if len(self.main_outputs) != 0:
