@@ -166,6 +166,11 @@ class CLI(object):
         self.log.finished_running(next_step, job_id, rule.name)
 
     def show_next_steps(self, nextsteps, dryrun=False):
+        # FIXME: make generic table formatting
+        job_id_len = "10"   # FIXME
+        sec_key_len = str(max(len(x.outputs[0].sec_key()) for x in nextsteps))
+        rule_len = str(max(len(x.rule.name) for x in nextsteps))
+        table_fmt = '{}: {:' + job_id_len + '} {:' + sec_key_len + '}  {:' + rule_len + '}  {}'
         for step in nextsteps:
             if isinstance(step, Done):
                 print('Done: {}'.format(step.output(self.conf, self.cli_args)))
@@ -195,7 +200,7 @@ class CLI(object):
                         lbl = 'Scheduled'
                 if job_id == MakeImmediately:
                     job_id = '-'
-                print('{}: {} {}\t{}\t{}'.format(
+                print(table_fmt.format(
                     lbl, job_id, step.outputs[0].sec_key(), step.rule.name, outfile))
 
 # keep a log of jobs
