@@ -80,7 +80,7 @@ class TrueCase(SingleCellComponent):
         self.words = dict()
         for (i, line) in enumerate(side_fobjs[self.model_file]):
             try:
-                (word, best, sure) = line.strip.split('\t')
+                (word, best, sure) = line.strip().split('\t')
                 sure = (sure == 'True')
             except ValueError:
                 raise Exception(
