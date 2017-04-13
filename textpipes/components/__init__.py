@@ -1,6 +1,7 @@
 from .core import *
 from . import europarl
 from . import filtering
+from . import newscorpus
 #from . import nltk
 from . import preprocessing
 from . import subsampling

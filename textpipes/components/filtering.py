@@ -52,9 +52,21 @@ class Filter(object):
         raise NotImplementedError()
 
 
+class FilterRegex(Filter):
+    """Filters out any lines matching the expressions"""
+    def __init__(self, expressions):
+        super().__init__()
+        self.expressions = [re.compile(exp, flags=re.UNICODE)
+                            for exp in expressions]
+
+    def __call__(self, line, side_fobjs=None):
+        return any(exp.match(line) for exp in self.expressions)
+
+
 class FilterUnclean(Filter):
     """Filters out any lines changed by the cleaning op"""
     def __init__(self, operation=None):
+        super().__init__()
         self.operation = operation if operation is not None else Clean()
         try:
             self.operation.single_cell
@@ -75,6 +87,7 @@ class FilterByLength(Filter):
                  max_tokens=None,
                  max_chars=None,
                  max_chars_per_token=None):
+        super().__init__()
         self.min_tokens = min_tokens
         self.max_tokens = max_tokens
         self.max_chars = max_chars
