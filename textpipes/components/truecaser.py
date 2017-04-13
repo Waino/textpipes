@@ -84,6 +84,8 @@ class TrueCase(SingleCellComponent):
                 raise Exception(
                     'Unable to load truecaser line {} "{}"'.format(i, line))
             self.words[word] = (best, sure)
+        if i == 0:
+            logger.warning('Truecaser model was empty')
 
     def single_cell(self, sentence, side_fobjs=None):
         result = []

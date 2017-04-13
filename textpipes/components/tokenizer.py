@@ -53,8 +53,8 @@ class Tokenize(SingleCellComponent):
         map_re = [
             # Abbreviations protected if followed by a number.
             (r'(No|Art|pp) \.(\s+\d)', r"\1.\2"),
-            # name clitics: O' D' (don't split at all)
-            (r' ([OD])\s+\' (?=\w)', r" \1'"),
+            # name clitics: O' D' L' (don't split at all)
+            (r' ([ODL])\s+\' (?=\w)', r" \1'"),
             # decimals without leading zero: .38 caliber
             # must originally have a leading space
             ('(\u001F) ?\\. (\\d)', r'\1 .\2'),
@@ -77,7 +77,7 @@ class Tokenize(SingleCellComponent):
         if self.lang not in ('en',):
             # languages without specific clitic rules
             map_re.extend(
-                ((r'([a-z][a-z][a-z]) \' ([a-z]) ', r"\1'\2 "), # join obvious clitics
+                ((r'([A-Za-z][a-z][a-z]) \' ([a-z]) ', r"\1'\2 "), # join obvious clitics
                 ))
 
         # process and compile expressions
