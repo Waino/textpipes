@@ -62,6 +62,7 @@
         - --dryrun also not showing it as running/failed
         - missing job_id is probably the problem
         - --status should also show available jobs, not just --dryrun ?
+    - (at least local) platform should show process indicator
 
 - recipe usability issues
     - lots of boilerplate in preprocssing recipe
