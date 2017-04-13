@@ -41,3 +41,18 @@ def external_linecount(file_path):
         ext_lc = subprocess.check_output(['wc', '-l', file_path]).split()[0]
     ext_lc = int(ext_lc.decode('utf-8'))
     return ext_lc
+
+
+def table_print(tpls, line_before=False, line_after=False):
+    transposed = tuple(zip(*tpls))
+    col_widths = [max(len(str(val)) for val in column)
+                  for column in transposed]
+    total_width = sum(col_widths) + (2 * (len(transposed) - 1))
+    fmt = ['{:' + str(width) + '}' for width in col_widths]
+    fmt = '  '.join(fmt)
+    if line_before:
+        print(line_before * total_width)
+    for tpl in tpls:
+        print(fmt.format(*tpl))
+    if line_after:
+        print(line_after * total_width)
