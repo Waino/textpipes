@@ -68,7 +68,7 @@ class FilterRegex(Filter):
                             for exp in expressions]
 
     def __call__(self, line, side_fobjs=None):
-        return any(exp.match(line) for exp in self.expressions)
+        return any(exp.search(line) for exp in self.expressions)
 
 
 class FilterUnclean(Filter):

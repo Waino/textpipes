@@ -61,7 +61,7 @@ class FilterContractions(FilterRegex):
             "you're",
             "you've",)
         # 
-        expressions = (r'\<{}\>'.format(cont.replace("'", " ?' ?"))
+        expressions = (r'\b{}\b'.format(cont.replace("'", " ?' ?"))
                        for cont in contractions)
         super().__init__(expressions, ignore_case=True)
 
