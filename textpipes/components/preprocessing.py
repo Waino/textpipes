@@ -3,6 +3,11 @@ import unicodedata
 
 logger = logging.getLogger(__name__)
 
+FIVEDOT = '\u2059' # 5-dot punctuation
+LETTERING_BEG = '\u2e2b' # v 3-dot
+LETTERING_MID = '\u2e2c' # ^ 3-dot
+LETTERING_END = '\u2e2d' # + 4-dot
+
 try:
     import ftfy
 except ImportError:
@@ -178,3 +183,26 @@ class MapChars(SingleCellComponent):
             return char
         else:
             return policy
+
+
+class LetterizeNames(SingleCellComponent):
+    """Segment tokens starting with capital or digit"""
+    def single_cell(self, line, side_fobjs=None):
+        out = []
+        for token in line.split():
+            if FIVEDOT in token:
+                out.append(token)
+                continue
+            if len(token) > 1 and (token[0].isupper() or token[0].isdigit()):
+                chars = [char for char in token]
+
+                firstmarked = LETTERING_BEG + chars.pop(0)
+                lastmarked = LETTERING_END + chars.pop(-1)
+                midmarked = [LETTERING_MID + char for char in chars]
+                marked = [firstmarked] + midmarked + [lastmarked]
+                chars = ' '.join(marked)
+
+                out.append(chars)
+                continue
+            out.append(token)
+        return ' '.join(out)

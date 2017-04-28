@@ -15,7 +15,6 @@ class MonoFilter(MonoPipeComponent):
                 # filter out this line
                 if self.logfile is not None:
                     # FIXME: write into logfile
-                    # FIXME: requires handing down conf, cli_args
                     pass
             else:
                 # keep this line
@@ -38,7 +37,6 @@ class ParallelFilter(ParallelPipeComponent):
                 # filter out this line
                 if self.logfile is not None:
                     # FIXME: write into logfile
-                    # FIXME: requires handing down conf, cli_args
                     pass
             else:
                 # keep this line
@@ -52,11 +50,21 @@ class Filter(object):
         raise NotImplementedError()
 
 
+class NoFilter(Filter):
+    """Does not filter out anything.
+    Useful in ParallelFilter to only apply to one side."""
+    def __call__(self, line, side_fobjs=None):
+        return False
+
+
 class FilterRegex(Filter):
     """Filters out any lines matching the expressions"""
-    def __init__(self, expressions):
+    def __init__(self, expressions, ignore_case=False):
         super().__init__()
-        self.expressions = [re.compile(exp, flags=re.UNICODE)
+        flags = re.UNICODE
+        if ignore_case:
+            flags += re.IGNORECASE
+        self.expressions = [re.compile(exp, flags=flags)
                             for exp in expressions]
 
     def __call__(self, line, side_fobjs=None):

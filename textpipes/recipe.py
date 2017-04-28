@@ -43,7 +43,6 @@ class Recipe(object):
     def add_rule(self, rule):
         for rf in rule.outputs:
             if rf in self.files:
-                print(self.files)
                 raise Exception(
                     'Not adding rule {}. '
                     'There is already a rule for {}'.format(rule, rf))
