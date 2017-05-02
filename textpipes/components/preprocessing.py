@@ -206,3 +206,24 @@ class LetterizeNames(SingleCellComponent):
                 continue
             out.append(token)
         return ' '.join(out)
+
+
+class StripXml(MonoPipeComponent):
+    def __init__(self, filter_blanks=False):
+        self.filter_blanks = filter_blanks
+
+    def __call__(self, stream, side_fobjs=None):
+        depth = 0
+        for line in stream:
+            result = []
+            for char in line:
+                if char == '<':
+                    depth += 1
+                elif char == '>':
+                    depth = max(0, depth - 1)
+                elif depth == 0:
+                    result.append(char)
+                # else throw away
+            result = MULTISPACE_RE.sub(' ', ''.join(result))
+            if not self.filter_blanks or len(result) > 0:
+                yield result
