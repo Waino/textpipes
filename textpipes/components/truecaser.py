@@ -131,6 +131,7 @@ class TrueCase(SingleCellComponent):
 
 # FIXME: detruecase: MWE:s
 # FIXME: using LM, alignment to source, ...
+# FIXME: after colon?
 class DeTrueCase(SingleCellComponent):
     def __init__(self):
         super().__init__()

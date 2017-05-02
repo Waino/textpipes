@@ -1,5 +1,6 @@
 import logging
 import unicodedata
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -8,13 +9,15 @@ LETTERING_BEG = '\u2e2b' # v 3-dot
 LETTERING_MID = '\u2e2c' # ^ 3-dot
 LETTERING_END = '\u2e2d' # + 4-dot
 
+MULTISPACE_RE = re.compile(r' +')
+
 try:
     import ftfy
 except ImportError:
     logger.warning('Unable to load ftfy.')
     logger.warning('You will not be able to use Clean.')
 
-from .core import SingleCellComponent, RegexSubstitution
+from .core import SingleCellComponent, RegexSubstitution, MonoPipeComponent
 
 class Clean(SingleCellComponent):
     """Uses ftfy to perform a number of normalizations """
@@ -59,8 +62,8 @@ class NormalizePunctuation(RegexSubstitution):
 
 # FIXME: use of fancy quotes is really inconsistent between corpora
 class DeNormalizePunctuation(RegexSubstitution):
-    def __init__(self, node_in):
-        self.expressions = [
+    def __init__(self):
+        expressions = [
             # fancy quotes FIXME: some langs have assymmetric
             (r'"', '\u201d'),
             # fancy apostrophe
@@ -210,6 +213,7 @@ class LetterizeNames(SingleCellComponent):
 
 class StripXml(MonoPipeComponent):
     def __init__(self, filter_blanks=False):
+        super().__init__()
         self.filter_blanks = filter_blanks
 
     def __call__(self, stream, side_fobjs=None):

@@ -152,22 +152,25 @@ class DeTokenize(SingleCellComponent):
                 # english suffix clitics
                 (r' (\'[a-z]) ', r'\1 '),
                 (r' (\'(ll|re|ve)) ', r'\1 '),
-                # plural apostrophe for s-ending
-                (r'(s) (\') ', r'\1\2 '),
                 ])
         elif self.lang == 'fi':
             # finnish abbrevation suffixes
             expressions.extend([
                 (r' (:[a-zåäö]{1,3}) ', r"\1 "),
                 (r' (:(nneksi|ista)) ', r"\1 "),
+                (r' \' (an|ista|hun|lla|lle|sta|ssa|ta) ', r"'\1 "),
+                (r'([Tt]ark) \' ', r"\1'"),
                 ])
             # in finnish, would joining apos from both sides make sense?
         # must come after clitics
         expressions.extend([
+            # plural apostrophe for s-ending 
+            # (common in names also on non-en side)
+            (r'(s) (\') ', r'\1\2 '),
             # colon joined from both sides if between numbers
             (r'(\d) : (\d)', r'\1:\2'),
             # join left
-            (r' ([\.,!?:;%\]\)])(?!\w)', r'\1'),
+            (r' ([\.,!?:;\]\)])(?!\w)', r'\1'),
             # join right
             (r'([@\[\(]) ', r'\1'),
             # join both sides
@@ -177,6 +180,7 @@ class DeTokenize(SingleCellComponent):
             (r'(\d[\.,]?) ([\$£€])', r'\1\2'),
             # join paired quotes inward
             (r'(") ([^"]+) (")', r'\1\2\3'),
+            (r" (') ([^']+) (') ", r' \1\2\3 '),
             # unpaired starting/ending quote
             (r'^ (") ', r' \1'),
             (r' (") $', r'\1 '),
