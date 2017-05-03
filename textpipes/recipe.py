@@ -11,7 +11,7 @@ MissingInput = collections.namedtuple('MissingInputs', ['input'])
 
 class Recipe(object):
     """Main class for building experiment recipes"""
-    def __init__(self, name):
+    def __init__(self, name, argv=None):
         from . import cli
         self.name = name
         # RecipeFile -> Rule or None
@@ -19,7 +19,7 @@ class Recipe(object):
         # Main outputs, for easy CLI access
         self._main_out = set()
         # conf will be needed before main is called
-        self.cli = cli.CLI(self)
+        self.cli = cli.CLI(self, argv)
         self.conf = self.cli.conf
         self.log = self.cli.log
 

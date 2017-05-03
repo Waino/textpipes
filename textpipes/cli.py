@@ -31,11 +31,11 @@ def get_parser(recipe):
     return parser
 
 class CLI(object):
-    def __init__(self, recipe):
+    def __init__(self, recipe, argv=None):
         """Called before building the recipe"""
         self.recipe = recipe
         parser = get_parser(recipe)
-        self.args = parser.parse_args()
+        self.args = parser.parse_args(args=argv)
         self.conf = Config(self.args.conf)
         # the recipe-altering cli args
         self.cli_args = None # FIXME
@@ -355,7 +355,6 @@ class ExperimentLog(object):
             return
         self._log_parsed = True
         try:
-            print('PARSING THE LOG')
             lines = open_text_file(self.logfile, mode='rb')
             for line in lines:
                 line = line.strip()
