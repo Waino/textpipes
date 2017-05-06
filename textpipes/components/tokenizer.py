@@ -158,7 +158,7 @@ class DeTokenize(SingleCellComponent):
             expressions.extend([
                 (r' (:[a-zåäö]{1,3}) ', r"\1 "),
                 (r' (:(nneksi|ista)) ', r"\1 "),
-                (r' \' (an|ista|hun|lla|lle|sta|ssa|ta) ', r"'\1 "),
+                (r' \' (an|in|ista|hun|lla|lle|sin|sta|ssa|ta) ', r"'\1 "),
                 (r'([Tt]ark) \' ', r"\1'"),
                 ])
             # in finnish, would joining apos from both sides make sense?
