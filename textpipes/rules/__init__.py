@@ -1,7 +1,7 @@
 from . import core
 from . import dedup
 from . import external
-from . import wmtsgm
+from . import wmt_sgm
 
 # FIXME
 from . import dummy
