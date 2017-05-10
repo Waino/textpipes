@@ -24,16 +24,14 @@ def get_version():
 from .recipe import Recipe
 from .configuration import Config
 from .pipe import *     # FIXME
-from . import external, components, check
+from . import rules, components, check
 
-# Most common pipes for easy access
-from .external import Concatenate
-from .dedup import Deduplicate
-from .core import *
+# Most common rules for easy access
+from .rules.external import Concatenate
+from .rules.dedup import Deduplicate
+from .rules.core import *
 
 # Most common components for easy access
 # more are available by importing from tp.components
 from .components.preprocessing import *
 from .components.filtering import MonoFilter, ParallelFilter, FilterByLength
-
-from . import dummy     # FIXME debug

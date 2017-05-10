@@ -1,8 +1,8 @@
 import logging
 
-from .recipe import Rule
-from .pipe import ParallelPipe
-from .components.filtering import Filter, ParallelFilter
+from ..recipe import Rule
+from ..pipe import ParallelPipe
+from ..components.filtering import Filter, ParallelFilter
 
 logger = logging.getLogger(__name__)
 
