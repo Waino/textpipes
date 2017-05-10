@@ -10,33 +10,33 @@ RE_DOCEND = re.compile(r'</doc>')
 RE_SEG = re.compile(r'<seg id="([^"]*)">(.*)</seg>')
 
 FMT_SET = '<refset setid="{setid}" {tail}>\n'
-FMT_DOC = '<doc sysid="REF{sysid}" docid="{docid}" {tail}>\n'
+FMT_DOC = '<doc sysid="{sysid}" docid="{docid}" {tail}>\n'
+FMT_DOC_MULTIREF = '<doc sysid="REF{sysid}" docid="{docid}" {tail}>\n'
 FMT_SEG = '<seg id="{segid}">{text}</seg>\n'
 
 Segment = collections.namedtuple('Segment',
     ['sysid', 'docid', 'segid', 'text'])
+
+def read_sgm(lines):
+    docid = None
+    sysid = None
+    for line in lines:
+        line = line.strip()
+        m = RE_DOC.match(line)
+        if m:
+            sysid, docid, _ = m.groups()
+            continue
+        m = RE_SEG.match(line)
+        if m:
+            segid, text = m.groups()
+            yield Segment(sysid, docid, segid, text)
 
 class MergeXmlRefs(Rule):
     def __init__(self, inputs, output, setid):
         super().__init__(inputs, [output])
         self.setid = setid
 
-    def read_sgm(self, lines):
-        docid = None
-        sysid = None
-        for line in lines:
-            line = line.strip()
-            m = RE_DOC.match(line)
-            if m:
-                sysid, docid, _ = m.groups()
-                continue
-            m = RE_SEG.match(line)
-            if m:
-                segid, text = m.groups()
-                yield Segment(sysid, docid, segid, text)
-
     def merge_sgm(self, lines, outfobj, alt_refs):
-        # FIXME: mangle sysid, detect docend, output everything into outfile
         docid = None
         tail = None
         segids = []
@@ -51,7 +51,7 @@ class MergeXmlRefs(Rule):
             m = RE_DOC.match(line)
             if m:
                 _, docid, tail = m.groups()
-                outfobj.write(FMT_DOC.format(
+                outfobj.write(FMT_DOC_MULTIREF.format(
                     sysid=0, docid=docid, tail=tail))
                 continue
             m = RE_SEG.match(line)
@@ -69,7 +69,7 @@ class MergeXmlRefs(Rule):
                 for i in range(1, len(self.inputs)):
                     if not (i, docid) in alt_refs:
                         continue
-                    outfobj.write(FMT_DOC.format(
+                    outfobj.write(FMT_DOC_MULTIREF.format(
                         sysid=i, docid=docid, tail=tail))
                     for segid in segids:
                         outfobj.write(FMT_SEG.format(
@@ -88,7 +88,7 @@ class MergeXmlRefs(Rule):
         for (i, inp) in enumerate(self.inputs):
             if i == 0:
                 continue
-            for seg in self.read_sgm(inp.open(conf, cli_args, mode='rb')):
+            for seg in read_sgm(inp.open(conf, cli_args, mode='rb')):
                 alt_refs[(i, seg.docid)][seg.segid] = seg.text
         # loop over main ref, output each doc in turn
         lines = self.inputs[0].open(conf, cli_args, mode='rb')
