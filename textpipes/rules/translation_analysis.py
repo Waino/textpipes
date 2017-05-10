@@ -8,11 +8,12 @@ from ..components.tokenizer import Tokenize
 
 class AnalyzeTranslations(ParallelPipe):
     def __init__(self, components, main_inputs, main_outputs):
-        # 5 inputs:
+        # 6 inputs:
         #   4 sgm files: source, bl, sys, (multi)ref
-        #   1 mteval bleu output
+        #   2 mteval bleu outputs: bl, sys
         # components must take 5 or more columns
         # where 4 first are (src, bl, sys, BLEU) and rest are refs
+        # FIXME: pointless to pass BLEU through components? or is it needed for something?
 
     def make(self, conf, cli_args=None):
         # Make a tuple of generators that reads from main_inputs
@@ -49,6 +50,9 @@ class AnalyzeChrF(ParallelPipeComponent):
 
 
 class ReTokenize(PerColumn):
+    """Inputs are postprocessed translations.
+    Analysis that prefers tokenized input should be
+    preceded by this component."""
     def __init__(self, src_lang, trg_lang, n_refs=1):
         src_tokenizer = Tokenize(src_lang)
         trg_tokenizer = Tokenize(trg_lang)
@@ -61,3 +65,36 @@ class ReTokenize(PerColumn):
             # all refs tokenized by target tokenizer
             components.append(trg_tokenizer)
         super().__init__(components)
+
+
+class AnalyzeLetteredNames(ParallelPipeComponent):
+    """Counts how many tokens in the source are eligible for lettering
+    This should be applied after retokenizing."""
+    def __init__(self, side_inputs=None, side_outputs=None):
+        super().__init__(side_inputs=side_inputs, side_outputs=side_outputs)
+
+    def __call__(self, stream, side_fobjs=None):
+        for tpl in stream:
+            pass
+
+
+class AnalyzeRepetitions(ParallelPipeComponent):
+    """Counts repeated tokens in the references and translations
+    This should be applied after retokenizing."""
+    def __init__(self, side_inputs=None, side_outputs=None):
+        super().__init__(side_inputs=side_inputs, side_outputs=side_outputs)
+
+    def __call__(self, stream, side_fobjs=None):
+        for tpl in stream:
+            pass
+
+
+class AnalyzeLength(ParallelPipeComponent):
+    """Counts length in tokens and chars
+    This should be applied after retokenizing."""
+    def __init__(self, side_inputs=None, side_outputs=None):
+        super().__init__(side_inputs=side_inputs, side_outputs=side_outputs)
+
+    def __call__(self, stream, side_fobjs=None):
+        for tpl in stream:
+            pass
