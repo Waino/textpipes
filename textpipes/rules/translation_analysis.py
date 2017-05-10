@@ -11,9 +11,9 @@ class AnalyzeTranslations(ParallelPipe):
         # 6 inputs:
         #   4 sgm files: source, bl, sys, (multi)ref
         #   2 mteval bleu outputs: bl, sys
-        # components must take 5 or more columns
-        # where 4 first are (src, bl, sys, BLEU) and rest are refs
-        # FIXME: pointless to pass BLEU through components? or is it needed for something?
+        # components must take 4 or more columns
+        # where 4 first are (src, bl, sys) and rest are refs
+        # note that BLEUs are not passed through components
 
     def make(self, conf, cli_args=None):
         # Make a tuple of generators that reads from main_inputs
@@ -22,7 +22,7 @@ class AnalyzeTranslations(ParallelPipe):
 
         # FIXME: fully read in each input into dicts
         # FIXME: when reading in source (for order)
-        # yield into stream a tuple with one or more columns from each
+        #   yield into stream a tuple with one or more columns from each
 
         stream, side_fobjs = self._make_helper(stream, conf, cli_args)
 
@@ -43,10 +43,20 @@ class AnalyzeChrF(ParallelPipeComponent):
     This should be applied before retokenizing."""
     def __init__(self, side_inputs=None, side_outputs=None):
         super().__init__(side_inputs=side_inputs, side_outputs=side_outputs)
+        # (docid, segid) -> tpl
+        self.scores = {}
+        # FIXME: use levenshtein for soft repeats
+        self.fields = (
+            'bl_chrF1', 'sys_chrF1',
+            'bl_chrF2', 'sys_chrF2',
+        )
 
     def __call__(self, stream, side_fobjs=None):
         for tpl in stream:
             pass
+
+    def __getitem__(self, key):
+        return self.scores[key]
 
 
 class ReTokenize(PerColumn):
@@ -59,7 +69,6 @@ class ReTokenize(PerColumn):
         components = [src_tokenizer,
                       trg_tokenizer,        # bl
                       trg_tokenizer,        # sys
-                      IdentityComponent(),  # BLEU
                      ]
         for _ in range(n_refs):
             # all refs tokenized by target tokenizer
@@ -72,10 +81,16 @@ class AnalyzeLetteredNames(ParallelPipeComponent):
     This should be applied after retokenizing."""
     def __init__(self, side_inputs=None, side_outputs=None):
         super().__init__(side_inputs=side_inputs, side_outputs=side_outputs)
+        # (docid, segid) -> (count,)
+        self.counts = {}
+        self.fields = ('lnames',)
 
     def __call__(self, stream, side_fobjs=None):
         for tpl in stream:
             pass
+
+    def __getitem__(self, key):
+        return self.counts[key]
 
 
 class AnalyzeRepetitions(ParallelPipeComponent):
@@ -83,10 +98,20 @@ class AnalyzeRepetitions(ParallelPipeComponent):
     This should be applied after retokenizing."""
     def __init__(self, side_inputs=None, side_outputs=None):
         super().__init__(side_inputs=side_inputs, side_outputs=side_outputs)
+        # (docid, segid) -> tpl
+        self.counts = {}
+        # FIXME: use levenshtein for soft repeats
+        self.fields = (
+            'src_reps_anywhere', 'bl_reps_anywhere', 'sys_reps_anywhere',
+            'src_reps_conseq', 'bl_reps_conseq', 'sys_reps_conseq',
+        )
 
     def __call__(self, stream, side_fobjs=None):
         for tpl in stream:
             pass
+
+    def __getitem__(self, key):
+        return self.counts[key]
 
 
 class AnalyzeLength(ParallelPipeComponent):
@@ -94,7 +119,17 @@ class AnalyzeLength(ParallelPipeComponent):
     This should be applied after retokenizing."""
     def __init__(self, side_inputs=None, side_outputs=None):
         super().__init__(side_inputs=side_inputs, side_outputs=side_outputs)
+        # (docid, segid) -> tpl
+        self.lengths = {}
+        # ref len is average
+        self.fields = (
+            'src_len_words', 'ref_len_words', 'bl_len_words', 'sys_len_words',
+            'src_len_chars', 'ref_len_chars', 'bl_len_chars', 'sys_len_chars',
+        )
 
     def __call__(self, stream, side_fobjs=None):
         for tpl in stream:
             pass
+
+    def __getitem__(self, key):
+        return self.lenghts[key]
