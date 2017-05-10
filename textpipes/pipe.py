@@ -36,6 +36,7 @@ class Pipe(Rule):
 
         for component in self.components:
             component.pre_make(side_fobjs)
+        # Actually apply components to stream
         for component in self.components:
             stream = component(stream, side_fobjs=side_fobjs)
 
