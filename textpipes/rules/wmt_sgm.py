@@ -9,6 +9,9 @@ RE_DOC = re.compile(r'<doc sysid="([^"]*)" docid="([^"]*)" ([^>]*)>')
 RE_DOCEND = re.compile(r'</doc>')
 RE_SEG = re.compile(r'<seg id="([^"]*)">(.*)</seg>')
 
+RE_BLEU = re.compile(r'BLEU score using 4-grams = ([0-9.]*) for system "([^"]*)" '
+                     r'on segment ([^ ]*) of document "([^"]*)" (.*)')
+
 FMT_SET = '<refset setid="{setid}" {tail}>\n'
 FMT_DOC = '<doc sysid="{sysid}" docid="{docid}" {tail}>\n'
 FMT_DOC_MULTIREF = '<doc sysid="REF{sysid}" docid="{docid}" {tail}>\n'
@@ -16,6 +19,9 @@ FMT_SEG = '<seg id="{segid}">{text}</seg>\n'
 
 Segment = collections.namedtuple('Segment',
     ['sysid', 'docid', 'segid', 'text'])
+
+Bleu = collections.namedtuple('Bleu',
+    ['sysid', 'docid', 'segid', 'bleu'])
 
 def read_sgm(lines):
     docid = None
@@ -30,6 +36,15 @@ def read_sgm(lines):
         if m:
             segid, text = m.groups()
             yield Segment(sysid, docid, segid, text)
+
+def read_bleu(lines):
+    for line in lines:
+        line = line.strip()
+        m = RE_BLEU.match(line)
+        if m:
+            bleu, sysid, segid, docid, _ = m.groups()
+            yield Bleu(sysid, docid, segid, float(bleu))
+    
 
 class MergeXmlRefs(Rule):
     def __init__(self, inputs, output, setid):
