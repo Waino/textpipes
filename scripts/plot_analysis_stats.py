@@ -11,28 +11,31 @@ def quantize(field, df, bins=25):
     df['group_idx'] = np.digitize(df[field], bins)
     return df
 
-def melt(x, y1, y2, ylabel, df):
+def melt(x, y, df):
+    y1, y2 = ['{}_{}'.format(sysid, y) for sysid in ('bl', 'sys')]
     sub = df[[x, y1, y2]]
-    melted = sub.melt(id_vars=[x], var_name='sysid', value_name=ylabel)
+    melted = sub.melt(id_vars=[x], var_name='sysid', value_name=y)
     print('melted')
     print(melted)
     return melted
 
 def avglineplot(x, y, binned):
-    plt.figure()
-    grouped = binned.groupby('group_idx')
+    y1, y2 = ['{}_{}'.format(sysid, y) for sysid in ('bl', 'sys')]
+    #plt.figure()
+    grouped = binned.groupby('group_idx')[x, y1, y2]
     print('grouped')
     print(grouped)
     means = grouped.mean()
     print('means')
     print(means)
-    means.plot()
+    #means.plot()
 
 def violinplot(x, y, binned):
+    melted = melt('group_idx', y, binned)
     print('violinplot')
-    print(binned)
-    plt.figure()
-    sns.violinplot(x=x, y=y, hue='sysid', data=binned, split=True);
+    print(melted)
+    #plt.figure()
+    #sns.violinplot(x=x, y=y, hue='sysid', data=binned, split=True);
 
 def main(args):
     df = pd.read_csv(args.stats, sep='\t', header=0)
@@ -46,11 +49,10 @@ def main(args):
     #melted = melt('src_len_words', 'sys_bleu', 'bl_bleu', 'BLEU')
     #avglineplot('src_len_words', 'BLEU', melted)
     #violinplot('src_len_words', 'BLEU', melted)
-    melted = melt('src_len_words', 'sys_chrF1', 'bl_chrF1', 'chrF1', df)
-    binned = quantize('src_len_words', melted)
-    avglineplot('src_len_words', 'chrF1', binned)
+    binned = quantize('src_len_words', df)
+    avglineplot('src_len_words', 'chrF1',  binned)
     violinplot('src_len_words', 'chrF1', binned)
-    plt.show()
+    #plt.show()
 
 
 if __name__ == '__main__':
