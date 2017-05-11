@@ -8,10 +8,8 @@ from matplotlib import pyplot as plt
 
 def quantize(field, df, bins=25):
     bins = np.linspace(df[field].min(), df[field].max(), 10)
-    grouped = df.groupby(np.digitize(df[field], bins))
-    print('grouped')
-    print(grouped)
-    return grouped
+    df['group_idx'] = np.digitize(df[field], bins)
+    return df
 
 def melt(x, y1, y2, ylabel, df):
     sub = df[[x, y1, y2]]
@@ -20,18 +18,21 @@ def melt(x, y1, y2, ylabel, df):
     print(melted)
     return melted
 
-def avglineplot(x, y, grouped):
+def avglineplot(x, y, binned):
     plt.figure()
+    grouped = binned.groupby('group_idx')
+    print('grouped')
+    print(grouped)
     means = grouped.mean()
     print('means')
     print(means)
     means.plot()
 
-def violinplot(x, y, grouped):
+def violinplot(x, y, binned):
     print('violinplot')
-    print(grouped)
+    print(binned)
     plt.figure()
-    sns.violinplot(x=x, y=y, hue='sysid', data=grouped, split=True);
+    sns.violinplot(x=x, y=y, hue='sysid', data=binned, split=True);
 
 def main(args):
     df = pd.read_csv(args.stats, sep='\t', header=0)
