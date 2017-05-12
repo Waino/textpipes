@@ -96,14 +96,25 @@ class AnalyzeTranslations(ParallelPipe):
             fobj.close()
 
     def _extra_fields(self, all_fields):
-        extra_fields = ('bl_bleu', 'sys_bleu', 'delta_bleu',
-                        'key')
-        # FIXME: if columns need to be referenced, get their index here
+        extra_fields = ['bl_bleu', 'sys_bleu', 'delta_bleu',
+                        'key']
+        # if columns need to be referenced, get their index here
+        if 'delta_chrF1' in all_fields:
+            i_delta_chrF1 = all_fields.index('delta_chrF1')
+            extra_fields.append('delta_prod')
+        else:
+            i_delta_chrF1 = None
+
         def extra_fields_func(key, columns):
             bl_bleu = self.bl_bleus[key]
             sys_bleu = self.sys_bleus[key]
-            return (bl_bleu, sys_bleu, sys_bleu - bl_bleu,
-                    '{}/{}'.format(*key))
+            delta_bleu = sys_bleu - bl_bleu
+            result = [bl_bleu, sys_bleu, delta_bleu,
+                      '{}/{}'.format(*key)]
+            if i_delta_chrF1 is not None:
+                delta_prod = columns[i_delta_chrF1] * delta_bleu
+                result.append(delta_prod)
+            return result
         return extra_fields, extra_fields_func
 
 
