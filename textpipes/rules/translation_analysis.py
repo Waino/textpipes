@@ -16,7 +16,23 @@ from ..components.tokenizer import Tokenize
 
 
 class AnalyzeTranslations(ParallelPipe):
-    def __init__(self, components, main_inputs, main_outputs, n_refs=1):
+    def __init__(self,
+                 components,
+                 source_sgm,
+                 bl_sgm,
+                 sys_sgm,
+                 ref_sgm,
+                 bl_bleu,
+                 sys_bleu,
+                 main_output,
+                 by_chrF1_output=None,
+                 by_chrF2_output=None,
+                 by_bleu_output=None,
+                 by_delta_chrF1_output=None,
+                 by_delta_chrF2_output=None,
+                 by_delta_bleu_output=None,
+                 by_delta_prod_output=None,
+                 n_refs=1):
         """
         6 inputs:
           4 sgm files: source, bl, sys, (multi)ref
@@ -25,9 +41,22 @@ class AnalyzeTranslations(ParallelPipe):
         where 4 first are (key, src, bl, sys) and rest are refs.
         Note that BLEUs are not passed through components.
         """
+        main_inputs = [source_sgm, bl_sgm, sys_sgm, ref_sgm, bl_bleu, sys_bleu]
+        main_outputs = [main_output, by_chrF1_output, by_chrF2_output, by_bleu_output,
+                 by_delta_chrF1_output, by_delta_chrF2_output, by_delta_bleu_output, by_delta_prod_output]
+        main_outputs = [x for x in main_outputs if not x is None]
         super().__init__(components, main_inputs, main_outputs)
         self.n_refs = n_refs
         self.key_order = []
+
+        self.sorted_outputs = [
+            ('sys_chrF1', by_chrF1_output),
+            ('sys_chrF2', by_chrF2_output),
+            ('sys_bleu', by_bleu_output),
+            ('delta_chrF1', by_delta_chrF1_output),
+            ('delta_chrF2', by_delta_chrF2_output),
+            ('delta_bleu', by_delta_bleu_output),
+            ('delta_prod', by_delta_prod_output)]
 
     def make(self, conf, cli_args=None):
         # Make a tuple of generators that reads from main_inputs
@@ -61,9 +90,18 @@ class AnalyzeTranslations(ParallelPipe):
 
         stream, side_fobjs = self._make_helper(stream, conf, cli_args)
 
-        # Drain pipeline, throwing the output away
+        keep_output = any(x is not None for x in
+            (by_chrF1_output, by_chrF2_output, by_bleu_output,
+             by_delta_chrF1_output, by_delta_chrF2_output, by_delta_bleu_output,
+             by_delta_prod_output,))
+        lines_by_key = {}
+
+        # Drain pipeline,
         for tpl in stream:
-            pass
+            # throw the output away, unless needed for sorted outputs
+            if keep_output:
+                lines_by_key[tpl.key] = tpl
+
         # post_make must be done after draining
         self._post_make(side_fobjs)
 
@@ -79,7 +117,6 @@ class AnalyzeTranslations(ParallelPipe):
         extra_fields, extra_fields_func = self._extra_fields(all_fields)
         all_fields.extend(extra_fields)
 
-        # FIXME: do the sorted translations also
         with self.main_outputs[0].open(conf, cli_args, mode='wb') as outfobj:
             outfobj.write('\t'.join(all_fields))
             outfobj.write('\n')
@@ -90,6 +127,12 @@ class AnalyzeTranslations(ParallelPipe):
                 columns.extend(extra_fields_func(key, columns))
                 outfobj.write('\t'.join(str(x) for x in columns))
                 outfobj.write('\n')
+        for (field, output) in self.sorted_outputs:
+            if output is None:
+                continue
+            with output.open(conf, cli_args, mode='wb') as outfobj:
+                for tpl in sorted(FIXME, key=lambda x: x.__getattribute__(field)):
+                    # get lines from lines_by_key, write into outfobj
 
         # close side file objects
         for fobj in readers + list(side_fobjs.values()):
