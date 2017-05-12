@@ -19,23 +19,25 @@ def melt(x, y, df):
     print(melted)
     return melted
 
-def avglineplot(x, y, binned):
+def avglineplot(x, y, df, binned=True):
     y1, y2 = ['{}_{}'.format(sysid, y) for sysid in ('bl', 'sys')]
-    #plt.figure()
-    grouped = binned.groupby('group_idx')[x, y1, y2]
+    group_field = 'group_idx' if binned else x
+    grouped = df.groupby(group_field)[x, y1, y2]
     print('grouped')
     print(grouped)
     means = grouped.mean()
     print('means')
     print(means)
+    #plt.figure()
     #means.plot()
 
-def violinplot(x, y, binned):
-    melted = melt('group_idx', y, binned)
+def violinplot(x, y, df, binned=True):
+    group_field = 'group_idx' if binned else x
+    melted = melt(group_field, y, df)
     print('violinplot')
     print(melted)
     #plt.figure()
-    #sns.violinplot(x=x, y=y, hue='sysid', data=binned, split=True);
+    #sns.violinplot(x=x, y=y, hue='sysid', data=df, split=True);
 
 def main(args):
     df = pd.read_csv(args.stats, sep='\t', header=0)
@@ -50,15 +52,18 @@ def main(args):
         # fields needing to be quantized
         binned = quantize(field, df)
         for measure in measures:
-            avglineplot(field, measure,  binned)
-            violinplot(field, measure, binned)
+            avglineplot(field, measure,  binned, binned=True)
+            violinplot(field, measure, binned, binned=True)
     for field in ('lnames',):
         # no need to quantize
-        df['group_idx'] = df[field]
         for measure in measures:
-            avglineplot(field, measure,  df)
-            violinplot(field, measure, df)
-
+            avglineplot(field, measure,  df, binned=False)
+            violinplot(field, measure, df, binned=False)
+    for method in ('anywhere', 'conseq'):
+        field = 'ref_reps_{}'.format(method)
+        measure = 'reps_{}'.format(method)
+        avglineplot(field, measure,  df, binned=False)
+        violinplot(field, measure, df, binned=False)
 
     #plt.show()
 
