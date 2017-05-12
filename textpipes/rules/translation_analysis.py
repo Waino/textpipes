@@ -42,10 +42,10 @@ class AnalyzeTranslations(ParallelPipe):
         ref_segs = collections.defaultdict(list)
         for seg in read_sgm(readers[3]):
             ref_segs[(seg.docid, seg.segid)].append(seg.text)
-        bl_bleus = {(seg.docid, seg.segid): seg.bleu
-                    for seg in read_bleu(readers[4])}
-        sys_bleus = {(seg.docid, seg.segid): seg.bleu
-                    for seg in read_bleu(readers[5])}
+        self.bl_bleus = {(seg.docid, seg.segid): seg.bleu
+                         for seg in read_bleu(readers[4])}
+        self.sys_bleus = {(seg.docid, seg.segid): seg.bleu
+                          for seg in read_bleu(readers[5])}
         # when reading in source (for order)
         #   yield into stream a tuple with one or more columns from each
         def zip_streams():
@@ -87,7 +87,7 @@ class AnalyzeTranslations(ParallelPipe):
                 columns = []
                 for component in components_with_fields:
                     columns.extend(component[key])
-                    columns.extend(extra_fields_func(columns))
+                columns.extend(extra_fields_func(key, columns))
                 outfobj.write('\t'.join(str(x) for x in columns))
                 outfobj.write('\n')
 
@@ -96,9 +96,15 @@ class AnalyzeTranslations(ParallelPipe):
             fobj.close()
 
     def _extra_fields(self, all_fields):
-        # FIXME: calculate deltas etc for sorting
-        return [], lambda x: []
-        
+        extra_fields = ('bl_bleu', 'sys_bleu', 'delta_bleu',
+                        'key')
+        # FIXME: if columns need to be referenced, get their index here
+        def extra_fields_func(key, columns):
+            bl_bleu = self.bl_bleus[key]
+            sys_bleu = self.sys_bleus[key]
+            return (bl_bleu, sys_bleu, sys_bleu - bl_bleu,
+                    '{}/{}'.format(*key))
+        return extra_fields, extra_fields_func
 
 
 
@@ -112,6 +118,7 @@ class AnalyzeChrF(ParallelPipeComponent):
         self.fields = (
             'bl_chrF1', 'bl_chrF2',
             'sys_chrF1', 'sys_chrF2',
+            'delta_chrF1', 'delta_chrF2',
         )
 
     def _chrf_helper(self, hypothesis, references):
@@ -133,8 +140,12 @@ class AnalyzeChrF(ParallelPipeComponent):
             bl = tpl[2]
             sys = tpl[3]
             refs = tpl[4:]
-            self.scores[key] = self._chrf_helper(bl, refs) + \
-                               self._chrf_helper(sys, refs)
+            bl_score1, bl_score2 = self._chrf_helper(bl, refs)
+            sys_score1, sys_score2 = self._chrf_helper(sys, refs)
+            self.scores[key] = (bl_score1, bl_score2,
+                                sys_score1, sys_score2,
+                                sys_score1 - bl_score1,
+                                sys_score2 - bl_score2)
             yield tpl
 
     def __getitem__(self, key):

@@ -41,11 +41,6 @@ def violinplot(x, y, df, binned=True):
 
 def main(args):
     df = pd.read_csv(args.stats, sep='\t', header=0)
-    # FIXME: bleu not included (add to extra_columns)
-    # deltas FIXME: will move to extra_columns
-    #df['delta_bleu'] = df['sys_bleu'] - df['bl_bleu']
-    df['delta_chrF1'] = df['sys_chrF1'] - df['bl_chrF1']
-    df['delta_chrF2'] = df['sys_chrF2'] - df['bl_chrF2']
 
     measures = args.measures.split(',')
     for field in ('src_len_chars', 'src_len_words', 'ref_len_chars', 'ref_len_words'):
