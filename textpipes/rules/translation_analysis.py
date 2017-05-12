@@ -109,7 +109,6 @@ class AnalyzeChrF(ParallelPipeComponent):
         super().__init__(side_inputs=side_inputs, side_outputs=side_outputs)
         # (docid, segid) -> tpl
         self.scores = {}
-        # FIXME: use levenshtein for soft repeats
         self.fields = (
             'bl_chrF1', 'bl_chrF2',
             'sys_chrF1', 'sys_chrF2',

@@ -45,13 +45,21 @@ def main(args):
     df['delta_chrF1'] = df['sys_chrF1'] - df['bl_chrF1']
     df['delta_chrF2'] = df['sys_chrF2'] - df['bl_chrF2']
 
-    #binned = quantize('src_len_words', df)
-    #melted = melt('src_len_words', 'sys_bleu', 'bl_bleu', 'BLEU')
-    #avglineplot('src_len_words', 'BLEU', melted)
-    #violinplot('src_len_words', 'BLEU', melted)
-    binned = quantize('src_len_words', df)
-    avglineplot('src_len_words', 'chrF1',  binned)
-    violinplot('src_len_words', 'chrF1', binned)
+    measures = args.measures.split(',')
+    for field in ('src_len_chars', 'src_len_words', 'ref_len_chars', 'ref_len_words'):
+        # fields needing to be quantized
+        binned = quantize(field, df)
+        for measure in measures:
+            avglineplot(field, measure,  binned)
+            violinplot(field, measure, binned)
+    for field in ('lnames',):
+        # no need to quantize
+        df['group_idx'] = df[field]
+        for measure in measures:
+            avglineplot(field, measure,  df)
+            violinplot(field, measure, df)
+
+
     #plt.show()
 
 
@@ -61,5 +69,7 @@ if __name__ == '__main__':
                         help='tab-separated-values file with stats')
     parser.add_argument('--avg-line', default=False, action='store_true',
                         help='use line plot of average instead of violin plot')
+    parser.add_argument('--measures', default='chrF1,chrF2,bleu',
+                        help='comma separated list of measures to show')
     args = parser.parse_args()
     main(args)
