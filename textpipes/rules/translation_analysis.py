@@ -14,6 +14,7 @@ from .wmt_sgm import read_sgm, read_bleu
 from ..pipe import ParallelPipe
 from ..components import ParallelPipeComponent, PerColumn, IdentityComponent
 from ..components.tokenizer import Tokenize
+from ..components.truecaser import TrueCase
 
 RE_ALNUM = re.compile(r'[a-z0-9]')
 
@@ -234,29 +235,6 @@ class ReTokenize(PerColumn):
         super().__init__(components)
 
 
-class AnalyzeLetteredNames(ParallelPipeComponent):
-    """Counts how many tokens in the source are eligible for lettering
-    by components.LetterizeNames.
-    This should be applied after retokenizing."""
-    def __init__(self, side_inputs=None, side_outputs=None):
-        super().__init__(side_inputs=side_inputs, side_outputs=side_outputs)
-        # (docid, segid) -> (count,)
-        self.counts = {}
-        self.fields = ('lnames',)
-
-    def __call__(self, stream, side_fobjs=None):
-        for tpl in stream:
-            key = tpl[0]
-            src = tpl[1]
-            count = sum(len(token) > 1 and (token[0].isupper() or token[0].isdigit())
-                        for token in src.split())
-            self.counts[key] = (count,)
-            yield tpl
-
-    def __getitem__(self, key):
-        return self.counts[key]
-
-
 class AnalyzeRepetitions(ParallelPipeComponent):
     """Counts repeated tokens in the references and translations
     This should be applied after retokenizing."""
@@ -338,3 +316,52 @@ class AnalyzeLength(ParallelPipeComponent):
 
     def __getitem__(self, key):
         return self.lengths[key]
+
+
+class ReTrueCase(PerColumn):
+    """Inputs are retokenized translations.
+    Analysis that prefers truecased input should be
+    preceded by this component."""
+    def __init__(self, src_model, trg_model, n_refs=1):
+        if src_model is not None:
+            src_truecaser = TrueCase(src_model)
+        else:
+            src_truecaser = IdentityComponent()
+        if trg_model is not None:
+            trg_truecaser = TrueCase(trg_model)
+        else:
+            trg_truecaser = IdentityComponent()
+        components = [IdentityComponent(),  # key
+                      src_truecaser,        # src
+                      trg_truecaser,        # bl
+                      trg_truecaser,        # sys
+                     ]
+        for _ in range(n_refs):
+            # all refs by target truecaser
+            components.append(trg_truecaser)
+        super().__init__(components)
+
+
+class AnalyzeLetteredNames(ParallelPipeComponent):
+    """Counts how many tokens in the source are eligible for lettering
+    by components.LetterizeNames.
+    This should be applied after retokenizing and retruecasing."""
+    def __init__(self, side_inputs=None, side_outputs=None):
+        super().__init__(side_inputs=side_inputs, side_outputs=side_outputs)
+        # (docid, segid) -> (count,)
+        self.counts = {}
+        self.fields = ('lnames',)
+
+    def __call__(self, stream, side_fobjs=None):
+        for tpl in stream:
+            key = tpl[0]
+            src = tpl[1]
+            count = sum(len(token) > 1 and (token[0].isupper() or token[0].isdigit())
+                        for token in src.split())
+            self.counts[key] = (count,)
+            yield tpl
+
+    def __getitem__(self, key):
+        return self.counts[key]
+
+
