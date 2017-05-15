@@ -6,38 +6,34 @@ import pandas as pd
 import seaborn as sns
 from matplotlib import pyplot as plt
 
-def quantize(field, df, bins=25):
-    bins = np.linspace(df[field].min(), df[field].max(), 10)
+def quantize(field, df, n_bins=15):
+    bins = np.linspace(df[field].min(), df[field].max() + 0.1, n_bins)
     df['group_idx'] = np.digitize(df[field], bins)
-    return df
+    return df, bins
 
 def melt(x, y, df):
     y1, y2 = ['{}_{}'.format(sysid, y) for sysid in ('bl', 'sys')]
     sub = df[[x, y1, y2]]
     melted = sub.melt(id_vars=[x], var_name='sysid', value_name=y)
-    print('melted')
-    print(melted)
     return melted
+
+def binlabels(field, bins, offset=-.5):
+    plt.xticks([offset + x for x in range(len(bins))],
+               ['{:.1f}'.format(x) for x in (bins)])
+    plt.xlabel('{} (binned)'.format(field))
 
 def avglineplot(x, y, df, binned=True):
     y1, y2 = ['{}_{}'.format(sysid, y) for sysid in ('bl', 'sys')]
     group_field = 'group_idx' if binned else x
-    grouped = df.groupby(group_field)[x, y1, y2]
-    print('grouped')
-    print(grouped)
+    grouped = df.groupby(group_field)[y1, y2]
     means = grouped.mean()
-    print('means')
-    print(means)
-    #plt.figure()
-    #means.plot()
+    means.plot()
 
 def violinplot(x, y, df, binned=True):
     group_field = 'group_idx' if binned else x
     melted = melt(group_field, y, df)
-    print('violinplot')
-    print(melted)
-    #plt.figure()
-    #sns.violinplot(x=x, y=y, hue='sysid', data=df, split=True);
+    plt.figure()
+    sns.violinplot(x=group_field, y=y, hue='sysid', data=melted, split=True);
 
 def main(args):
     df = pd.read_csv(args.stats, sep='\t', header=0)
@@ -45,10 +41,12 @@ def main(args):
     measures = args.measures.split(',')
     for field in ('src_len_chars', 'src_len_words', 'ref_len_chars', 'ref_len_words'):
         # fields needing to be quantized
-        binned = quantize(field, df)
+        binned, bins = quantize(field, df)
         for measure in measures:
             avglineplot(field, measure,  binned, binned=True)
+            binlabels(field, bins, offset=.5)
             violinplot(field, measure, binned, binned=True)
+            binlabels(field, bins, offset=-.5)
     for field in ('lnames',):
         # no need to quantize
         for measure in measures:
@@ -60,7 +58,7 @@ def main(args):
         avglineplot(field, measure,  df, binned=False)
         violinplot(field, measure, df, binned=False)
 
-    #plt.show()
+    plt.show()
 
 
 if __name__ == '__main__':
