@@ -15,6 +15,7 @@ from ..pipe import ParallelPipe
 from ..components import ParallelPipeComponent, PerColumn, IdentityComponent
 from ..components.tokenizer import Tokenize
 
+RE_ALNUM = re.compile(r'[a-z0-9]')
 
 class AnalyzeTranslations(ParallelPipe):
     def __init__(self,
@@ -276,6 +277,9 @@ class AnalyzeRepetitions(ParallelPipeComponent):
         anywhere = 0
         conseq = 0
         for token in line.split():
+            if not RE_ALNUM.findall(token):
+                # don't count punctuation
+                continue
             if token == prev:
                 conseq += 1
             if token in seen:
