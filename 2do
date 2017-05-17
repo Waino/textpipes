@@ -72,3 +72,6 @@
 - use package resources instead of data in source tree
 - appended side outputs for e.g. anomaly logging
     - should be ignored in DAG
+
+- speed
+    - use multiprocessing.Pool.imap

@@ -35,28 +35,49 @@ def violinplot(x, y, df, binned=True):
     plt.figure()
     sns.violinplot(x=group_field, y=y, hue='sysid', data=melted, split=True);
 
+def sortedplot(df, field):
+    plt.figure()
+    plt.plot(range(len(df)), df[field].sort_values())
+    plt.plot([len(df) / 2] * 2, [df[field].min(), df[field].max()], ':')
+    plt.xlabel('sorted'); plt.ylabel(field)
+
+def measurescatterplot(df, x, y):
+    g = sns.jointplot(x=x, y=y, data=df, kind="kde", color="m", n_levels=20)
+    g.plot_joint(plt.scatter, c="k", s=30, linewidth=1, marker="+")
+    g.ax_joint.collections[0].set_alpha(0)
+    g.set_axis_labels(x, y);
+
 def main(args):
     df = pd.read_csv(args.stats, sep='\t', header=0)
 
     measures = args.measures.split(',')
-    for field in ('src_len_chars', 'src_len_words', 'ref_len_chars', 'ref_len_words'):
+    if args.avg_line:
+        plot_func = avglineplot
+        bin_offset = .5
+    else:
+        plot_func = violinplot
+        bin_offset = -.5
+
+    for field in ('src_len_chars', 'src_len_words',
+                  'ref_len_chars', 'ref_len_words',):
         # fields needing to be quantized
         binned, bins = quantize(field, df)
         for measure in measures:
-            avglineplot(field, measure,  binned, binned=True)
-            binlabels(field, bins, offset=.5)
-            violinplot(field, measure, binned, binned=True)
-            binlabels(field, bins, offset=-.5)
-    for field in ('lnames',):
+            plot_func(field, measure,  binned, binned=True)
+            binlabels(field, bins, offset=bin_offset)
+    for field in ('lnames',
+                  'sys_reps_anywhere', 'sys_reps_conseq',):
         # no need to quantize
         for measure in measures:
-            avglineplot(field, measure,  df, binned=False)
-            violinplot(field, measure, df, binned=False)
+            plot_func(field, measure,  df, binned=False)
     for method in ('anywhere', 'conseq'):
         field = 'ref_reps_{}'.format(method)
         measure = 'reps_{}'.format(method)
-        avglineplot(field, measure,  df, binned=False)
-        violinplot(field, measure, df, binned=False)
+        plot_func(field, measure, df, binned=False)
+    for measure in measures:
+        sortedplot(df, 'delta_{}'.format(measure))
+    if 'bleu' in measures and 'chrF1' in measures:
+        measurescatterplot(df, 'delta_bleu', 'delta_chrF1')
 
     plt.show()
 
