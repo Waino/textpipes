@@ -58,3 +58,16 @@ def table_print(tpls, line_before=False, line_after=False):
         print(fmt.format(*tpl))
     if line_after:
         print(line_after * total_width)
+
+
+def progress(iterable, rule, conf, out_file, total='conf'):
+    try:
+        from tqdm import tqdm
+    except ImportError:
+        return iterable
+    if total == 'conf':
+        total = conf.conf['exp'].getint('n_lines', None)
+    rule_name = rule.name[:15]
+    out_file = out_file[-20:]
+    description = '{}:{}'.format(rule_name, out_file)
+    return tqdm(iterable, desc=description, total=total, unit_scale=True)

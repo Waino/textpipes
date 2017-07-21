@@ -5,11 +5,13 @@ import itertools
 
 from .components.core import *
 from .recipe import Rule
-from .utils import safe_zip
+from .utils import safe_zip, progress
 
 class Pipe(Rule):
     def __init__(self, components,
-                 main_inputs, main_outputs):
+                 main_inputs, main_outputs,
+                 estimated_lines='conf',
+                 **kwargs):
         side_inputs = tuple(set(inp for component in components
                                 for inp in component.side_inputs
                                 if inp is not None))
@@ -18,12 +20,13 @@ class Pipe(Rule):
                                  if out is not None))
         inputs = tuple(main_inputs) + tuple(side_inputs)
         outputs = tuple(main_outputs) + tuple(side_outputs)
-        super().__init__(inputs, outputs)
+        super().__init__(inputs, outputs, **kwargs)
         self.components = components
         self.main_inputs = main_inputs
         self.main_outputs = main_outputs
         self.side_inputs = side_inputs
         self.side_outputs = side_outputs
+        self.estimated_lines = estimated_lines
 
     def _make_helper(self, stream, conf, cli_args):
         # Open side inputs and outputs
@@ -39,6 +42,11 @@ class Pipe(Rule):
         # Actually apply components to stream
         for component in self.components:
             stream = component(stream, side_fobjs=side_fobjs)
+
+        # progress bar
+        stream = progress(stream, self, conf, 
+                          self.main_outputs[0](conf, cli_args),
+                          total=self.estimated_lines)
 
         return stream, side_fobjs
 

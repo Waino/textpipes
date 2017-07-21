@@ -74,7 +74,7 @@ class Slurm(Platform):
             recipe=recipe.name, conf=conf.name, sec_key=sec_key)
         job_name = '{}:{}'.format(conf.name, sec_key)
         sbatch = 'sbatch --job-name {name} --wrap="{cmd}" {rc_args}'.format(
-            name=job_name, cmd=cmd, rc_args=rc_args))
+            name=job_name, cmd=cmd, rc_args=rc_args)
         r = run(sbatch)
         try:
             job_id = int(r.std_out)
@@ -150,7 +150,7 @@ class Response(object):
         return ('command:\n{}\nreturn code:\n{}\n'
             'stdout:\n{}\nstderr:\n{}\n'.format(
                 self.command, self.status_code,
-                self.std_out, self.std_err)))
+                self.std_out, self.std_err))
 
 def expand_args(command):
     """Parses command strings and returns a Popen-ready list."""
