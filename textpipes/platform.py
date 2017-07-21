@@ -48,6 +48,28 @@ class Local(Platform):
     def check_job(self, job_id):
         return 'unknown'
 
+class Slurm(Platform):
+    """Schedule and return job id"""
+    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args):
+        # FIXME: map jobclass of rule based on platform conf
+        # FIXME: if mapped jobclass == "MakeImmediately"
+        #return MakeImmediately
+        cmd = 'python {recipe}.py {conf}.ini --make {sec_key}'.format(
+            recipe=recipe.name, conf=conf.name, sec_key=sec_key)
+        job_name = '{}:{}'.format(conf.name, sec_key)
+        sbatch = 'sbatch --job-name {name} --wrap="{cmd}"'.format(
+            name=job_name, cmd=cmd))
+        r = run(sbatch)
+        try:
+            job_id = int(r.std_out)
+        except ValueError:
+            raise Exception('Unexpected output from slurm: ' + r.describe())
+        return job_id
+
+    def check_job(self, job_id):
+        # FIXME: parse output of slurm q
+        return 'unknown'
+
 classes = {
     'logonly': LogOnly,
     'local': Local,
@@ -102,13 +124,17 @@ class Response(object):
         self.status_code = None
         self.history = []
 
-
     def __repr__(self):
         if len(self.command):
             return '<Response [{0}]>'.format(self.command[0])
         else:
             return '<Response>'
 
+    def describe(self):
+        return ('command:\n{}\nreturn code:\n{}\n'
+            'stdout:\n{}\nstderr:\n{}\n'.format(
+                self.command, self.status_code,
+                self.std_out, self.std_err)))
 
 def expand_args(command):
     """Parses command strings and returns a Popen-ready list."""
@@ -121,7 +147,8 @@ def expand_args(command):
 def run(command):
     """Executes given command as subprocess.
     You can NOT use pipeing. This is intentional,
-    as pipeing large data would fail anyhow."""
+    as pipeing large data would fail anyhow.
+    If pipeing is necessary, use a subshell."""
     command = expand_args(command)
     cmd = Command(command)
     out, err = cmd.run()

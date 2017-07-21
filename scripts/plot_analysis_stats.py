@@ -79,6 +79,17 @@ def main(args):
     if 'bleu' in measures and 'chrF1' in measures:
         measurescatterplot(df, 'delta_bleu', 'delta_chrF1')
 
+    ## does ensemble only increase repetitions for already bad sentences?
+    #df['delta_reps_conseq'] = df['sys_reps_conseq'] - df['bl_reps_conseq']
+    #df['delta_reps_anywhere'] = df['sys_reps_anywhere'] - df['bl_reps_anywhere']
+    #binned, bins = quantize('bl_chrF1', df, n_bins=20)
+    #means = binned.groupby('group_idx')['delta_reps_conseq', 'delta_reps_anywhere'].mean()
+    #means.plot()
+    #binlabels('bl_chrF1', bins, offset=bin_offset)
+    #measurescatterplot(df, 'delta_reps_conseq', 'delta_chrF1')
+    #measurescatterplot(df, 'delta_reps_conseq', 'delta_chrF2')
+    #measurescatterplot(df, 'delta_reps_anywhere', 'delta_chrF1')
+    #measurescatterplot(df, 'delta_reps_anywhere', 'delta_chrF2')
     plt.show()
 
 

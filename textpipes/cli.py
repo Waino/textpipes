@@ -241,12 +241,11 @@ class ExperimentLog(object):
         self.conf = conf
         self.platform = platform
         self.logfile = os.path.join('logs', 'experiment.{}.log'.format(self.recipe.name))
-        self._log_parsed = False
         self.jobs = {}
         self.job_statuses = {}
         self.outputs = {}
         self.ongoing_experiments = set()
-        self._parse_log()
+        self._parse_combined_log()
 
     def get_jobs_with_status(self, status='running'):
         """Returns e.g. Waiting and Running output files"""
@@ -265,98 +264,9 @@ class ExperimentLog(object):
         """Status summary from parsing log"""
         pass
 
-    def scheduled(self, rule, sec_key, job_id, output_files):
-        # main sec_key is the one used as --make argument
-        # output_files are (sec_key, concrete) tuples
-        # job id (platform dependent, e.g. slurm or pid)
-        timestamp = datetime.now().strftime(TIMESTAMP)
-        self._append(LOG_FMT.format(
-            time=timestamp,
-            recipe=self.recipe.name,
-            exp=self.conf,
-            status='scheduled',
-            job=job_id,
-            sec_key=sec_key,
-            rule=rule,
-            ))
-        for (sub_sec_key, output) in output_files:
-            self.outputs[output] = job_id
-            self._append(FILE_FMT.format(
-                time=timestamp,
-                recipe=self.recipe.name,
-                exp=self.conf,
-                job=job_id,
-                sec_key=sub_sec_key,
-                filename=output,
-                ))
-
-    def started_running(self, waiting, job_id, rule):
-        timestamp = datetime.now().strftime(TIMESTAMP)
-        self._append(LOG_FMT.format(
-            time=timestamp,
-            recipe=self.recipe.name,
-            exp=self.conf,
-            status='running',
-            job=job_id,
-            sec_key=waiting.output.sec_key(),
-            rule=rule,
-            ))
-        # alternative would be git describe --always, but that mainly works with tags
-        gitdir = self.platform.conf['git']['gitdir']
-        commit = run('git --git-dir={} rev-parse HEAD'.format(gitdir)).std_out.strip()
-        branch = run('git --git-dir={} symbolic-ref --short HEAD'.format(gitdir)).std_out.strip()
-        timestamp = datetime.now().strftime(TIMESTAMP)
-        self._append(GIT_FMT.format(
-            time=timestamp,
-            recipe=self.recipe.name,
-            exp=self.conf,
-            commit=commit,
-            branch=branch,
-            ))
-
-    def finished_running(self, running, job_id, rule):
-        timestamp = datetime.now().strftime(TIMESTAMP)
-        self._append(LOG_FMT.format(
-            time=timestamp,
-            recipe=self.recipe.name,
-            exp=self.conf,
-            status='finished',
-            job=job_id,
-            sec_key=running.output.sec_key(),
-            rule=rule,
-            ))
-
-    def failed(self, job_id):
-        timestamp = datetime.now().strftime(TIMESTAMP)
-        if job_id in self.jobs:
-            fields = self.jobs[job_id]
-        else:
-            fields = LogItem(*['-'] * len(LogItem._fields))
-
-        self._append(LOG_FMT.format(
-            time=timestamp,
-            recipe=self.recipe.name,
-            exp=fields.exp,
-            status='failed',
-            job=job_id,
-            sec_key=fields.sec_key,
-            rule=fields.rule,
-            ))
-        pass
-
-    def _append(self, msg):
-        os.makedirs('logs', exist_ok=True)
-        with open_text_file(self.logfile, mode='ab') as fobj:
-            fobj.write(msg)
-            fobj.write('\n')
-
-    def _parse_log(self):
-        if self._log_parsed:
-            return
-        self._log_parsed = True
+    def _parse_log(self, logfile):
         try:
-            lines = open_text_file(self.logfile, mode='rb')
-            for line in lines:
+            for line in open_text_file(logfile, mode='rb'):
                 line = line.strip()
                 # git lines are ignored
                 m = LOG_RE.match(line)
@@ -385,14 +295,136 @@ class ExperimentLog(object):
                         self.ongoing_experiments.remove(exp)
                     except KeyError:
                         pass
-
-            waiting = self.get_jobs_with_status('scheduled')
-            running = self.get_jobs_with_status('running')
-            # check their status (platform dependent), log the failed ones
-            for job_id in waiting + running:
-                status = self.platform.check_job(job_id)
-                if status == 'failed':
-                    self.failed(job_id)
-                    self.job_statuses[job_id] = 'failed'
         except FileNotFoundError:
             pass
+
+    def _parse_combined_log(self):
+        self._parse_log(self.logfile)
+
+        waiting = self.get_jobs_with_status('scheduled')
+        running = self.get_jobs_with_status('running')
+        # check their status (platform dependent), log the failed ones
+        for job_id in waiting + running:
+            job_logfile = os.path.join('logs', 'job.{}.{}.log'.format(
+                self.recipe.name, job_id))
+            self._parse_log(job_logfile)
+            status = self.platform.check_job(job_id)
+            if status == 'finished':
+                self.consolidate_finished(job_id)
+                self.job_statuses[job_id] = 'finished'
+            elif status == 'failed':
+                self.failed(job_id)
+                self.job_statuses[job_id] = 'failed'
+
+    def scheduled(self, rule, sec_key, job_id, output_files):
+        # main sec_key is the one used as --make argument
+        # output_files are (sec_key, concrete) tuples
+        # job id (platform dependent, e.g. slurm or pid)
+        timestamp = datetime.now().strftime(TIMESTAMP)
+        self._append(LOG_FMT.format(
+            time=timestamp,
+            recipe=self.recipe.name,
+            exp=self.conf,
+            status='scheduled',
+            job=job_id,
+            sec_key=sec_key,
+            rule=rule,
+            ))
+        for (sub_sec_key, output) in output_files:
+            self.outputs[output] = job_id
+            self._append(FILE_FMT.format(
+                time=timestamp,
+                recipe=self.recipe.name,
+                exp=self.conf,
+                job=job_id,
+                sec_key=sub_sec_key,
+                filename=output,
+                ))
+
+    def consolidate_finished(self, job_id):
+        timestamp = datetime.now().strftime(TIMESTAMP)
+        if job_id in self.jobs:
+            fields = self.jobs[job_id]
+        else:
+            fields = LogItem(*['-'] * len(LogItem._fields))
+
+        self._append(LOG_FMT.format(
+            time=timestamp,
+            recipe=self.recipe.name,
+            exp=fields.exp,
+            status='finished',
+            job=job_id,
+            sec_key=fields.sec_key,
+            rule=fields.rule,
+            ))
+        pass
+
+    def failed(self, job_id):
+        timestamp = datetime.now().strftime(TIMESTAMP)
+        if job_id in self.jobs:
+            fields = self.jobs[job_id]
+        else:
+            fields = LogItem(*['-'] * len(LogItem._fields))
+
+        self._append(LOG_FMT.format(
+            time=timestamp,
+            recipe=self.recipe.name,
+            exp=fields.exp,
+            status='failed',
+            job=job_id,
+            sec_key=fields.sec_key,
+            rule=fields.rule,
+            ))
+        pass
+
+    # the following two are written to job log file
+
+    def started_running(self, waiting, job_id, rule):
+        logfile = os.path.join('logs', 'job.{}.{}.log'.format(
+            self.recipe.name, job_id))
+        timestamp = datetime.now().strftime(TIMESTAMP)
+        self._append(LOG_FMT.format(
+            time=timestamp,
+            recipe=self.recipe.name,
+            exp=self.conf,
+            status='running',
+            job=job_id,
+            sec_key=waiting.output.sec_key(),
+            rule=rule,
+            ),
+            logfile=logfile)
+        # alternative would be git describe --always, but that mainly works with tags
+        gitdir = self.platform.conf['git']['gitdir']
+        commit = run('git --git-dir={} rev-parse HEAD'.format(gitdir)).std_out.strip()
+        branch = run('git --git-dir={} symbolic-ref --short HEAD'.format(gitdir)).std_out.strip()
+        timestamp = datetime.now().strftime(TIMESTAMP)
+        self._append(GIT_FMT.format(
+            time=timestamp,
+            recipe=self.recipe.name,
+            exp=self.conf,
+            commit=commit,
+            branch=branch,
+            ),
+            logfile=logfile)
+
+    def finished_running(self, running, job_id, rule):
+        timestamp = datetime.now().strftime(TIMESTAMP)
+        self._append(LOG_FMT.format(
+            time=timestamp,
+            recipe=self.recipe.name,
+            exp=self.conf,
+            status='finished',
+            job=job_id,
+            sec_key=running.output.sec_key(),
+            rule=rule,
+            ),
+            logfile=os.path.join('logs', 'job.{}.{}.log'.format(
+                self.recipe.name, job_id))
+            )
+
+    def _append(self, msg, logfile=None):
+        os.makedirs('logs', exist_ok=True)
+        logfile = logfile if logfile is not None else self.logfile
+        with open_text_file(logfile, mode='ab') as fobj:
+            fobj.write(msg)
+            fobj.write('\n')
