@@ -44,8 +44,10 @@ class Pipe(Rule):
             stream = component(stream, side_fobjs=side_fobjs)
 
         # progress bar
+        out = self.main_outputs[0] if len(self.main_outputs) > 0 \
+            else self.side_outputs[0]
         stream = progress(stream, self, conf, 
-                          self.main_outputs[0](conf, cli_args),
+                          out(conf, cli_args),
                           total=self.estimated_lines)
 
         return stream, side_fobjs

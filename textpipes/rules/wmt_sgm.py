@@ -3,6 +3,7 @@ import collections
 import re
 
 from ..recipe import Rule
+from ..utils import progress
 
 RE_SET = re.compile(r'<refset setid="([^"]*)" ([^>]*)>')
 RE_DOC = re.compile(r'<doc sysid="([^"]*)" docid="([^"]*)" ([^>]*)>')
@@ -51,7 +52,7 @@ class MergeXmlRefs(Rule):
         super().__init__(inputs, [output], resource_class=resource_class)
         self.setid = setid
 
-    def merge_sgm(self, lines, outfobj, alt_refs):
+    def merge_sgm(self, lines, outfobj, alt_refs, progr):
         docid = None
         tail = None
         segids = []
@@ -108,4 +109,7 @@ class MergeXmlRefs(Rule):
         # loop over main ref, output each doc in turn
         lines = self.inputs[0].open(conf, cli_args, mode='rb')
         with self.outputs[0].open(conf, cli_args, mode='wb') as outfobj:
-            self.merge_sgm(lines, outfobj, alt_refs)
+            lines = progress(lines, self, conf,
+                             self.outputs[0](conf, cli_args),
+                             total=None)
+            self.merge_sgm(lines, outfobj, alt_refs, progr)
