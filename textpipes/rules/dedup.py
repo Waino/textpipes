@@ -18,8 +18,9 @@ class Deduplicate(Rule):
     def __init__(self,
                  inputs, outputs,
                  dup_proportion=.1,
-                 truncate=30):
-        super().__init__(inputs, outputs)
+                 truncate=30,
+                 **kwargs):
+        super().__init__(inputs, outputs, **kwargs)
         # capacity ratio of bloom filters
         self.dup_proportion = dup_proportion
         # if this many initial chars match, consider it a dup

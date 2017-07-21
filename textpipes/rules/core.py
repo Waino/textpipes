@@ -3,8 +3,8 @@ from ..pipe import DeadEndPipe
 from ..components import truecaser
 
 class SplitColumns(Rule):
-    def __init__(self, inp, outputs, delimiter='\t'):
-        super().__init__([inp], outputs)
+    def __init__(self, inp, outputs, delimiter='\t', resource_class='short'):
+        super().__init__([inp], outputs, resource_class=resource_class)
         self.delimiter = delimiter
 
     def make(self, conf, cli_args=None):
@@ -26,6 +26,6 @@ class SplitColumns(Rule):
 class TrainTrueCaserRule(DeadEndPipe):
     """Convenience Rule allowing easy training of truecaser
     from multiple corpora files."""
-    def __init__(self, inputs, model_file, sure_thresh=.6):
+    def __init__(self, inputs, model_file, sure_thresh=.6, **kwargs):
         component = truecaser.TrainTrueCaser(model_file, sure_thresh)
-        super().__init__([component], inputs)
+        super().__init__([component], inputs, **kwargs)

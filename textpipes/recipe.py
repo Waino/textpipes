@@ -177,7 +177,7 @@ class Rule(object):
     The object is initialized with RecipeFiles defining
     input and output paths.
     """
-    def __init__(self, inputs, outputs):
+    def __init__(self, inputs, outputs, resource_class='default'):
         if isinstance(inputs, RecipeFile):
             self.inputs = (inputs,)
         else:
@@ -186,6 +186,7 @@ class Rule(object):
             self.outputs = (outputs,)
         else:
             self.outputs = tuple(outputs)
+        self.resource_class = resource_class
 
     def make(self, conf, cli_args=None):
         raise NotImplementedError()

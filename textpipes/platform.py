@@ -3,6 +3,11 @@ import shlex
 import subprocess
 import threading
 
+# built-in resource classes:
+# make_immediately, default, short
+# other suggestions:
+# gpu, gpushort, multicore, bigmem, long
+
 MakeImmediately = object()
 
 class Platform(object):
@@ -20,19 +25,30 @@ class Platform(object):
     def check_job(self, job_id):
         raise NotImplementedError()
 
+    def resource_class(self, resource_class):
+        if 'platform.resource_classes' not in self.conf:
+            return ''
+        if 'platform.resource_classes.map' in self.conf:
+            resource_class = self.conf['platform.resource_classes.map'].get(
+                resource_class, resource_class)
+        if resource_class not in self.conf['platform.resource_classes']:
+            return self.conf['platform.resource_classes']['default']
+        return self.conf['platform.resource_classes'][resource_class]
+        
+
 class LogOnly(Platform):
     """dummy platform for testing"""
     def read_log(self, log):
         self.job_id = max([0] + list(int(x) for x in log.jobs.keys()))
 
     def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args):
-        # FIXME: slurm params from platform conf
+        rc_args = self.resource_class(rule.resource_class)
         # FIXME: formatting cli args
         cmd = 'python {recipe}.py {conf}.ini --make {sec_key}'.format(
             recipe=recipe.name, conf=conf.name, sec_key=sec_key)
         job_name = '{}:{}'.format(conf.name, sec_key)
-        print('DUMMY: sbatch --job-name {name} --wrap="{cmd}"'.format(
-            name=job_name, cmd=cmd))
+        print('DUMMY: sbatch --job-name {name} --wrap="{cmd}" {rc_args}'.format(
+            name=job_name, cmd=cmd, rc_args=rc_args))
         # dummy incremental job_id
         self.job_id += 1 
         return self.job_id
@@ -51,14 +67,14 @@ class Local(Platform):
 class Slurm(Platform):
     """Schedule and return job id"""
     def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args):
-        # FIXME: map jobclass of rule based on platform conf
-        # FIXME: if mapped jobclass == "MakeImmediately"
-        #return MakeImmediately
+        rc_args = self.resource_class(rule.resource_class)
+        if rc_args == "make_immediately":
+            return MakeImmediately
         cmd = 'python {recipe}.py {conf}.ini --make {sec_key}'.format(
             recipe=recipe.name, conf=conf.name, sec_key=sec_key)
         job_name = '{}:{}'.format(conf.name, sec_key)
-        sbatch = 'sbatch --job-name {name} --wrap="{cmd}"'.format(
-            name=job_name, cmd=cmd))
+        sbatch = 'sbatch --job-name {name} --wrap="{cmd}" {rc_args}'.format(
+            name=job_name, cmd=cmd, rc_args=rc_args))
         r = run(sbatch)
         try:
             job_id = int(r.std_out)

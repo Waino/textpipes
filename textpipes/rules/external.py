@@ -24,6 +24,9 @@ def maybe_gz_out(outfile):
 
 
 class Concatenate(Rule):
+    def __init__(self, *args, resource_class='make_immediately', **kwargs):
+        super().__init__(*args, resource_class=resource_class, **kwargs)
+
     def make(self, conf, cli_args):
         infiles = [inp(conf, cli_args) for inp in self.inputs]
         if all(infile.endswith('.gz') for infile in infiles):

@@ -47,8 +47,8 @@ def read_bleu(lines):
     
 
 class MergeXmlRefs(Rule):
-    def __init__(self, inputs, output, setid):
-        super().__init__(inputs, [output])
+    def __init__(self, inputs, output, setid, resource_class='short'):
+        super().__init__(inputs, [output], resource_class=resource_class)
         self.setid = setid
 
     def merge_sgm(self, lines, outfobj, alt_refs):
