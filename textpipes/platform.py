@@ -26,14 +26,14 @@ class Platform(object):
         raise NotImplementedError()
 
     def resource_class(self, resource_class):
-        if 'platform.resource_classes' not in self.conf:
+        if 'resource_classes' not in self.conf:
             return ''
-        if 'platform.resource_classes.map' in self.conf:
-            resource_class = self.conf['platform.resource_classes.map'].get(
+        if 'resource_classes.map' in self.conf:
+            resource_class = self.conf['resource_classes.map'].get(
                 resource_class, resource_class)
-        if resource_class not in self.conf['platform.resource_classes']:
-            return self.conf['platform.resource_classes']['default']
-        return self.conf['platform.resource_classes'][resource_class]
+        if resource_class not in self.conf['resource_classes']:
+            return self.conf['resource_classes']['default']
+        return self.conf['resource_classes'][resource_class]
         
 
 class LogOnly(Platform):

@@ -199,7 +199,8 @@ class AnalyzeChrF(ParallelPipeComponent):
             pres, recs, fs, nw)
         return score1, score2
 
-    def __call__(self, stream, side_fobjs=None):
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
         for tpl in stream:
             key = tpl[0]
             bl = tpl[2]
@@ -266,7 +267,8 @@ class AnalyzeRepetitions(ParallelPipeComponent):
             seen.add(token)
         return anywhere, conseq
 
-    def __call__(self, stream, side_fobjs=None):
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
         for tpl in stream:
             key = tpl[0]
             bl = tpl[2]
@@ -299,7 +301,8 @@ class AnalyzeLength(ParallelPipeComponent):
             'ref_len_chars', 'ref_len_words',
         )
 
-    def __call__(self, stream, side_fobjs=None):
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
         for tpl in stream:
             key = tpl[0]
             src = tpl[1]
@@ -352,7 +355,8 @@ class AnalyzeLetteredNames(ParallelPipeComponent):
         self.counts = {}
         self.fields = ('lnames',)
 
-    def __call__(self, stream, side_fobjs=None):
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
         for tpl in stream:
             key = tpl[0]
             src = tpl[1]

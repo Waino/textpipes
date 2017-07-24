@@ -5,7 +5,8 @@ class Head(MonoPipeComponent):
         super().__init__()
         self.limit = int(limit)
 
-    def __call__(self, stream, side_fobjs=None):
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
         for (i, line) in enumerate(stream):
             if i >= self.limit:
                 break

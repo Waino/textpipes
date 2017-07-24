@@ -9,7 +9,8 @@ class MonoFilter(MonoPipeComponent):
         self.filtr = filtr
         self.logfile = logfile
 
-    def __call__(self, stream, side_fobjs=None):
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
         for line in stream:
             if self.filtr(line):
                 # filter out this line
@@ -26,7 +27,8 @@ class ParallelFilter(ParallelPipeComponent):
         self.filters = filters
         self.logfile = logfile
 
-    def __call__(self, stream, side_fobjs=None):
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
         filters = self.filters
         for tpl in stream:
             if isinstance(filters, Filter):
@@ -85,7 +87,7 @@ class FilterUnclean(Filter):
                     self.__class__.__name__))
 
     def __call__(self, line, side_fobjs=None):
-        cleaned = self.operation.single_cell(line, side_fobjs=side_fobjs)
+        cleaned = self.operation.single_cell(line)
         return cleaned != line
 
 

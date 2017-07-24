@@ -32,7 +32,7 @@ class TrainTrueCaser(SingleCellComponent):
         # note that this is a smaller set than tokenizer punctuation
         self.punctuation_re = CASE_PUNC_RE
 
-    def single_cell(self, sentence, side_fobjs=None):
+    def single_cell(self, sentence):
         seen_first = False
         for token in sentence.split():
             if not seen_first:
@@ -89,7 +89,7 @@ class TrueCase(SingleCellComponent):
         if len(self.words) == 0:
             logger.warning('Loaded TrueCaser model was empty')
 
-    def single_cell(self, sentence, side_fobjs=None):
+    def single_cell(self, sentence):
         result = []
         seen_first = False
         tokens = sentence.split()
@@ -139,7 +139,7 @@ class DeTrueCase(SingleCellComponent):
         # FIXME: customizable punctuation?
         self.punctuation_re = CASE_PUNC_RE
 
-    def single_cell(self, sentence, side_fobjs=None):
+    def single_cell(self, sentence):
         result = []
         seen_first = False
         tokens = sentence.split()

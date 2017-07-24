@@ -2,6 +2,8 @@ import configparser
 import os
 
 from . import platform
+from .utils import LazyPool, NoPool
+
 
 class Config(object):
     def __init__(self, main_conf_file):
@@ -34,6 +36,17 @@ class Config(object):
         platform_class = conf['platform']['platform']
         platf = platform.classes[platform_class](
             platform_name, conf)
+
+        if 'multiprocessing' in conf:
+            self.pool = LazyPool(
+                processes=conf['multiprocessing'].get(
+                    'cores', None),
+                chunksize=conf['multiprocessing'].get(
+                    'chunksize', 1000)
+                )
+        else:
+            self.pool = NoPool()
+
         return platf
         
     def __getitem__(self, key):

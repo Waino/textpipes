@@ -52,7 +52,7 @@ class MergeXmlRefs(Rule):
         super().__init__(inputs, [output], resource_class=resource_class)
         self.setid = setid
 
-    def merge_sgm(self, lines, outfobj, alt_refs, progr):
+    def merge_sgm(self, lines, outfobj, alt_refs):
         docid = None
         tail = None
         segids = []
@@ -112,4 +112,4 @@ class MergeXmlRefs(Rule):
             lines = progress(lines, self, conf,
                              self.outputs[0](conf, cli_args),
                              total=None)
-            self.merge_sgm(lines, outfobj, alt_refs, progr)
+            self.merge_sgm(lines, outfobj, alt_refs)

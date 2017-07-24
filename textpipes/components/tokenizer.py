@@ -85,7 +85,7 @@ class Tokenize(SingleCellComponent):
         self.protected_re = self._compile_re(protected_re)
         self.map_re = self._compile_map(map_re)
 
-    def single_cell(self, sentence, side_fobjs=None):
+    def single_cell(self, sentence):
         out = sentence
         # mark original spaces
         out = out.replace(' ', ' \u001F ')
@@ -190,7 +190,7 @@ class DeTokenize(SingleCellComponent):
         self.expressions = [(re.compile(exp, flags=re.UNICODE), repl)
                             for (exp, repl) in expressions]
 
-    def single_cell(self, val, side_fobjs=None):
+    def single_cell(self, val):
         val = ' ' + val + ' '
         for (exp, repl) in self.expressions:
             val = exp.sub(repl, val)

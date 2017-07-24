@@ -38,7 +38,7 @@ class Clean(SingleCellComponent):
             'max_decode_length': 1000000}
         self.params.update(kwargs)
 
-    def single_cell(self, line, side_fobjs=None):
+    def single_cell(self, line):
         return ftfy.fix_text(line, **self.params)
 
 
@@ -163,7 +163,7 @@ class MapChars(SingleCellComponent):
         }
         self.overrides.update(overrides)
 
-    def single_cell(self, line, side_fobjs=None):
+    def single_cell(self, line):
         result = []
         for char in line:
             if char not in self._cache:
@@ -190,7 +190,7 @@ class MapChars(SingleCellComponent):
 
 class LetterizeNames(SingleCellComponent):
     """Segment tokens starting with capital or digit"""
-    def single_cell(self, line, side_fobjs=None):
+    def single_cell(self, line):
         out = []
         for token in line.split():
             if FIVEDOT in token:
@@ -216,7 +216,8 @@ class StripXml(MonoPipeComponent):
         super().__init__()
         self.filter_blanks = filter_blanks
 
-    def __call__(self, stream, side_fobjs=None):
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
         depth = 0
         for line in stream:
             result = []

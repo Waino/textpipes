@@ -3,6 +3,7 @@ import codecs
 import gzip
 import itertools
 import subprocess
+from multiprocessing import Pool
 
 UNICODE_UNIT_SEP = '\u001F'
 FIVEDOT = '\u2059' # 5-dot punctuation
@@ -71,3 +72,33 @@ def progress(iterable, rule, conf, out_file, total='conf'):
     out_file = out_file[-20:]
     description = '{}:{}'.format(rule_name, out_file)
     return tqdm(iterable, desc=description, total=total, unit_scale=True)
+
+
+class LazyPool(object):
+    def __init__(self, processes, chunksize=1000):
+        self.processes = processes
+        self.chunksize = chunksize
+        self.pool = None
+
+    def imap(self, func, iterable, chunksize=None):
+        chunksize = chunksize if chunksize is not None else self.chunksize
+        if self.pool is None:
+            print('Using pool of {} processes'.format(self.processes))
+            self.pool = Pool(processes=self.processes)
+        for item in self.pool.imap(func, iterable, chunksize):
+            yield item
+
+    def close(self):
+        if self.pool is None:
+            self.pool.close()
+
+
+class NoPool(object):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def imap(self, func, iterable, chunksize=None):
+        return map(func, iterable)
+
+    def close(self):
+        pass

@@ -41,7 +41,10 @@ class Pipe(Rule):
             component.pre_make(side_fobjs)
         # Actually apply components to stream
         for component in self.components:
-            stream = component(stream, side_fobjs=side_fobjs)
+            stream = component(stream,
+                               side_fobjs=side_fobjs,
+                               config=conf,
+                               cli_args=cli_args)
 
         # progress bar
         out = self.main_outputs[0] if len(self.main_outputs) > 0 \

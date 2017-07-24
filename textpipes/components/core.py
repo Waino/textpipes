@@ -1,4 +1,5 @@
 import re
+import itertools
 
 class PipeComponent(object):
     def __init__(self, side_inputs=None, side_outputs=None):
@@ -20,11 +21,19 @@ class ParallelPipeComponent(PipeComponent):
     pass
 
 class SingleCellComponent(MonoPipeComponent):
-    def __call__(self, stream, side_fobjs=None):
-        for line in stream:
-            yield self.single_cell(line, side_fobjs=side_fobjs)
+    def __init__(self, *args, mp=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.mp = mp
 
-    def single_cell(self, line, side_fobjs=None):
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        if self.mp:
+            return config.pool.imap(self.single_cell, stream)
+        else:
+            return map(self.single_cell, stream)
+
+    def single_cell(self, line):
+        # to enable parallel execution, side_fobj are not available
         raise NotImplementedError()
 
 
@@ -37,10 +46,10 @@ class ForEach(ParallelPipeComponent):
     def __init__(self, mono_component):
         self.mono_component = mono_component
 
-    def __call__(self, stream, side_fobjs=None):
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
         for tpl in stream:
-            yield tuple(self.mono_component.single_cell(
-                            line, side_fobjs=side_fobjs)
+            yield tuple(self.mono_component.single_cell(line)
                         for line in tpl)
 
     def pre_make(self, side_fobjs):
@@ -68,10 +77,11 @@ class PerColumn(ParallelPipeComponent):
                            else IdentityComponent()
                            for component in components]
 
-    def __call__(self, stream, side_fobjs=None):
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
         for tpl in stream:
             assert len(tpl) == len(self.components)
-            yield tuple(component.single_cell(line, side_fobjs=side_fobjs)
+            yield tuple(component.single_cell(line)
                         for (component, line) in zip(self.components, tpl))
 
     def pre_make(self, side_fobjs):
@@ -96,7 +106,7 @@ class PerColumn(ParallelPipeComponent):
 
 
 class IdentityComponent(SingleCellComponent):
-    def single_cell(self, line, side_fobjs=None):
+    def single_cell(self, line):
         return line
 
 
@@ -107,7 +117,7 @@ class RegexSubstitution(SingleCellComponent):
         self.expressions = [(re.compile(exp, flags=re.UNICODE), repl)
                             for (exp, repl) in expressions]
 
-    def single_cell(self, line, side_fobjs=None):
+    def single_cell(self, line):
         for (exp, repl) in self.expressions:
             line = exp.sub(repl, line)
         return line
