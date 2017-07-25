@@ -48,7 +48,7 @@ class ParaPipe(tp.ParallelPipe):
 
 def preprocess(key, corpus):
     dp, = recipe.add_rule(
-        tp.external.DummyPipe(
+        tp.rules.external.DummyPipe(
             corpus,
             recipe.add_output('gen', '{}.dummypiped'.format(key))
         ))
@@ -86,11 +86,11 @@ pp = paraprep(para, parapiped)
 # dummy training with foo
 loop_indices = (2, 4, 6, 30)
 foo_models = recipe.add_rule(
-    tp.dummy.DummyTrainLoop(foo_pre, ('mod', 'foo.models'), loop_indices))
+    tp.rules.dummy.DummyTrainLoop(foo_pre, ('mod', 'foo.models'), loop_indices))
 
 def eval(model, idx):
     ev, = recipe.add_rule(
-        tp.external.DummyPipe(
+        tp.rules.external.DummyPipe(
             model,
             recipe.add_output('gen', 'foo.evals', loop_index=idx)
         ))

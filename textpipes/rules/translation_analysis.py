@@ -1,9 +1,13 @@
 import collections
 import logging
 import re
-import pandas as pd
 
 logger = logging.getLogger(__name__)
+try:
+    import pandas as pd
+except ImportError:
+    logger.warning('Unable to load pandas.')
+    logger.warning('You will not be able to use translation_analysis.')
 try:
     import chrF
 except ImportError:
