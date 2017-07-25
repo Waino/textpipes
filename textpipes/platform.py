@@ -8,12 +8,11 @@ import threading
 # other suggestions:
 # gpu, gpushort, multicore, bigmem, long
 
-MakeImmediately = object()
-
 class Platform(object):
     def __init__(self, name, conf):
         self.name = name
         self.conf = conf
+        self.make_immediately = False
 
     def read_log(self, log):
         pass
@@ -57,9 +56,13 @@ class LogOnly(Platform):
         return 'running'    # FIXME
 
 class Local(Platform):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.make_immediately = True
+
     """Run immediately, instead of scheduling"""
     def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args):
-        return MakeImmediately
+        return None
 
     def check_job(self, job_id):
         return 'unknown'
@@ -68,8 +71,6 @@ class Slurm(Platform):
     """Schedule and return job id"""
     def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args):
         rc_args = self.resource_class(rule.resource_class)
-        if rc_args == "make_immediately":
-            return MakeImmediately
         cmd = 'python {recipe}.py {conf}.ini --make {sec_key}'.format(
             recipe=recipe.name, conf=conf.name, sec_key=sec_key)
         job_name = '{}:{}'.format(conf.name, sec_key)

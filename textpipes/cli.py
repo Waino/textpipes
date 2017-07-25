@@ -6,7 +6,7 @@ import os
 import re
 
 from .configuration import Config
-from .platform import run, MakeImmediately
+from .platform import run
 from .recipe import *
 from .utils import *
 
@@ -57,13 +57,15 @@ class CLI(object):
             return  # don't do anything more
         # implicit else 
 
-        # debug
         nextsteps = self.recipe.get_next_steps_for(
             outputs=self.args.output, cli_args=self.cli_args)
         if not self.args.dryrun:
             self.schedule(nextsteps)
-        self.show_next_steps(nextsteps, dryrun=self.args.dryrun)
-
+        self.show_next_steps(nextsteps,
+                             dryrun=self.args.dryrun,
+                             immediate=self.platform.make_immediately)
+        if self.platform.make_immediately and not self.args.dryrun:
+            self.make_all(nextsteps)
 
     def check_validity(self):
         # check validity of interpolations in conf
@@ -100,7 +102,6 @@ class CLI(object):
         if warn:
             print('********** WARNING! Some paths are missing **********')
 
-
     def status(self):
         files_by_job_id = collections.defaultdict(list)
         for (filepath, job_id) in sorted(self.log.outputs.items()):
@@ -130,28 +131,23 @@ class CLI(object):
             # FIXME: if nothing is scheduled or running, check if more is available?
 
     def schedule(self, nextsteps):
-        job_ids = {}
+        # output -> job_id of job that builds it
+        wait_ids = {}
         for step in nextsteps:
-            if isinstance(step, Available):
-                sec_key = step.outputs[0].sec_key()
-                output_files = [(output.sec_key(), output(self.conf, self.cli_args))
-                                for output in sorted(step.outputs)]
-                job_id = self.platform.schedule(
-                    self.recipe, self.conf, step.rule, sec_key,
-                    output_files, self.cli_args)
-                if job_id is None:
-                    # not scheduled for some reason
-                    continue
-                elif job_id == MakeImmediately:
-                    # (small) local job to make instead of schedule
-                    # FIXME: will missing job_id break stuff?
-                    self._make_helper(step.outputs[0],
-                                      Waiting(step.outputs[0]),
-                                      '-')
-                    continue
-                job_ids[step] = job_id
-                self.log.scheduled(step.rule.name, sec_key, job_id, output_files)
-        return job_ids
+            # FIXME: delayed jobs: add deps
+            if step.status != 'available':
+                continue
+            sec_key = step.outputs[0].sec_key()
+            output_files = [(output.sec_key(), output(self.conf, self.cli_args))
+                            for output in sorted(step.outputs)]
+            job_id = self.platform.schedule(
+                self.recipe, self.conf, step.rule, sec_key,
+                output_files, self.cli_args)
+            if job_id is None:
+                # not scheduled for some reason
+                continue
+            step.job_id = job_id
+            self.log.scheduled(step.rule.name, sec_key, job_id, output_files)
 
     def make(self, output):
         next_step = self.recipe.get_next_steps_for(
@@ -163,43 +159,54 @@ class CLI(object):
         self._make_helper(output, next_step, job_id)
 
     def _make_helper(self, output, next_step, job_id):
-        rule = self.recipe.files.get(next_step.output, None)
+        rule = self.recipe.files.get(next_step.outputs[0], None)
         self.log.started_running(next_step, job_id, rule.name)
         self.recipe.make_output(output=output, cli_args=self.cli_args)
         self.log.finished_running(next_step, job_id, rule.name)
 
-    def show_next_steps(self, nextsteps, dryrun=False):
-        for step in nextsteps:
-            if isinstance(step, Done):
-                print('Done: {}'.format(step.output(self.conf, self.cli_args)))
-        print('-' * 80)
-        for step in nextsteps:
-            if isinstance(step, Waiting):
-                outfile = step.output(self.conf, self.cli_args)
-                job_id = self.log.outputs.get(outfile, '-')
-                print('Waiting: {} {}'.format(job_id, outfile))
-        for step in nextsteps:
-            if isinstance(step, Running):
-                # FIXME: show monitoring here?
-                outfile = step.output(self.conf, self.cli_args)
-                job_id = self.log.outputs.get(outfile, '-')
-                print('Running: {} {}'.format(job_id, outfile))
+    def make_all(self, nextsteps):
+        """immediately, sequentially make everything"""
+        remaining = [step for step in nextsteps
+                     if step.status == 'available']
+        while len(remaining) > 0:
+            delayed = []
+            for step in remaining:
+                if any(not rf.exists(self.conf, self.cli_args)
+                       for rf in step.inputs):
+                    delayed.append(step)
+                    continue
+                self._make_helper(step.outputs[0], step, '-')
+            if len(delayed) == len(remaining):
+                raise Exception('Unmeetable dependencies')
+            remaining = delayed
+
+    def show_next_steps(self, nextsteps, dryrun=False, immediate=False):
+        albl = 'scheduled:'
+        if dryrun:
+            albl = 'available:'
+        elif immediate:
+            albl = 'immediate:'
         tpls = []
         for step in nextsteps:
-            if isinstance(step, Available):
-                outfile = step.outputs[0](self.conf, self.cli_args)
-                job_id = self.log.outputs.get(outfile, '-')
-                if dryrun:
-                    lbl = 'Available:'
-                else:
-                    if job_id in ('-', MakeImmediately):
-                        lbl = 'Immediate:'
-                    else:
-                        lbl = 'Scheduled:'
-                if job_id == MakeImmediately:
-                    job_id = '-'
-                tpls.append((
-                    lbl, job_id, step.outputs[0].sec_key(), step.rule.name, outfile))
+            if step.status == 'available':
+                continue
+            outfile = step.outputs[0](self.conf, self.cli_args)
+            lbl = step.status + ':'
+            tpls.append((
+                lbl, step.job_id, step.outputs[0].sec_key(), outfile))
+            # FIXME: show monitoring for running jobs here?
+        table_print(tpls, line_before='-')
+        tpls = []
+        for step in nextsteps:
+            if step.status != 'available':
+                continue
+            if len(step.inputs) > 0:
+                lbl = 'delayed:'
+            else:
+                lbl = albl
+            outfile = step.outputs[0](self.conf, self.cli_args)
+            tpls.append((
+                lbl, step.job_id, step.outputs[0].sec_key(), step.rule.name, outfile))
         table_print(tpls, line_before='-')
 
 # keep a log of jobs
@@ -253,6 +260,8 @@ class ExperimentLog(object):
                 if job_status == status]
 
     def get_status_of_output(self, outfile):
+        # status: a string from STATUSES
+        # fields: a LogItem
         job_id = self.outputs.get(outfile, None)
         if job_id is None:
             return 'not scheduled', None
@@ -381,7 +390,8 @@ class ExperimentLog(object):
 
     def started_running(self, waiting, job_id, rule):
         logfile = os.path.join('logs', 'job.{}.{}.log'.format(
-            self.recipe.name, job_id))
+            self.recipe.name,
+            job_id if job_id != '-' else 'local'))
         timestamp = datetime.now().strftime(TIMESTAMP)
         self._append(LOG_FMT.format(
             time=timestamp,
@@ -408,6 +418,9 @@ class ExperimentLog(object):
             logfile=logfile)
 
     def finished_running(self, running, job_id, rule):
+        logfile = os.path.join('logs', 'job.{}.{}.log'.format(
+            self.recipe.name,
+            job_id if job_id != '-' else 'local'))
         timestamp = datetime.now().strftime(TIMESTAMP)
         self._append(LOG_FMT.format(
             time=timestamp,
@@ -418,9 +431,7 @@ class ExperimentLog(object):
             sec_key=running.output.sec_key(),
             rule=rule,
             ),
-            logfile=os.path.join('logs', 'job.{}.{}.log'.format(
-                self.recipe.name, job_id))
-            )
+            logfile=logfile)
 
     def _append(self, msg, logfile=None):
         os.makedirs('logs', exist_ok=True)

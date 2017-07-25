@@ -3,12 +3,25 @@ import os
 
 from .utils import *
 
-Done = collections.namedtuple('Done', ['output'])
-Waiting = collections.namedtuple('Waiting', ['output'])
-Running = collections.namedtuple('Running', ['output'])
-Available = collections.namedtuple('Available', ['outputs', 'rule'])
-Delayed = collections.namedtuple('Delayed', ['triggers', 'outputs', 'rule'])
-MissingInput = collections.namedtuple('MissingInputs', ['input'])
+class JobStatus(object):
+    def __init__(self, status, outputs, inputs=None, rule=None, job_id=None):
+        assert status in (
+            'done', 'waiting', 'running',   # info only: no need to schedule
+            'available',                    # schedule these
+            'missing_inputs')               # error
+        self.status = status
+        self.outputs = tuple(outputs)
+        # only unsatisfied inputs
+        self.inputs = inputs if inputs is not None else tuple()
+        self.rule = rule
+        self.job_id = job_id
+
+    def __hash__(self):
+        return hash(self.outputs)
+
+    def __eq__(self, other):
+        return self.outputs == other.outputs
+
 
 class Recipe(object):
     """Main class for building experiment recipes"""
@@ -73,13 +86,7 @@ class Recipe(object):
         return rf
 
     def get_next_steps_for(self, outputs=None, cli_args=None):
-        # -> list of:
-        #    Done(output)
-        # or Available(outputs, rule),
-        # or Delayed(still missing inputs, outputs, rule)
-        # or Waiting(output)
-        # or Running(output)
-        # or MissingInput(input)
+        # -> [JobStatus]
         outputs = outputs 
         if not outputs:
             outputs = self.main_outputs
@@ -92,7 +99,7 @@ class Recipe(object):
         done = []
         for rf in outputs:
             if rf.exists(self.conf, cli_args):
-                done.append(Done(rf))
+                done.append(JobStatus('done', [rf]))
             else:
                 border.add(rf)
 
@@ -108,18 +115,17 @@ class Recipe(object):
             # check log for waiting/running jobs
             status, job_fields = self.log.get_status_of_output(
                 cursor(self.conf, cli_args))
-            #print(status, rule.is_atomic(cursor), cursor)
             if status == 'running':
                 if not (rule.is_atomic(cursor) and cursor.exists(self.conf, cli_args)):
                     # must wait for non-atomic files until job stops running
                     # also wait for an atomic file that doesn't yet exist
-                    running.add(cursor)
+                    running.add(JobStatus('running', [cursor], job_fields.job_id))
                     continue
             if cursor.exists(self.conf, cli_args):
                 seen_done.add(cursor)
                 continue
             if status == 'scheduled':
-                waiting.add(cursor)
+                waiting.add(JobStatus('waiting', [cursor], job_fields.job_id))
                 continue
             if rule is None:
                 # an original input, but failed the exists check above
@@ -129,10 +135,8 @@ class Recipe(object):
             potential.add((cursor, rule))
 
         if len(missing) > 0:
-            # missing inputs block anything from running
-            return [MissingInput(inp) for inp in missing]
-        waiting = [Waiting(output) for output in waiting]
-        running = [Running(output) for output in running]
+            # missing inputs block anything at all from running
+            return [JobStatus('missing_inputs', [inp], inputs=[inp]) for inp in missing]
 
         available = []
         delayed = []
@@ -143,23 +147,25 @@ class Recipe(object):
             if len(not_done) > 0:
                 # some inputs need to be built first
                 delayed.append(
-                    Delayed(
-                        not_done,
+                    JobStatus('available',
                         tuple(output for (output, rule) in pairs),
+                        inputs=not_done,
                         rule)
                     )
                 continue
             available.append(
-                Available(tuple(output for (output, rule) in pairs), rule))
+                JobStatus('available',
+                          tuple(output for (output, rule) in pairs)
+                          rule=rule))
 
-        return done + available + waiting + running
+        return done + list(waiting) + list(running) + available + delayed
 
     def make_output(self, output, cli_args=None):
         rf = self._rf(output)
         if rf not in self.files:
             raise Exception('No rule to make target {}'.format(output))
         if rf.exists(self.conf, cli_args):
-            return Done()
+            return JobStatus('done', [rf])
 
         rule = self.files[rf]
         return rule.make(self.conf, cli_args)
