@@ -123,13 +123,13 @@ class Recipe(object):
                 if not (rule.is_atomic(cursor) and cursor.exists(self.conf, cli_args)):
                     # must wait for non-atomic files until job stops running
                     # also wait for an atomic file that doesn't yet exist
-                    running.add(JobStatus('running', [cursor], job_fields.job_id))
+                    running.add(JobStatus('running', [cursor], job_id=job_fields.job_id))
                     continue
             if cursor.exists(self.conf, cli_args):
                 seen_done.add(cursor)
                 continue
             if status == 'scheduled':
-                waiting.add(JobStatus('waiting', [cursor], job_fields.job_id))
+                waiting.add(JobStatus('waiting', [cursor], job_id=job_fields.job_id))
                 continue
             if rule is None:
                 # an original input, but failed the exists check above
