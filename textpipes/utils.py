@@ -51,7 +51,7 @@ def table_print(tpls, line_before=False, line_after=False):
     col_widths = [max(len(str(val)) for val in column)
                   for column in transposed]
     total_width = sum(col_widths) + (2 * (len(transposed) - 1))
-    fmt = ['{:' + str(width) + '}' for width in col_widths]
+    fmt = ['{!s:' + str(width) + '}' for width in col_widths]
     fmt = '  '.join(fmt)
     if line_before:
         print(line_before * total_width)

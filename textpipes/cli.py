@@ -137,17 +137,16 @@ class CLI(object):
             # FIXME: delayed jobs: add deps
             if step.status != 'available':
                 continue
-            sec_key = step.outputs[0].sec_key()
             output_files = [(output.sec_key(), output(self.conf, self.cli_args))
                             for output in sorted(step.outputs)]
             job_id = self.platform.schedule(
-                self.recipe, self.conf, step.rule, sec_key,
+                self.recipe, self.conf, step.rule, step.sec_key,
                 output_files, self.cli_args)
             if job_id is None:
                 # not scheduled for some reason
                 continue
             step.job_id = job_id
-            self.log.scheduled(step.rule.name, sec_key, job_id, output_files)
+            self.log.scheduled(step.rule.name, step.sec_key, job_id, output_files)
 
     def make(self, output):
         next_step = self.recipe.get_next_steps_for(
@@ -193,7 +192,7 @@ class CLI(object):
             outfile = step.outputs[0](self.conf, self.cli_args)
             lbl = step.status + ':'
             tpls.append((
-                lbl, step.job_id, step.outputs[0].sec_key(), outfile))
+                lbl, step.job_id, step.sec_key, outfile))
             # FIXME: show monitoring for running jobs here?
         table_print(tpls, line_before='-')
         tpls = []
@@ -206,7 +205,7 @@ class CLI(object):
                 lbl = albl
             outfile = step.outputs[0](self.conf, self.cli_args)
             tpls.append((
-                lbl, step.job_id, step.outputs[0].sec_key(), step.rule.name, outfile))
+                lbl, step.job_id, step.sec_key, step.rule.name, outfile))
         table_print(tpls, line_before='-')
 
 # keep a log of jobs
@@ -388,7 +387,7 @@ class ExperimentLog(object):
 
     # the following two are written to job log file
 
-    def started_running(self, waiting, job_id, rule):
+    def started_running(self, step, job_id, rule):
         logfile = os.path.join('logs', 'job.{}.{}.log'.format(
             self.recipe.name,
             job_id if job_id != '-' else 'local'))
@@ -399,7 +398,7 @@ class ExperimentLog(object):
             exp=self.conf,
             status='running',
             job=job_id,
-            sec_key=waiting.output.sec_key(),
+            sec_key=step.sec_key,
             rule=rule,
             ),
             logfile=logfile)
@@ -417,7 +416,7 @@ class ExperimentLog(object):
             ),
             logfile=logfile)
 
-    def finished_running(self, running, job_id, rule):
+    def finished_running(self, step, job_id, rule):
         logfile = os.path.join('logs', 'job.{}.{}.log'.format(
             self.recipe.name,
             job_id if job_id != '-' else 'local'))
@@ -428,7 +427,7 @@ class ExperimentLog(object):
             exp=self.conf,
             status='finished',
             job=job_id,
-            sec_key=running.output.sec_key(),
+            sec_key=step.sec_key,
             rule=rule,
             ),
             logfile=logfile)

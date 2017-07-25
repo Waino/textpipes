@@ -4,7 +4,7 @@ import os
 from .utils import *
 
 class JobStatus(object):
-    def __init__(self, status, outputs, inputs=None, rule=None, job_id=None):
+    def __init__(self, status, outputs, inputs=None, rule=None, job_id='-'):
         assert status in (
             'done', 'waiting', 'running',   # info only: no need to schedule
             'available',                    # schedule these
@@ -15,6 +15,10 @@ class JobStatus(object):
         self.inputs = inputs if inputs is not None else tuple()
         self.rule = rule
         self.job_id = job_id
+
+    @property
+    def sec_key(self):
+        return self.outputs[0].sec_key()
 
     def __hash__(self):
         return hash(self.outputs)
@@ -150,12 +154,12 @@ class Recipe(object):
                     JobStatus('available',
                         tuple(output for (output, rule) in pairs),
                         inputs=not_done,
-                        rule)
+                        rule=rule)
                     )
                 continue
             available.append(
                 JobStatus('available',
-                          tuple(output for (output, rule) in pairs)
+                          tuple(output for (output, rule) in pairs),
                           rule=rule))
 
         return done + list(waiting) + list(running) + available + delayed
