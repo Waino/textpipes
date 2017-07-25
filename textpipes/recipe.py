@@ -116,6 +116,7 @@ class Recipe(object):
         while len(border) > 0:
             cursor = border.pop()
             rule = self.files[cursor]
+            # FIXME: pass self.conf and cli_args so that flexible rules can adjust?
             # check log for waiting/running jobs
             status, job_fields = self.log.get_status_of_output(
                 cursor(self.conf, cli_args))
