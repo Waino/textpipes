@@ -7,6 +7,7 @@ Done = collections.namedtuple('Done', ['output'])
 Waiting = collections.namedtuple('Waiting', ['output'])
 Running = collections.namedtuple('Running', ['output'])
 Available = collections.namedtuple('Available', ['outputs', 'rule'])
+Delayed = collections.namedtuple('Delayed', ['triggers', 'outputs', 'rule'])
 MissingInput = collections.namedtuple('MissingInputs', ['input'])
 
 class Recipe(object):
@@ -72,9 +73,13 @@ class Recipe(object):
         return rf
 
     def get_next_steps_for(self, outputs=None, cli_args=None):
-        # -> [Done(output)]
-        # or [Available(outputs, rule), ... Running(output)]
-        # or [MissingInput(input)]
+        # -> list of:
+        #    Done(output)
+        # or Available(outputs, rule),
+        # or Delayed(still missing inputs, outputs, rule)
+        # or Waiting(output)
+        # or Running(output)
+        # or MissingInput(input)
         outputs = outputs 
         if not outputs:
             outputs = self.main_outputs
@@ -130,11 +135,19 @@ class Recipe(object):
         running = [Running(output) for output in running]
 
         available = []
+        delayed = []
         potential = sorted(potential, key=lambda x: (hash(x[1]), x[0]))
         for (rule, pairs) in itertools.groupby(potential, lambda x: x[1]):
-            if any(inp not in seen_done for inp in rule.inputs):
-                # inputs need to be built first
-                # FIXME: single launch scheduling should track these
+            not_done = tuple(inp for inp in rule.inputs
+                             if inp not in seen_done)
+            if len(not_done) > 0:
+                # some inputs need to be built first
+                delayed.append(
+                    Delayed(
+                        not_done,
+                        tuple(output for (output, rule) in pairs),
+                        rule)
+                    )
                 continue
             available.append(
                 Available(tuple(output for (output, rule) in pairs), rule))
