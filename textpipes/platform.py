@@ -40,14 +40,19 @@ class LogOnly(Platform):
     def read_log(self, log):
         self.job_id = max([0] + list(int(x) for x in log.jobs.keys()))
 
-    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args):
+    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
         rc_args = self.resource_class(rule.resource_class)
         # FIXME: formatting cli args
         cmd = 'python {recipe}.py {conf}.ini --make {sec_key}'.format(
             recipe=recipe.name, conf=conf.name, sec_key=sec_key)
         job_name = '{}:{}'.format(conf.name, sec_key)
-        print('DUMMY: sbatch --job-name {name} --wrap="{cmd}" {rc_args}'.format(
-            name=job_name, cmd=cmd, rc_args=rc_args))
+        if deps:
+            dep_args = ' --dependency=' + ','.join(
+                'afterok:{}'.format(dep) for dep in deps)
+        else:
+            dep_args = ''
+        print('DUMMY: sbatch --job-name {name} {rc_args}{dep_args} --wrap="{cmd}"'.format(
+            name=job_name, cmd=cmd, rc_args=rc_args, dep_args=dep_args))
         # dummy incremental job_id
         self.job_id += 1 
         return self.job_id
@@ -61,7 +66,7 @@ class Local(Platform):
         self.make_immediately = True
 
     """Run immediately, instead of scheduling"""
-    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args):
+    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
         return None
 
     def check_job(self, job_id):
@@ -69,7 +74,7 @@ class Local(Platform):
 
 class Slurm(Platform):
     """Schedule and return job id"""
-    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args):
+    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
         rc_args = self.resource_class(rule.resource_class)
         cmd = 'python {recipe}.py {conf}.ini --make {sec_key}'.format(
             recipe=recipe.name, conf=conf.name, sec_key=sec_key)

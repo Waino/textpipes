@@ -134,14 +134,23 @@ class CLI(object):
         # output -> job_id of job that builds it
         wait_ids = {}
         for step in nextsteps:
+            if step.job_id != '-':
+                for output in step.outputs:
+                    wait_ids[output] = step.job_id
             # FIXME: delayed jobs: add deps
             if step.status != 'available':
                 continue
+            wait_for_jobs = []
+            for inp in step.inputs:
+                if inp not in wait_ids:
+                    print('Dont know what id to wait on for ', inp)
+                    continue
+                wait_for_jobs.append(wait_ids[inp])
             output_files = [(output.sec_key(), output(self.conf, self.cli_args))
                             for output in sorted(step.outputs)]
             job_id = self.platform.schedule(
                 self.recipe, self.conf, step.rule, step.sec_key,
-                output_files, self.cli_args)
+                output_files, self.cli_args, deps=wait_for_jobs)
             if job_id is None:
                 # not scheduled for some reason
                 continue
