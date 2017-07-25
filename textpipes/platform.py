@@ -47,8 +47,8 @@ class LogOnly(Platform):
             recipe=recipe.name, conf=conf.name, sec_key=sec_key)
         job_name = '{}:{}'.format(conf.name, sec_key)
         if deps:
-            dep_args = ' --dependency=' + ','.join(
-                'afterok:{}'.format(dep) for dep in deps)
+            dep_args = ' --dependency=afterok:' + ':'.join(
+                str(dep) for dep in deps)
         else:
             dep_args = ''
         print('DUMMY: sbatch --job-name {name} {rc_args}{dep_args} --wrap="{cmd}"'.format(
