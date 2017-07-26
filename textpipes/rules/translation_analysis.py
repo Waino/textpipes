@@ -7,7 +7,7 @@ try:
     import pandas as pd
 except ImportError:
     logger.warning('Unable to load pandas.')
-    logger.warning('You will not be able to use translation_analysis.')
+    logger.warning('You will not be able to use AnalyzeTranslations.')
 try:
     import chrF
 except ImportError:
@@ -16,11 +16,52 @@ except ImportError:
 
 from .wmt_sgm import read_sgm, read_bleu
 from ..pipe import ParallelPipe
+from ..recipe import Rule
+from ..utils import progress
 from ..components import ParallelPipeComponent, PerColumn, IdentityComponent
 from ..components.tokenizer import Tokenize
 from ..components.truecaser import TrueCase
 
 RE_ALNUM = re.compile(r'[a-z0-9]')
+
+class EvaluateChrF(Rule):
+    # FIXME: multiref
+    def __init__(self, hyp, ref, outputs,
+                 betas=(2.0,), resource_class='short', **kwargs):
+        super().__init__([hyp, ref], outputs,
+                         resource_class=resource_class, **kwargs)
+        self.hyp = hyp
+        self.ref = ref
+        if len(outputs) != len(betas):
+            raise Exception('EvaluateChrF got {} output files '
+                            'but {} betas'.format(len(outputs), len(betas)))
+        self.betas = betas
+
+    def make(self, conf, cli_args=None):
+        hyp = self.hyp.open(conf, cli_args, mode='rb')
+        ref = self.ref.open(conf, cli_args, mode='rb')
+        max_n = 6
+        ngram_weights = [1/float(max_n) for _ in range(max_n)]
+        hyp = progress(hyp, self, conf,
+                       self.hyp(conf, cli_args))
+        stats = chrF.measure.evaluate(
+            hyp, ref, max_n=max_n,
+            sentence_level=False, summary=False)
+        hyp.close()
+        ref.close()
+        for (out, beta) in zip(self.outputs, self.betas):
+            out = out.open(conf, cli_args, mode='wb')
+            tot_pre, tot_rec, tot_f = stats.ngram_prf(beta ** 2)
+            pre, rec, f = chrF.measure.apply_ngram_weights(
+                tot_pre, tot_rec, tot_f, ngram_weights)
+            out.write('chr{}-{}\t{:.4f}\n'.format(
+                'F', beta, f))
+            out.write('chr{}\t{:.4f}\n'.format(
+                'Prec', pre))
+            out.write('chr{}\t{:.4f}\n'.format(
+                'Rec', rec))
+            out.close()
+
 
 class AnalyzeTranslations(ParallelPipe):
     def __init__(self,

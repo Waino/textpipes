@@ -51,6 +51,9 @@
     - continuing from last
         - helper to find highest numbered file
     - only show one line in human-friendly output
+    - if any further processing needs to be done to the outputs of a loop, the conf fills up with boilerplate
+        - in the recipe you can do a python loop, but the file paths can't use templating
+        - _loop_index already hacks cli_args
 
 - tooling for parameter grid search
     - conf has current best params

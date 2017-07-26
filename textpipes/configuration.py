@@ -6,9 +6,9 @@ from .utils import LazyPool, NoPool
 
 
 class Config(object):
-    def __init__(self, main_conf_file):
+    def __init__(self, main_conf_file, args):
         self.name, _ = os.path.splitext(main_conf_file)
-        self.platform = self.platform_config()
+        self.platform = self.platform_config(args)
         self.conf = configparser.ConfigParser(
             interpolation=configparser.ExtendedInterpolation())
         self.conf.read_file(open(main_conf_file, 'r'))
@@ -19,7 +19,7 @@ class Config(object):
     def get_path(self, section, key):
         return self.conf['paths.{}'.format(section)][key]
 
-    def platform_config(self):
+    def platform_config(self, args):
         try:
             with open('current_platform', 'r') as fobj:
                 platform_name = fobj.readline().strip()
@@ -37,7 +37,7 @@ class Config(object):
         platf = platform.classes[platform_class](
             platform_name, conf)
 
-        if 'multiprocessing' in conf:
+        if 'multiprocessing' in conf and not args.no_fork:
             self.pool = LazyPool(
                 processes=conf['multiprocessing'].get(
                     'cores', None),

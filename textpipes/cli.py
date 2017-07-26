@@ -27,6 +27,8 @@ def get_parser(recipe):
     parser.add_argument('-r', '--recursive', default=False, action='store_true',
                         help='Schedule the whole DAG recursively. '
                         'Default is to only schedule jobs that are ready to run.')
+    parser.add_argument('--no-fork', default=False, action='store_true',
+                        help='Do not use multiprocessing to speed up.')
 
     parser.add_argument('--make', default=None, type=str, metavar='OUTPUT',
                         help='Output to make, in section:key format. '
@@ -40,7 +42,7 @@ class CLI(object):
         self.recipe = recipe
         parser = get_parser(recipe)
         self.args = parser.parse_args(args=argv)
-        self.conf = Config(self.args.conf)
+        self.conf = Config(self.args.conf, self.args)
         # the recipe-altering cli args
         self.cli_args = None # FIXME
         self.platform = self.conf.platform
