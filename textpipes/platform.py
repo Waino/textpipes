@@ -2,6 +2,9 @@ import os
 import shlex
 import subprocess
 import threading
+import re
+
+MULTISPACE_RE = re.compile(r'\s+')
 
 # built-in resource classes:
 # make_immediately, default, short
@@ -33,10 +36,14 @@ class Platform(object):
         if resource_class not in self.conf['resource_classes']:
             return self.conf['resource_classes']['default']
         return self.conf['resource_classes'][resource_class]
-        
+
 
 class LogOnly(Platform):
     """dummy platform for testing"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._job_status = None
+
     def read_log(self, log):
         self.job_id = max([0] + list(int(x) for x in log.jobs.keys()))
 
@@ -58,7 +65,24 @@ class LogOnly(Platform):
         return self.job_id
 
     def check_job(self, job_id):
+        if self._job_status is None:
+            self._parse_q()
         return 'running'    # FIXME
+
+    def _parse_q(self):
+        self._job_status = {}
+        r = run('./slurm q')
+        for (i, line) in enumerate(r.std_out.split('\n')):
+            if i == 0:
+                continue
+            line = line.strip()
+            if len(line) == 0:
+                continue
+            fields = MULTISPACE_RE.split(line)
+            (job_id, _, _, time, start, status) = fields[:6]
+            reason = ' '.join(fields[6:])
+            # FIXME: non-slurm-specific namedtuple?
+            self._job_status[job_id] = (time, start, status, reason)
 
 class Local(Platform):
     def __init__(self, *args, **kwargs):
@@ -91,6 +115,7 @@ class Slurm(Platform):
     def check_job(self, job_id):
         # FIXME: parse output of slurm q
         return 'unknown'
+
 
 classes = {
     'logonly': LogOnly,
