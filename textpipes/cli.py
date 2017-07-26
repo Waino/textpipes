@@ -111,7 +111,9 @@ class CLI(object):
                 sorted(self.log.jobs.values(), key=keyfunc), keyfunc):
             if exp not in self.log.ongoing_experiments:
                 continue
-            print('*** Experiment: {}'.format(exp))
+            print('=' * 80)
+            print('Experiment: {}'.format(exp))
+            tpls = []
             for job in sorted(jobs, key=lambda x: (x.status, x.last_time)):
                 status = self.log.job_statuses[job.job_id]
                 if status not in ('scheduled', 'running'):
@@ -122,12 +124,9 @@ class CLI(object):
                 else:
                     monitoring = '-'
                 # FIXME: truncate too long?
-                print('{job_id:10} {rule:15} {sec_key:25} {status:10} {monitoring}'.format(
-                    job_id=job.job_id,
-                    rule=rule.name,
-                    sec_key=job.sec_key,
-                    status=status,
-                    monitoring=monitoring))
+                tpls.append(
+                    (status, job.job_id, job.sec_key, rule.name, monitoring))
+            table_print(tpls, line_before='-')
             # FIXME: if nothing is scheduled or running, check if more is available?
 
     def schedule(self, nextsteps):

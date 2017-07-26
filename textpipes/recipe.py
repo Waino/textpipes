@@ -163,7 +163,9 @@ class Recipe(object):
                           tuple(output for (output, rule) in pairs),
                           rule=rule))
 
-        return done + list(waiting) + list(running) + available + delayed
+        waiting = sorted(waiting, key=lambda job: (job.job_id, job.sec_key))
+        running = sorted(running, key=lambda job: (job.job_id, job.sec_key))
+        return done + waiting + running + available + delayed
 
     def make_output(self, output, cli_args=None):
         rf = self._rf(output)

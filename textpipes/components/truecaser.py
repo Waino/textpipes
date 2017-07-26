@@ -4,7 +4,7 @@ import re
 import os
 import logging
 
-# also see class TrainTrueCaserRule in ..core
+# also see class TrainTrueCaserRule in ..rules.core
 
 logger = logging.getLogger(__name__)
 
