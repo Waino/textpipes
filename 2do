@@ -62,15 +62,20 @@
 - cli usability issues
     % (at least local) platform should show process indicator
     ½ dryrun output is in random order
-    - nonrecursive scheduling: flag
-        - which way?
+    % (non)recursive scheduling: flag
+    % --check should check that gitdir is valid
     - waiting and running shows all outputs of a job on individual lines
     - default monitoring picks asciibetically first output
-    - --check should check that gitdir is valid
-    - --status is failing to output useful stuff (e.g. failed local jobs)
-        - --dryrun also not showing it as running/failed
-        - missing job_id is probably the problem
-        - --status should also show available jobs, not just --dryrun ?
+    - --status is failing to output useful stuff
+        - (e.g. failed local jobs)
+            - --dryrun also not showing it as running/failed
+            - missing job_id is probably the problem
+            - --status should also show available jobs, not just --dryrun ?
+        - how long something has been running
+        - estimated start time for scheduled
+            - parsing "slurm q"
+            - the current job-meta namedtuples (plus a dict for mutable status) are too rigid
+        - rename waiting -> pending to equal slurm
 
 - recipe usability issues
     - lots of boilerplate in preprocssing recipe
