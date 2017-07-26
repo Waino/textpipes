@@ -133,14 +133,9 @@ class CLI(object):
                 if status not in ('scheduled', 'running', 'failed'):
                     continue
                 # suppress failed jobs if it has been relaunched
-                if status == 'failed':
-                    print(files_by_job_id[job.job_id])
-                    try:
-                        latest, _ = self.log.get_status_of_output(files_by_job_id[job.job_id][0])
-                        if latest != 'failed':
-                            continue
-                    except IndexError:
-                        continue
+                # (no longer the designated job for any files)
+                if status == 'failed' and len(files_by_job_id[job.job_id]) == 0:
+                    continue
                 rule = self.recipe.get_rule(job.sec_key)
                 if status == 'running':
                     monitoring = rule.monitor(self.platform, files_by_job_id[job.job_id])
