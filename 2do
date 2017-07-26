@@ -1,5 +1,3 @@
-49-vuotias Schwimmer näytti komealta tummassa hopeanhohtoisessa puvussaan, mutta huomion vei kuitenkin hänen Zoehttp://www.iltasanomat.fi/haku/?search-term=Zoe-vaimonsa.
-
 % side inputs and outputs
     % files need to be opened, requires handing down conf, cli_args
         % don't want to do this in init: only when make is called
@@ -60,7 +58,10 @@
     - this is not so simple for random search
 
 - cli usability issues
+    % (at least local) platform should show process indicator
     ½ dryrun output is in random order
+    - nonrecursive scheduling: flag
+        - which way?
     - waiting and running shows all outputs of a job on individual lines
     - default monitoring picks asciibetically first output
     - --check should check that gitdir is valid
@@ -68,7 +69,6 @@
         - --dryrun also not showing it as running/failed
         - missing job_id is probably the problem
         - --status should also show available jobs, not just --dryrun ?
-    - (at least local) platform should show process indicator
 
 - recipe usability issues
     - lots of boilerplate in preprocssing recipe
@@ -80,7 +80,7 @@
     - should be ignored in DAG
 
 - speed
-    - use multiprocessing.Pool.imap
+    % use multiprocessing.Pool.imap
 
 - better line number guess
     - do wc on inputs, keep track of lines written into outputs using log
