@@ -89,7 +89,7 @@ class Recipe(object):
             raise Exception('No rule to make target {}'.format(output))
         return rf
 
-    def get_next_steps_for(self, outputs=None, cli_args=None):
+    def get_next_steps_for(self, outputs=None, cli_args=None, recursive=False):
         # -> [JobStatus]
         outputs = outputs 
         if not outputs:
@@ -151,12 +151,13 @@ class Recipe(object):
                              if inp not in seen_done)
             if len(not_done) > 0:
                 # some inputs need to be built first
-                delayed.append(
-                    JobStatus('available',
-                        tuple(output for (output, rule) in pairs),
-                        inputs=not_done,
-                        rule=rule)
-                    )
+                if recursive:
+                    delayed.append(
+                        JobStatus('available',
+                            tuple(output for (output, rule) in pairs),
+                            inputs=not_done,
+                            rule=rule)
+                        )
                 continue
             available.append(
                 JobStatus('available',

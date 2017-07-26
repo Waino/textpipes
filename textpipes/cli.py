@@ -18,12 +18,16 @@ def get_parser(recipe):
                         help='Name of the experiment conf file')
     parser.add_argument('output', type=str, nargs='*', metavar='OUTPUT',
                         help='Output(s) to schedule, in section:key format')
-    parser.add_argument('--status', default=False, action='store_true',
-                        help='Status of ongoing experiments')
     parser.add_argument('--check', default=False, action='store_true',
                         help='Perform validity check')
+    parser.add_argument('--status', default=False, action='store_true',
+                        help='Status of ongoing experiments')
     parser.add_argument('--dryrun', default=False, action='store_true',
                         help='Show what would be done, but dont do it')
+    parser.add_argument('-r', '--recursive', default=False, action='store_true',
+                        help='Schedule the whole DAG recursively. '
+                        'Default is to only schedule jobs that are ready to run.')
+
     parser.add_argument('--make', default=None, type=str, metavar='OUTPUT',
                         help='Output to make, in section:key format. '
                         'You should NOT call this directly')
@@ -58,7 +62,9 @@ class CLI(object):
         # implicit else 
 
         nextsteps = self.recipe.get_next_steps_for(
-            outputs=self.args.output, cli_args=self.cli_args)
+            outputs=self.args.output,
+            cli_args=self.cli_args,
+            recursive=self.args.recursive)
         if not self.args.dryrun:
             self.schedule(nextsteps)
         self.show_next_steps(nextsteps,
