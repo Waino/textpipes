@@ -45,7 +45,9 @@
             - would need non-encapsulated special handling (e.g. recipe._rf)
     - how are the evals scheduled?
         - if it is delayed by dep on train loop, it waits for too long
+            - require extra flag to schedule with dep on atomic? --force-dep
         - if evals are in a separate recipe DAG, you'll get missing input errors
+            - soft input that won't cause missing_inputs?
     - continuing from last
         - helper to find highest numbered file
     - only show one line in human-friendly output

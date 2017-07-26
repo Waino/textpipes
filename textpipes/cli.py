@@ -82,6 +82,14 @@ class CLI(object):
         # exp section is assumed to always exist
         if 'exp' not in self.conf.conf.sections():
             print('********** WARNING! NO "exp" SECTION in conf **********')
+        try:
+            gitdir = self.platform.conf['git']['gitdir']
+            if not os.path.exists(gitdir) or \
+                    not os.path.exists(os.path.join(gitdir, 'HEAD')):
+                print('********** WARNING! invalid gitdir **********')
+                print(gitdir)
+        except KeyError:
+            print('********** WARNING! NO "git.gitdir" in platform conf **********')
         # check existence of original inputs
         warn = False
         for rf in self.recipe.main_inputs:
