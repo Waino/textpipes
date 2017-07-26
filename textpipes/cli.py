@@ -130,8 +130,17 @@ class CLI(object):
             tpls = []
             for job in sorted(jobs, key=lambda x: (x.status, x.last_time)):
                 status = self.log.job_statuses[job.job_id]
-                if status not in ('scheduled', 'running'):
+                if status not in ('scheduled', 'running', 'failed'):
                     continue
+                # suppress failed jobs if it has been relaunched
+                if status == 'failed':
+                    print(files_by_job_id[job.job_id])
+                    try:
+                        latest, _ = self.log.get_status_of_output(files_by_job_id[job.job_id][0])
+                        if latest != 'failed':
+                            continue
+                    except IndexError:
+                        continue
                 rule = self.recipe.get_rule(job.sec_key)
                 if status == 'running':
                     monitoring = rule.monitor(self.platform, files_by_job_id[job.job_id])
@@ -281,6 +290,7 @@ class ExperimentLog(object):
                 if job_status == status]
 
     def get_status_of_output(self, outfile):
+        # outfile: a concrete file path
         # status: a string from STATUSES
         # fields: a LogItem
         job_id = self.outputs.get(outfile, None)
