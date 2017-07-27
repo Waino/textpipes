@@ -138,7 +138,7 @@ class CLI(object):
                     continue
                 rule = self.recipe.get_rule(job.sec_key)
                 if status == 'running':
-                    monitoring = rule.monitor(self.platform, files_by_job_id[job.job_id])
+                    monitoring = rule.monitor(self.platform, self.conf, self.cli_args)
                 else:
                     monitoring = '-'
                 # FIXME: truncate too long?

@@ -219,15 +219,18 @@ class Rule(object):
     def make(self, conf, cli_args=None):
         raise NotImplementedError()
 
-    def monitor(self, platform, file_paths):
+    def monitor(self, platform, conf, cli_args=None):
         """Return a short summary of the status of a running job.
 
         By default this is the line count of the first output file.
         Subclasses can override this, to e.g. show a percentage,
         minibatch number, training loss or whatever is appropriate."""
-        if not os.path.exists(file_paths[0]):
+        if len(self.outputs) == 0:
+            return '-'
+        main_out_path = self.outputs[0](conf, cli_args)
+        if not os.path.exists(main_out_path):
             return 'no output'
-        lc = external_linecount(file_paths[0])
+        lc = external_linecount(main_out_path)
         return '{} lines'.format(lc)
 
     def is_atomic(self, output):
@@ -334,5 +337,16 @@ class LoopRecipeFile(RecipeFile):
 
     @staticmethod
     def loop_output(section, key, loop_indices):
+        """Create a sequence of LoopRecipeFiles with the given indices"""
         return [LoopRecipeFile(section, key, loop_index)
                 for loop_index in loop_indices]
+
+    @staticmethod
+    def highest_written(outputs, conf, cli_args=None):
+        """Find the file with the highest loop_index that has been created.
+        (if the Rule is non-atomic, the file may not necessarily be done)"""
+        existing = [out for out in outputs
+                    if out.exists(conf, cli_args)]
+        if len(existing) == 0:
+            return None
+        return max(existing, key=lambda x: x.loop_index)

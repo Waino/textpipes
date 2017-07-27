@@ -21,3 +21,10 @@ class DummyTrainLoop(Rule):
     def is_atomic(self, output):
         # all loop outputs are atomic
         return isinstance(output, LoopRecipeFile)
+
+    def monitor(self, platform, conf, cli_args=None):
+        highest = LoopRecipeFile.highest_written(
+            self.outputs, conf, cli_args)
+        if highest is None:
+            'no output'
+        return highest(conf, cli_args)

@@ -49,7 +49,8 @@
         - if evals are in a separate recipe DAG, you'll get missing input errors
             - soft input that won't cause missing_inputs?
     - continuing from last
-        - helper to find highest numbered file
+        % helper to find highest numbered file
+        - how to use it depends on the task
     - only show one line in human-friendly output
 
 - tooling for parameter grid search
@@ -57,15 +58,18 @@
     - a grid search recipe has the ranges of possible values
     - helper combines the two into a subgrid
         - previously tried values will be done already, so no special handling needed
+        - requires path templating?
     - this is not so simple for random search
+        - generate random params during first scheduling?
+        - store generated random params somewhere
 
 - cli usability issues
     % (at least local) platform should show process indicator
     ½ dryrun output is in random order
     % (non)recursive scheduling: flag
     % --check should check that gitdir is valid
+    % default monitoring picks asciibetically first output
     - waiting and running shows all outputs of a job on individual lines
-    - default monitoring picks asciibetically first output
     - --status is failing to output useful stuff
         - (e.g. failed local jobs)
             - --dryrun also not showing it as running/failed
