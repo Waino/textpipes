@@ -1,3 +1,7 @@
+"""Pipes are composite Rules built out of Components.
+Components are text processing operations expressed as Python generators.
+"""
+
 from .core import *
 from . import europarl
 from . import filtering

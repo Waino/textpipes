@@ -23,7 +23,6 @@ def get_version():
 
 from .recipe import Recipe
 from .configuration import Config
-from .pipe import *     # FIXME
 from . import rules, components, check
 
 # Most common rules for easy access
@@ -35,3 +34,4 @@ from .rules.core import *
 # more are available by importing from tp.components
 from .components.preprocessing import *
 from .components.filtering import MonoFilter, ParallelFilter, FilterByLength
+from .components.core import *

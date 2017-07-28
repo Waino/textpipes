@@ -15,10 +15,9 @@ except ImportError:
     logger.warning('You will not be able to use AnalyzeChrF.')
 
 from .wmt_sgm import read_sgm, read_bleu
-from ..pipe import ParallelPipe
 from ..recipe import Rule, RecipeFile
 from ..utils import progress
-from ..components import ParallelPipeComponent, PerColumn, IdentityComponent
+from ..components import ParallelPipe, ParallelPipeComponent, PerColumn, IdentityComponent
 from ..components.tokenizer import Tokenize
 from ..components.truecaser import TrueCase
 

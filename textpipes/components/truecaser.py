@@ -4,11 +4,9 @@ import re
 import os
 import logging
 
-# also see class TrainTrueCaserRule in ..rules.core
-
 logger = logging.getLogger(__name__)
 
-from .core import SingleCellComponent
+from .core import SingleCellComponent, DeadEndPipe
 
 ALNUM_RE = re.compile('\w', flags=re.UNICODE)
 # punctuation that is followed by uppercase
@@ -60,6 +58,14 @@ class TrainTrueCaser(SingleCellComponent):
         fobj = side_fobjs[self.model_file]
         for (word, (best, sure)) in self.words.items():
             fobj.write('{}\t{}\t{}\n'.format(word, best, str(sure)))
+
+
+class TrainTrueCaserRule(DeadEndPipe):
+    """Convenience Rule allowing easy training of truecaser
+    from multiple corpora files."""
+    def __init__(self, inputs, model_file, sure_thresh=.6, **kwargs):
+        component = TrainTrueCaser(model_file, sure_thresh)
+        super().__init__([component], inputs, **kwargs)
 
 
 class TrueCase(SingleCellComponent):
