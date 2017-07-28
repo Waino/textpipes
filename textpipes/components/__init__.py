@@ -3,6 +3,7 @@ Components are text processing operations expressed as Python generators.
 """
 
 from .core import *
+from . import counting
 from . import europarl
 from . import filtering
 from . import newscorpus

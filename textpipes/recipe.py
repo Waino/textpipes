@@ -26,6 +26,16 @@ class JobStatus(object):
     def __eq__(self, other):
         return self.outputs == other.outputs
 
+    def __repr__(self):
+        return "{}('{}', {}, {}, {}, {})".format(
+            self.__class__.__name__,
+            self.status,
+            self.outputs,
+            self.inputs,
+            self.rule,
+            self.job_id)
+            
+
 
 class Recipe(object):
     """Main class for building experiment recipes"""

@@ -83,6 +83,9 @@ bar_pre = preprocess('bar', bar)
 
 pp = paraprep(para, parapiped)
 
+counts = recipe.add_output('gen', 'counts.tgt')
+recipe.add_rule(tp.components.counting.CountTokens([pp[1]], counts))
+
 # dummy training with foo
 loop_indices = (2, 4, 6, 30)
 foo_models = recipe.add_rule(
@@ -98,6 +101,6 @@ def eval(model, idx):
 foo_evals = [eval(model, idx)
              for (model, idx) in zip(foo_models, loop_indices)]
 
-recipe.add_main_outputs([foo_pre, bar_pre] + list(pp) + foo_evals)
+recipe.add_main_outputs([foo_pre, bar_pre] + list(pp) + [counts] + foo_evals)
 
 recipe.main()

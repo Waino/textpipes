@@ -182,7 +182,7 @@ class CLI(object):
         if next_step.status not in ('waiting', 'available'):
             raise Exception('Cannot start running {}: {}'.format(
                 output, next_step))
-        job_id = self.log.outputs[next_step.output(self.conf, self.cli_args)]
+        job_id = self.log.outputs[next_step.outputs[0](self.conf, self.cli_args)]
         self._make_helper(output, next_step, job_id)
 
     def _make_helper(self, output, next_step, job_id):
