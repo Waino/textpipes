@@ -1,5 +1,6 @@
-"""Pipes are text processing operations expressed as Python generators,
-which can be composed into Rules"""
+"""Pipes are composite Rules built out of Components.
+Components are text processing operations expressed as Python generators.
+"""
 
 import itertools
 

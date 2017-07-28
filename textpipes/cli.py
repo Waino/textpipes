@@ -179,7 +179,7 @@ class CLI(object):
     def make(self, output):
         next_step = self.recipe.get_next_steps_for(
             outputs=[output], cli_args=self.cli_args)[0]
-        if not isinstance(next_step, Waiting):
+        next_step.status not in ('waiting', 'available'):
             raise Exception('Cannot start running {}: {}'.format(
                 output, next_step))
         job_id = self.log.outputs[next_step.output(self.conf, self.cli_args)]
