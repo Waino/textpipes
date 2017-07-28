@@ -34,7 +34,6 @@ class JobStatus(object):
             self.inputs,
             self.rule,
             self.job_id)
-            
 
 
 class Recipe(object):
