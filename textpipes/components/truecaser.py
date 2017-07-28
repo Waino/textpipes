@@ -19,7 +19,7 @@ CASE_PUNC_RE = re.compile(r'^([\.!?:])$')   # FIXME: semicolon?
 LANG_DIR = os.path.join(
     os.path.dirname(__file__), 'langs')
 
-class TrainTrueCaser(SingleCellComponent):
+class TrainTrueCaserComponent(SingleCellComponent):
     def __init__(self, model_file, sure_thresh=.6):
         # sure_thresh: truecase also within sentence if common enough
         super().__init__(side_outputs=[model_file])
@@ -60,11 +60,11 @@ class TrainTrueCaser(SingleCellComponent):
             fobj.write('{}\t{}\t{}\n'.format(word, best, str(sure)))
 
 
-class TrainTrueCaserRule(DeadEndPipe):
+class TrainTrueCaser(DeadEndPipe):
     """Convenience Rule allowing easy training of truecaser
     from multiple corpora files."""
     def __init__(self, inputs, model_file, sure_thresh=.6, **kwargs):
-        component = TrainTrueCaser(model_file, sure_thresh)
+        component = TrainTrueCaserComponent(model_file, sure_thresh)
         super().__init__([component], inputs, **kwargs)
 
 
