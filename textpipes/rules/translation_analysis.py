@@ -6,13 +6,13 @@ logger = logging.getLogger(__name__)
 try:
     import pandas as pd
 except ImportError:
-    logger.warning('Unable to load pandas.')
-    logger.warning('You will not be able to use AnalyzeTranslations.')
+    # warnings emitted by check in cli
+    pass
 try:
     import chrF
 except ImportError:
-    logger.warning('Unable to load chrF.')
-    logger.warning('You will not be able to use AnalyzeChrF.')
+    # warnings emitted by check in cli
+    pass
 
 from .wmt_sgm import read_sgm, read_bleu
 from ..recipe import Rule, RecipeFile

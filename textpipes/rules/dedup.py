@@ -9,9 +9,9 @@ logger = logging.getLogger(__name__)
 try:
     from pybloom import BloomFilter
 except ImportError:
-    logger.warning('Unable to load BloomFilter from pybloom.')
-    logger.warning('You will not be able to use Deduplicate.')
-    logger.warning('To fix this, install a python3 compatible pybloom.')
+    # To fix this, install a python3 compatible pybloom.
+    # warnings emitted by check in cli
+    pass
 
 
 class Deduplicate(Rule):

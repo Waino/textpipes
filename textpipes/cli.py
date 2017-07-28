@@ -4,11 +4,21 @@ import collections
 import itertools
 import os
 import re
+import importlib
 
 from .configuration import Config
 from .platform import run
 from .recipe import *
 from .utils import *
+
+# optional dependencies and what requires them
+OPT_DEPS = (
+    ('chrF', 'AnalyzeChrF'),
+    ('pandas', 'AnalyzeTranslations'),
+    ('ftfy', 'Clean'),
+    ('pybloom', 'Deduplicate'),
+    #('nltk', ''),
+    )
 
 def get_parser(recipe):
     parser = argparse.ArgumentParser(
@@ -117,6 +127,12 @@ class CLI(object):
                 warn = True
         if warn:
             print('********** WARNING! Some paths are missing **********')
+        for (dep, msg) in OPT_DEPS:
+            try:
+                importlib.import_module(dep)
+            except ImportError:
+                print('*** Unable to import optional dependency "{}"'.format(dep))
+                print('You will not be able to use {}'.format(msg))
 
     def status(self):
         files_by_job_id = collections.defaultdict(list)

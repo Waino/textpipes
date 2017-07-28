@@ -14,8 +14,8 @@ MULTISPACE_RE = re.compile(r' +')
 try:
     import ftfy
 except ImportError:
-    logger.warning('Unable to load ftfy.')
-    logger.warning('You will not be able to use Clean.')
+    # warnings emitted by check in cli
+    pass
 
 from .core import SingleCellComponent, RegexSubstitution, MonoPipeComponent
 

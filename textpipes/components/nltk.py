@@ -1,13 +1,13 @@
-import logging
-
-logger = logging.getLogger(__name__)
-
-try:
-    import nltk
-    #from nltk.tokenize import moses
-except ImportError:
-    logger.warning('Unable to load nltk.')
-    logger.warning('You will not be able to use (De)Tokenize.')
+#import logging
+#
+#logger = logging.getLogger(__name__)
+#
+#try:
+#    import nltk
+#    #from nltk.tokenize import moses
+#except ImportError:
+#    # warnings emitted by check in cli
+#    pass
 
 # nltk.download('perluniprops')
 # nltk.download('nonbreaking_prefixes')
