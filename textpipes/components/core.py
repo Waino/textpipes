@@ -298,3 +298,29 @@ class RegexSubstitution(SingleCellComponent):
         for (exp, repl) in self.expressions:
             line = exp.sub(repl, line)
         return line
+
+
+class ApplyLexicon(SingleCellComponent):
+    """Substitutes words with replacements defined in a lexicon.
+
+    Note that the source form must be a single word (no internal spaces),
+    but the replacement string is arbitrary.
+    If you need to replace multiwords, use e.g. RegexSubstitution instead.
+    """
+    def __init__(self, lexicon_file, **kwargs):
+        super().__init__(side_inputs=[lexicon_file], **kwargs)
+        self.lexicon_file = lexicon_file
+        self.lexicon = {}
+
+    def pre_make(self, side_fobjs):
+        fobj = side_fobjs[self.lexicon_file]
+        for line in fobj:
+            # lexicon file should contain two columns
+            # words in the first are mapped to the second
+            exp, repl = line.strip().split('\t', 1)
+            self.lexicon[exp] = repl
+
+    def single_cell(self, sentence):
+        return ' '.join(
+            self.lexicon.get(token, token)
+            for token in sentence.split())
