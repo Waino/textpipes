@@ -22,7 +22,7 @@ from .core import SingleCellComponent, RegexSubstitution, MonoPipeComponent
 class Clean(SingleCellComponent):
     """Uses ftfy to perform a number of normalizations """
     def __init__(self, **kwargs):
-        super().__init__()
+        super().__init__(mp=False)  # not paralellizable
         self.params = {
             'fix_entities': True,     # ftfy default is 'auto'
             'remove_terminal_escapes': True,
@@ -93,7 +93,7 @@ class MapChars(SingleCellComponent):
     with individual overrides.
     """
     def __init__(self, policies={}, overrides={}):
-        super().__init__()
+        super().__init__(mp=False)  # not paralellizable
         self._cache = dict()
         self.policies = {
             'Cc': 'drop',   # Other, Control

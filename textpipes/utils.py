@@ -83,7 +83,10 @@ class LazyPool(object):
     def imap(self, func, iterable, chunksize=None):
         chunksize = chunksize if chunksize is not None else self.chunksize
         if self.pool is None:
-            print('Using pool of {} processes'.format(self.processes))
+            if self.processes is not None:
+                print('Using pool of {} processes'.format(self.processes))
+            else:
+                print('Using maximal pool.')
             self.pool = Pool(processes=self.processes)
         for item in self.pool.imap(func, iterable, chunksize):
             yield item

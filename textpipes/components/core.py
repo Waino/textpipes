@@ -199,11 +199,17 @@ class ParallelPipeComponent(PipeComponent):
 
 class SingleCellComponent(MonoPipeComponent):
     def __init__(self, *args, mp=True, **kwargs):
+        """A component that applies a single function to each
+        cell, with no state or dependencies between cells.
+        Automatically parallellizable using multiprocessing imap,
+        unless mp is set to False.
+        """
         super().__init__(*args, **kwargs)
         self.mp = mp
 
     def __call__(self, stream, side_fobjs=None,
                  config=None, cli_args=None):
+        print(self.__class__.__name__, self.mp)
         if self.mp:
             return config.pool.imap(self.single_cell, stream)
         else:

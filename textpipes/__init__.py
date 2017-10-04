@@ -34,4 +34,6 @@ from .rules.core import *
 # more are available by importing from tp.components
 from .components.preprocessing import *
 from .components.filtering import MonoFilter, ParallelFilter, FilterByLength
+from .components.tokenizer import Tokenize
+from .components.truecaser import TrainTrueCaser, TrueCase
 from .components.core import *
