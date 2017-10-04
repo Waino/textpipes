@@ -209,7 +209,6 @@ class SingleCellComponent(MonoPipeComponent):
 
     def __call__(self, stream, side_fobjs=None,
                  config=None, cli_args=None):
-        print(self.__class__.__name__, self.mp)
         if self.mp:
             return config.pool.imap(self.single_cell, stream)
         else:
