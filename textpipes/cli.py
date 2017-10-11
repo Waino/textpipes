@@ -19,6 +19,8 @@ OPT_DEPS = (
     ('pybloom', 'Deduplicate'),
     #('nltk', ''),
     )
+# external optinal deps:
+# FinnPos, 
 
 def get_parser(recipe):
     parser = argparse.ArgumentParser(

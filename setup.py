@@ -9,7 +9,9 @@ import re
 main_py = open('textpipes/__init__.py').read()
 metadata = dict(re.findall("__([a-z]+)__ = '([^']+)'", main_py))
 
-#requires = ['ftfy', 'tqdm']
+#requires = ['ftfy', 'tqdm', 'pandas']
+# also requires a newer pybloom than the one in PyPI
+# for optional requirements, see textpipes/cli.py
 
 setup(name='textpipes',
       version=metadata['version'],
