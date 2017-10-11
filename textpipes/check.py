@@ -1,9 +1,10 @@
+from abc import ABCMeta, abstractmethod
 import collections
 import os
 import re
 import subprocess
 
-from .utils import UNICODE_UNIT_SEP, FIVEDOT, open_text_file
+from .core.utils import UNICODE_UNIT_SEP, FIVEDOT, open_text_file
 
 RE_ANY_WHITE = re.compile(r'\s', flags=re.UNICODE)
 
@@ -42,7 +43,7 @@ def summarize_counter(counter,
     return ' '.join(result)
 
 
-class SummaryColumn(object):
+class SummaryColumn(metaclass=ABCMeta):
     def __init__(self, heading, width):
         self.formatstr = '{:' + str(width)  + '}'
         self.heading = self.formatstr.format(heading)
@@ -58,7 +59,14 @@ class SummaryColumn(object):
     def line_count(self, i):
         pass
         
-    # methods: process_line, summary
+    @abstractmethod
+    def process_line(self, i, line):
+        pass
+
+    @abstractmethod
+    @property
+    def summary(self):
+        pass
 
 
 class PatternColumn(SummaryColumn):

@@ -15,11 +15,11 @@ except ImportError:
     pass
 
 from .wmt_sgm import read_sgm, read_bleu
-from ..recipe import Rule, RecipeFile
-from ..utils import progress
-from ..components import ParallelPipe, ParallelPipeComponent, PerColumn, IdentityComponent
-from ..components.tokenizer import Tokenize
-from ..components.truecaser import TrueCase
+from .core.recipe import Rule, RecipeFile
+from .core.utils import progress
+from .components.core import ParallelPipe, ParallelPipeComponent, PerColumn, IdentityComponent
+from .components.tokenizer import Tokenize
+from .truecaser import TrueCase
 
 RE_ALNUM = re.compile(r'[a-z0-9]')
 

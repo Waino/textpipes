@@ -21,19 +21,17 @@ def get_version():
 # so that the package global names are available to the modules
 # when they are imported.
 
-from .recipe import Recipe
-from .configuration import Config
-from . import rules, components, check
+from .core import *
+from . import components, check
 
 # Most common rules for easy access
-from .rules.external import Concatenate
-from .rules.dedup import Deduplicate
-from .rules.core import *
+from .external import Concatenate
+from .dedup import Deduplicate
+from .truecaser import TrainTrueCaser, TrueCase
 
 # Most common components for easy access
 # more are available by importing from tp.components
 from .components.preprocessing import *
 from .components.filtering import MonoFilter, ParallelFilter, FilterByLength
 from .components.tokenizer import Tokenize
-from .components.truecaser import TrainTrueCaser, TrueCase
 from .components.core import *

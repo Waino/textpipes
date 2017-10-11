@@ -1,5 +1,5 @@
-from ..recipe import Rule
-from ..utils import progress
+from .core.recipe import Rule
+from .core.utils import progress
 
 
 class SplitColumns(Rule):

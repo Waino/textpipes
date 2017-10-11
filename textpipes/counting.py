@@ -1,8 +1,8 @@
 import collections
 import logging
 
-from ..recipe import Rule
-from .core import SingleCellComponent, DeadEndPipe
+from .core.recipe import Rule
+from .components.core import SingleCellComponent, DeadEndPipe
 
 logger = logging.getLogger(__name__)
 

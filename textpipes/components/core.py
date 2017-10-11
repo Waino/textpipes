@@ -5,8 +5,8 @@ Components are text processing operations expressed as Python generators.
 import re
 import itertools
 
-from ..recipe import Rule
-from ..utils import safe_zip, progress
+from ..core.recipe import Rule
+from ..core.utils import safe_zip, progress
 
 
 class Pipe(Rule):

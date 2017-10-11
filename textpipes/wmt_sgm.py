@@ -2,8 +2,8 @@
 import collections
 import re
 
-from ..recipe import Rule
-from ..utils import progress
+from .core.recipe import Rule
+from .core.utils import progress
 
 RE_SET = re.compile(r'<refset setid="([^"]*)" ([^>]*)>')
 RE_DOC = re.compile(r'<doc sysid="([^"]*)" docid="([^"]*)" ([^>]*)>')

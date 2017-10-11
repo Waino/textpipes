@@ -1,7 +1,7 @@
 import os
 import subprocess
 
-from ..recipe import Rule
+from .core.recipe import Rule
 
 # FIXME: use package resources instead
 WRAPPER_DIR = os.path.join(

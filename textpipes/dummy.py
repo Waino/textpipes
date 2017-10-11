@@ -1,4 +1,4 @@
-from ..recipe import Rule, LoopRecipeFile
+from .core.recipe import Rule, LoopRecipeFile
 
 class DummyTrainLoop(Rule):
     def __init__(self, inp, model, loop_indices):

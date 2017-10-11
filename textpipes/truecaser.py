@@ -6,7 +6,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from .core import SingleCellComponent, DeadEndPipe
+from .components.core import SingleCellComponent, DeadEndPipe
 
 ALNUM_RE = re.compile('\w', flags=re.UNICODE)
 # punctuation that is followed by uppercase

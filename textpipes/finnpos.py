@@ -1,7 +1,7 @@
 import itertools
 
-from ..recipe import Rule
-from ..components.core import MonoPipe, MonoPipeComponent
+from .core.recipe import Rule
+from .components.core import MonoPipe, MonoPipeComponent
 
 # flatten sentences into single-column (surface) tabular representation
 class SingleSurfaceColumnComponent(MonoPipeComponent):
