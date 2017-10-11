@@ -25,8 +25,9 @@ from .core import *
 from . import components, check
 
 # Most common rules for easy access
-from .external import Concatenate
 from .dedup import Deduplicate
+from .external import Concatenate
+from .tabular import SplitColumns
 from .truecaser import TrainTrueCaser, TrueCase
 
 # Most common components for easy access

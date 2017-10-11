@@ -63,8 +63,8 @@ class SummaryColumn(metaclass=ABCMeta):
     def process_line(self, i, line):
         pass
 
-    @abstractmethod
     @property
+    @abstractmethod
     def summary(self):
         pass
 
