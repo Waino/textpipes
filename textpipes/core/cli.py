@@ -19,8 +19,10 @@ OPT_DEPS = (
     ('pybloom', 'Deduplicate'),
     #('nltk', ''),
     )
-# external optinal deps:
-# FinnPos, 
+# external binary optional deps:
+OPT_BINS = (
+    ('ftb-label', 'Finnpos'),
+    )
 
 def get_parser(recipe):
     parser = argparse.ArgumentParser(
@@ -134,6 +136,10 @@ class CLI(object):
                 importlib.import_module(dep)
             except ImportError:
                 print('*** Unable to import optional dependency "{}"'.format(dep))
+                print('You will not be able to use {}'.format(msg))
+        for (dep, msg) in OPT_BINS:
+            if run('which ' + dep).status_code != 0:
+                print('*** Optional binary "{}" not on PATH'.format(dep))
                 print('You will not be able to use {}'.format(msg))
 
     def status(self):
