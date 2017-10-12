@@ -158,10 +158,64 @@ class Word2VecCluster(Rule):
                 clusters=self.clusters))
 
 # apply lemma clusters
-class MapColumn(Rule):
-    pass
+class MapColumn(SingleCellComponent):
+    def __init__(self, map_file, col_i, sep='\t'):
+        super().__init__(side_inputs=[map_file])
+        self.map_file = map_file
+        self.col_i = col_i
+        self.sep = sep
+        self.mapping = {}
+
+    def pre_make(self, side_fobjs):
+        for line in side_fobjs[self.map_file]:
+            src, tgt = line.strip().split()
+            self.mapping[src] = tgt
+
+    def single_cell(self, line):
+        if len(line) == 0:
+            yield line
+        cols = line.split(self.sep)
+        val = cols[self.col_i]
+        val = self.mapping.get(val, val)
+
+        cols[self.col_i] = val
+        yield self.sep.join(cols)
+
 
 # mangle fields into (src-marked, full-tags, surface)
 
 # apply a segmentation, copy tags to each component
-class SegmentColumn(Rule):
+class SegmentColumn(MonoPipeComponent):
+    def __init__(self, map_file, col_i, sep='\t', bies=True, **kwargs):
+        super().__init__(side_inputs=[map_file], **kwargs)
+        self.map_file = map_file
+        self.col_i = col_i
+        self.sep = sep
+        self.bies = bies
+        self.mapping = {}
+
+    def pre_make(self, side_fobjs):
+        for line in side_fobjs[self.map_file]:
+            src, tgt = line.strip().split('\t')
+            self.mapping[src] = tgt.split(' ')
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        result = []
+        for line in stream:
+            if len(line) == 0:
+                yield line
+            cols = line.split(self.sep)
+            val = cols[self.col_i]
+            val = self.mapping.get(val, [val])
+            if len(val) == 1:
+                bies_tags = 'S'
+            else:
+                bies_tags = 'B' + ('I' * (len(val) - 2)) + 'E'
+            if self.bies:
+                cols.append('')
+            for (subword, bies_tag) in zip(val, bies_tags):
+                cols[self.col_i] = val
+                if self.bies:
+                    cols[-1] = bies_tag
+                yield self.sep.join(cols)
