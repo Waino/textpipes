@@ -22,6 +22,7 @@ OPT_DEPS = (
 # external binary optional deps:
 OPT_BINS = (
     ('ftb-label', 'Finnpos'),
+    ('word2vec', 'Word2VecCluster'),
     )
 
 def get_parser(recipe):

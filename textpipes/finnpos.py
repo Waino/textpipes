@@ -3,6 +3,7 @@ import subprocess
 import re
 
 from .core.recipe import Rule
+from .core.platform import run
 from .components.core import MonoPipeComponent
 
 # flatten sentences into single-column (surface) tabular representation
@@ -19,7 +20,6 @@ class Finnpos(Rule):
     def make(self, conf, cli_args):
         infile = self.inputs[0](conf, cli_args)
         outfile = self.outputs[0](conf, cli_args)
-        # in > ftb-label > out
         subprocess.check_call(
             ['ftb-label < {infile} > {outfile}'.format(
                 infile=infile,
@@ -27,9 +27,9 @@ class Finnpos(Rule):
             ], shell=True)
 
 # deterministic lemma modification
-class LemmaModification(SingleCellComponent):
+class ModifyLemmas(SingleCellComponent):
     def __init__(self,
-                 lemma_col=2, tag_col=3, sep='\t',
+                 lemma_col=2, tags_col=3, sep='\t',
                  number_tag='<NUM>',
                  proper_tag='<PROPER>',
                  hyphen_compounds=True,
@@ -38,7 +38,7 @@ class LemmaModification(SingleCellComponent):
                  **kwargs):
         super().__init__(*args, **kwargs)
         self.lemma_col = lemma_col
-        self.tag_col = tag_col
+        self.tags_col = tags_col
         self.sep = sep
 
         self.number_tag = number_tag
@@ -57,7 +57,7 @@ class LemmaModification(SingleCellComponent):
             yield line
         cols = line.split(self.sep)
         lemma = cols[self.lemma_col]
-        tags = cols[self.tag_col]
+        tags = cols[self.tags_col]
         lemma = self._modify(lemma)
         if self.proper_tag and self.re_proper.findall(tags):
             # collapse if tagged as proper name
@@ -86,6 +86,36 @@ class LemmaModification(SingleCellComponent):
             # internal hyphens: keep last part
             lemma = lemma.split('-')[-1]
 
+# remove unwanted tag categories
+class FilterTags(SingleCellComponent):
+    def __init__(self,
+                 tags_col=3, sep='\t',
+                 keep=('POS', 'NUM', 'CASE', 'PERS', 'MOOD', 'TENSE',),
+                 #'PROPER',
+                 **kwargs):
+        super().__init__(**kwargs)
+        self.tags_col = tags_col
+        self.sep = sep
+        self.keep = keep
+
+        self.re_tag = re.compile(r'\[([A-Z]*)=.*')
+
+    def single_cell(self, line):
+        if len(line) == 0:
+            yield line
+        cols = line.split(self.sep)
+        tags = cols[self.tags_col]
+        tags = self._modify(tags)
+
+        cols[self.tags_col] = tags
+        yield self.sep.join(cols)
+
+    def _modify(self, tags):
+        tags = tags.split('|')
+        tags = {re_tag.match(x).group(1): x for x in foo}
+        result = [tags[key] for key in self.keep if key in tags]
+        return '|'.join(result)
+
 # extract and unflatten a single field
 class ExtractColumn(MonoPipeComponent):
     def __init__(self, col_i, sep='\t', **kwargs):
@@ -110,9 +140,22 @@ class ExtractColumn(MonoPipeComponent):
             cols = line.split(self.sep)
             result.append(cols[self.col_i])
 
-# cluster lemmas (in general: word2vec)
+# cluster e.g. lemmas
 class Word2VecCluster(Rule):
-    pass
+    def __init__(self, *args, dims=300, clusters=10000, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dims = dims
+        self.clusters = clusters
+
+    def make(self, conf, cli_args):
+        infile = self.inputs[0](conf, cli_args)
+        outfile = self.outputs[0](conf, cli_args)
+        run('word2vec -train {infile} -output {outfile}'
+            ' -size {dims} -classes {clusters}'.format(
+                infile=infile,
+                outfile=outfile,
+                dims=self.dims,
+                clusters=self.clusters))
 
 # apply lemma clusters
 class MapColumn(Rule):
