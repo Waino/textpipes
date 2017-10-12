@@ -192,7 +192,7 @@ class MapColumn(SingleCellComponent):
 # 4) apply
 # 5) reformat back to tabular
 
-# learn a BPE segmentation from wordcounts
+# learn a BPE segmentation
 # and apply it to just the words, to get a map_file for SegmentColumn
 
 # apply a segmentation, copy tags to each component
