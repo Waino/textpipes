@@ -183,21 +183,35 @@ class MapColumn(SingleCellComponent):
 
 
 # mangle fields into (src-marked, full-tags, surface)
+# https://github.com/franckbrl/bilingual_morph_normalizer
+#class BurlotYvon
+# many steps required:
+# 1) fastalign
+# 2) reformat: sentence per line, tab between words, space between fields (split tags into individual fields)
+# 3) train
+# 4) apply
+# 5) reformat back to tabular
+
+# learn a BPE segmentation from wordcounts
+# and apply it to just the words, to get a map_file for SegmentColumn
 
 # apply a segmentation, copy tags to each component
 class SegmentColumn(MonoPipeComponent):
-    def __init__(self, map_file, col_i, sep='\t', bies=True, **kwargs):
+    def __init__(self, map_file, col_i, col_sep='\t',
+                 tok_sep=' ', bies=True, **kwargs):
         super().__init__(side_inputs=[map_file], **kwargs)
         self.map_file = map_file
         self.col_i = col_i
-        self.sep = sep
+        self.col_sep = col_sep
+        self.tok_sep = tok_sep
         self.bies = bies
         self.mapping = {}
 
     def pre_make(self, side_fobjs):
         for line in side_fobjs[self.map_file]:
-            src, tgt = line.strip().split('\t')
-            self.mapping[src] = tgt.split(' ')
+            tgt = line.split(self.tok_sep)
+            src = ''.join(tgt)
+            self.mapping[src] = tgt
 
     def __call__(self, stream, side_fobjs=None,
                  config=None, cli_args=None):
@@ -205,7 +219,7 @@ class SegmentColumn(MonoPipeComponent):
         for line in stream:
             if len(line) == 0:
                 yield line
-            cols = line.split(self.sep)
+            cols = line.split(self.col_sep)
             val = cols[self.col_i]
             val = self.mapping.get(val, [val])
             if len(val) == 1:
@@ -218,4 +232,4 @@ class SegmentColumn(MonoPipeComponent):
                 cols[self.col_i] = val
                 if self.bies:
                     cols[-1] = bies_tag
-                yield self.sep.join(cols)
+                yield self.col_sep.join(cols)

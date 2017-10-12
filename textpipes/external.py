@@ -2,6 +2,7 @@ import os
 import subprocess
 
 from .core.recipe import Rule
+from .core.platform import run
 
 # FIXME: use package resources instead
 WRAPPER_DIR = os.path.join(
@@ -45,6 +46,40 @@ class Concatenate(Rule):
             ], shell=True)
 
 
+class LearnBPE(Rule):
+    def __init__(self, *args, vocabulary=10000, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.vocabulary = vocabulary
+
+    def make(self, conf, cli_args):
+        infile = self.inputs[0](conf, cli_args)
+        outfile = self.outputs[0](conf, cli_args)
+        run('{prog} --input {infile} --output {outfile}'
+            ' --symbols {vocabulary} --dict-input'.format(
+                prog=os.path.join(WRAPPER_DIR, 'learn_bpe.py'),
+                infile=infile,
+                outfile=outfile,
+                vocabulary=self.vocabulary))
+
+class ApplyBPE(Rule):
+    def __init__(self, *args, sep='@@', **kwargs):
+        super().__init__(*args, **kwargs)
+        self.sep = sep
+
+    def make(self, conf, cli_args):
+        infile = self.inputs[0](conf, cli_args)
+        codes = self.inputs[1](conf, cli_args)
+        outfile = self.outputs[0](conf, cli_args)
+        run('{prog} --input {infile} --codes {codes} --output {outfile}'
+            ' --separator {sep}'.format(
+                prog=os.path.join(WRAPPER_DIR, 'apply_bpe.py'),
+                infile=infile,
+                codes=codes,
+                outfile=outfile,
+                sep=self.sep))
+
+
+# FIXME: obsolete
 class DummyPipe(Rule):
     def make(self, conf, cli_args):
         inpair = maybe_gz_in(self.inputs[0](conf, cli_args))
