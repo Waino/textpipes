@@ -26,6 +26,7 @@ from . import components, check
 
 # Most common rules for easy access
 from .dedup import Deduplicate
+from .counting import CountTokens
 from .external import Concatenate
 from .tabular import SplitColumns
 from .truecaser import TrainTrueCaser, TrueCase

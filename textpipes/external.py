@@ -47,19 +47,22 @@ class Concatenate(Rule):
 
 
 class LearnBPE(Rule):
-    def __init__(self, *args, vocabulary=10000, **kwargs):
+    def __init__(self, *args, vocabulary=10000, wordcounts=True, **kwargs):
         super().__init__(*args, **kwargs)
         self.vocabulary = vocabulary
+        self.wordcounts = wordcounts
 
     def make(self, conf, cli_args):
         infile = self.inputs[0](conf, cli_args)
         outfile = self.outputs[0](conf, cli_args)
         run('{prog} --input {infile} --output {outfile}'
-            ' --symbols {vocabulary} --dict-input'.format(
+            ' --symbols {vocabulary} {wc}'.format(
                 prog=os.path.join(WRAPPER_DIR, 'learn_bpe.py'),
                 infile=infile,
                 outfile=outfile,
-                vocabulary=self.vocabulary))
+                vocabulary=self.vocabulary,
+                wc=' --dict-input' if self.wordcounts else ''
+                ))
 
 class ApplyBPE(Rule):
     def __init__(self, *args, sep='@@', **kwargs):

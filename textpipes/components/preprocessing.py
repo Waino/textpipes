@@ -189,7 +189,7 @@ class MapChars(SingleCellComponent):
 
 
 class LetterizeNames(SingleCellComponent):
-    """Segment tokens starting with capital or digit"""
+    """Segment tokens starting with capital or digit into chars"""
     def single_cell(self, line):
         out = []
         for token in line.split():
