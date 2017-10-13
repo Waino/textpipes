@@ -23,6 +23,7 @@ def get_version():
 
 from .core import *
 from . import components, check
+from . import finnpos
 
 # Most common rules for easy access
 from .dedup import Deduplicate

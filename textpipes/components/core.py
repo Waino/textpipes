@@ -197,13 +197,31 @@ class ParallelPipeComponent(PipeComponent):
     pass
 
 
+class Tee(MonoPipeComponent):
+    """Writes the current contents of the stream into a side output,
+    and yields the lines for further processing.
+    Can sometimes lead to needing one less Rule.
+    """
+    def __init__(self, tee_into, **kwargs):
+        super().__init__(side_outputs=[tee_into], **kwargs)
+        self.tee_into = tee_into
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        tee_fobj = side_fobjs[self.tee_into]
+        for line in stream:
+            tee_fobj.write(line)
+            tee_fobj.write('\n')
+            yield line
+
+
 class SingleCellComponent(MonoPipeComponent):
+    """A component that applies a single function to each
+    cell, with no state or dependencies between cells.
+    Automatically parallellizable using multiprocessing imap,
+    unless mp is set to False.
+    """
     def __init__(self, *args, mp=True, **kwargs):
-        """A component that applies a single function to each
-        cell, with no state or dependencies between cells.
-        Automatically parallellizable using multiprocessing imap,
-        unless mp is set to False.
-        """
         super().__init__(*args, **kwargs)
         self.mp = mp
 

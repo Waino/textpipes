@@ -4,7 +4,7 @@ import re
 
 from .core.recipe import Rule
 from .core.platform import run
-from .components.core import MonoPipeComponent
+from .components.core import MonoPipeComponent, SingleCellComponent
 
 # flatten sentences into single-column (surface) tabular representation
 class SingleSurfaceColumn(MonoPipeComponent):
@@ -20,6 +20,9 @@ class Finnpos(Rule):
     def make(self, conf, cli_args):
         infile = self.inputs[0](conf, cli_args)
         outfile = self.outputs[0](conf, cli_args)
+        # FIXME: would be much better if this would fail in --check
+        assert not infile.endswith('.gz')
+        assert not outfile.endswith('.gz')
         subprocess.check_call(
             ['ftb-label < {infile} > {outfile}'.format(
                 infile=infile,
@@ -36,7 +39,7 @@ class ModifyLemmas(SingleCellComponent):
                  strip_numbers=True,
                  strip_hyphens=True,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(mp=False, **kwargs)
         self.lemma_col = lemma_col
         self.tags_col = tags_col
         self.sep = sep
@@ -54,7 +57,7 @@ class ModifyLemmas(SingleCellComponent):
 
     def single_cell(self, line):
         if len(line) == 0:
-            yield line
+            return line
         cols = line.split(self.sep)
         lemma = cols[self.lemma_col]
         tags = cols[self.tags_col]
@@ -64,7 +67,7 @@ class ModifyLemmas(SingleCellComponent):
             lemma = self.proper_tag
 
         cols[self.lemma_col] = lemma
-        yield self.sep.join(cols)
+        return self.sep.join(cols)
 
     def _modify(self, lemma):
         ## numbers and punctuation
@@ -85,6 +88,7 @@ class ModifyLemmas(SingleCellComponent):
         if self.hyphen_compounds:
             # internal hyphens: keep last part
             lemma = lemma.split('-')[-1]
+        return lemma
 
 # remove unwanted tag categories
 class FilterTags(SingleCellComponent):
@@ -102,19 +106,25 @@ class FilterTags(SingleCellComponent):
 
     def single_cell(self, line):
         if len(line) == 0:
-            yield line
+            return line
         cols = line.split(self.sep)
         tags = cols[self.tags_col]
         tags = self._modify(tags)
 
         cols[self.tags_col] = tags
-        yield self.sep.join(cols)
+        return self.sep.join(cols)
 
     def _modify(self, tags):
         tags = tags.split('|')
-        tags = {re_tag.match(x).group(1): x for x in foo}
+        tags = {self._tag_cat(x): x for x in tags}
         result = [tags[key] for key in self.keep if key in tags]
         return '|'.join(result)
+
+    def _tag_cat(self, tag):
+        m = self.re_tag.match(tag)
+        if m:
+            return m.group(1)
+        return tag
 
 # extract and unflatten a single field
 class ExtractColumn(MonoPipeComponent):
@@ -173,13 +183,13 @@ class MapColumn(SingleCellComponent):
 
     def single_cell(self, line):
         if len(line) == 0:
-            yield line
+            return line
         cols = line.split(self.sep)
         val = cols[self.col_i]
         val = self.mapping.get(val, val)
 
         cols[self.col_i] = val
-        yield self.sep.join(cols)
+        return self.sep.join(cols)
 
 
 # mangle fields into (src-marked, full-tags, surface)
