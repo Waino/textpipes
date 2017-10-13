@@ -33,30 +33,39 @@ class CountTokens(DeadEndPipe):
 
 
 # concatenate countfiles before using this (has single input)
-class CombineCounts(SingleCellComponent):
-    def __init__(self, output, reverse=False, **kwargs):
+class CombineCountsComponent(SingleCellComponent):
+    def __init__(self, output, reverse=False, words_only=None, **kwargs):
+        side_outputs = [output]
+        if words_only:
+            side_outputs.append(words_only)
         # must disable multiprocessing
-        super().__init__(side_outputs=[output], mp=False, **kwargs)
+        super().__init__(side_outputs=side_outputs, mp=False, **kwargs)
         self.count_file = output
+        self.words_file = words_only
         self.counts = collections.Counter()
         # BPE wants word first, followed by count
         self.reverse = reverse
 
     def single_cell(self, line):
         count, wtype = line.strip().split()
-        self.counts[token] += int(count)
+        self.counts[wtype] += int(count)
 
     def post_make(self, side_fobjs):
         fobj = side_fobjs[self.count_file]
+        if self.words_file:
+            wo_fobj = side_fobjs[self.words_file]
         for (wtype, count) in self.counts.most_common():
             pair = (wtype, count) if self.reverse else (count, wtype)
             fobj.write('{}\t{}\n'.format(*pair))
+            if self.words_file:
+                wo_fobj.write('{}\n'.format(wtype))
         del self.counts
 
 class CombineCounts(DeadEndPipe):
-    def __init__(self, inputs, output, reverse=False, **kwargs):
-        component = CombineCountsComponent(output, reverse=reverse)
-        super().__init__([component], inputs, **kwargs)
+    def __init__(self, inp, output, reverse=False, words_only=None, **kwargs):
+        component = CombineCountsComponent(
+            output, reverse=reverse, words_only=words_only)
+        super().__init__([component], [inp], **kwargs)
 
 
 class FilterCounts(Filter):

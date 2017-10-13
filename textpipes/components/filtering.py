@@ -138,8 +138,8 @@ class FilterByLength(Filter):
 class OnlyNames(Filter):
     """Only keep tokens that would be segmented by LetterizeNames"""
     def __call__(self, token, side_fobjs=None):
-        if FIVEDOT in token:
-            return True
+        #if FIVEDOT in token:
+        #    return True
         if len(token) > 1 and (token[0].isupper() or token[0].isdigit()):
             return False    # these trigger the lettering operation
         return True
