@@ -168,13 +168,14 @@ class Word2VecCluster(Rule):
                 dims=self.dims,
                 clusters=self.clusters))
 
-# apply lemma clusters
 class MapColumn(SingleCellComponent):
-    def __init__(self, map_file, col_i, sep='\t'):
+    """Applies a mapping table to values in a column."""
+    def __init__(self, map_file, col_i, sep='\t', unk=False):
         super().__init__(side_inputs=[map_file])
         self.map_file = map_file
         self.col_i = col_i
         self.sep = sep
+        self.unk = unk
         self.mapping = {}
 
     def pre_make(self, side_fobjs):
@@ -187,10 +188,28 @@ class MapColumn(SingleCellComponent):
             return line
         cols = line.split(self.sep)
         val = cols[self.col_i]
-        val = self.mapping.get(val, val)
+        default = self.unk if self.unk else val
+        val = self.mapping.get(val, default)
 
         cols[self.col_i] = val
         return self.sep.join(cols)
+
+class ApplyClusteringToColumn(MapColumn):
+    """Applies a clustering to values in a column.
+    The cluster file contains an arbitrary cluster label,
+    but in the output the label is replaced by
+    the first seen example from the cluster."""
+    def __init__(self, map_file, col_i, sep='\t', unk=False):
+        super().__init__(map_file, col_i, sep=sep, unk=unk)
+        self.cluster_labels = {}
+
+    def pre_make(self, side_fobjs):
+        for line in side_fobjs[self.map_file]:
+            src, cluster_idx = line.strip().split()
+            if cluster_idx not in self.cluster_labels:
+                self.cluster_labels[cluster_idx] = src
+            example = self.cluster_labels[cluster_idx]
+            self.mapping[src] = example
 
 
 # mangle fields into (src-marked, full-tags, surface)
