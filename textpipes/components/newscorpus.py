@@ -1,4 +1,4 @@
-from .filtering import FilterRegex, ParallelFilter, NoFilter
+from .filtering import FilterRegex
 
 class FilterIltasanomat(FilterRegex):
     """

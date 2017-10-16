@@ -312,9 +312,12 @@ class IdentityComponent(SingleCellComponent):
 
 class RegexSubstitution(SingleCellComponent):
     """Arbitrary regular expression substitutions"""
-    def __init__(self, expressions):
+    def __init__(self, expressions, ignore_case=False):
         super().__init__()
-        self.expressions = [(re.compile(exp, flags=re.UNICODE), repl)
+        flags = re.UNICODE
+        if ignore_case:
+            flags += re.IGNORECASE
+        self.expressions = [(re.compile(exp, flags=flags), repl)
                             for (exp, repl) in expressions]
 
     def single_cell(self, line):

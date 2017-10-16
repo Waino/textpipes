@@ -1,4 +1,7 @@
+from ..core.utils import read_lang_file
 from .core import RegexSubstitution
+from .filtering import FilterRegex, ParallelFilter, NoFilter
+
 
 class RemoveLanguageTags(RegexSubstitution):
     def __init__(self):
@@ -18,37 +21,8 @@ class FilterContractions(FilterRegex):
     """
 
     def __init__(self):
-        contractions = (
-            "ain't",
-            "can't",
-            "couldn't",
-            "didn't",
-            "doesn't",
-            "don't",
-            "haven't",
-            "he's",
-            "here's",
-            "i'd",
-            "i'll",
-            "i'm",
-            "i've",
-            "isn't",
-            "it's",
-            "let's",
-            "she's",
-            "that's",
-            "there's",
-            "they're",
-            "wasn't",
-            "we're",
-            "we've",
-            "what's",
-            "won't",
-            "wouldn't",
-            "you'll",
-            "you're",
-            "you've",)
-        #
+        contractions = [line.split('\t')[0]
+                        for line in read_lang_file('contractions', 'en')]
         expressions = (r'\b{}\b'.format(cont.replace("'", " ?' ?"))
                        for cont in contractions)
         super().__init__(expressions, ignore_case=True)

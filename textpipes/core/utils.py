@@ -2,6 +2,7 @@ import bz2
 import codecs
 import gzip
 import itertools
+import os
 import subprocess
 from multiprocessing import Pool
 
@@ -105,3 +106,18 @@ class NoPool(object):
 
     def close(self):
         pass
+
+
+# FIXME: use package resources instead
+LANG_DIR = os.path.join(
+    os.path.dirname(__file__), 'langs')
+
+def read_lang_file(fname, lang):
+    result = []
+    path = os.path.join(LANG_DIR, '{}.{}'.format(fname, lang))
+    for line in codecs.open(path, encoding='utf-8'):
+        line = line.strip()
+        if len(line) == 0 or line[0] == '#':
+            continue
+        result.append(line)
+    return result

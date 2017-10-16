@@ -5,26 +5,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from ..core.utils import read_lang_file
 from .core import SingleCellComponent
 
 MULTISPACE_RE = re.compile(r' +')
 END_PERIOD_RE = re.compile(r'\.\s*$')
 # punctuation that should be tokenized separately
 TOK_PUNC_RE = re.compile(r'([\.,!?:;/@%\(\)\'"+£\$€])')
-
-# FIXME: use package resources instead
-LANG_DIR = os.path.join(
-    os.path.dirname(__file__), 'langs')
-
-def read_list_file(fname, lang):
-    result = []
-    path = os.path.join(LANG_DIR, '{}.{}'.format(fname, lang))
-    for line in codecs.open(path, encoding='utf-8'):
-        line = line.strip()
-        if len(line) == 0 or line[0] == '#':
-            continue
-        result.append(line)
-    return result
 
 # Tokenization must be mostly reversible for use on target lang:
 # not good to split hyphens here
@@ -35,7 +22,7 @@ class Tokenize(SingleCellComponent):
         self.lang = lang
         # FIXME: customizable punctuation?
         self.punctuation_re = TOK_PUNC_RE
-        protected_str = read_list_file('nonbreaking_prefix', self.lang)
+        protected_str = read_lang_file('nonbreaking_prefix', self.lang)
         # these are specified in the over-tokenized form
         # all contained spaces are removed
         protected_re = [

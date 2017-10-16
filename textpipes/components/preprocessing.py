@@ -17,6 +17,7 @@ except ImportError:
     # warnings emitted by check in cli
     pass
 
+from ..core.utils import read_lang_file
 from .core import SingleCellComponent, RegexSubstitution, MonoPipeComponent
 
 class Clean(SingleCellComponent):
@@ -232,3 +233,15 @@ class StripXml(MonoPipeComponent):
             result = MULTISPACE_RE.sub(' ', ''.join(result))
             if not self.filter_blanks or len(result) > 0:
                 yield result
+
+
+class NormalizeContractions(RegexSubstitution):
+    """replace contractions with normalized form"""
+
+    def __init__(self, lang):
+        contractions = [line.split('\t')
+                        for line in read_lang_file('contractions', lang)]
+        expressions = ((r'\b{}\b'.format(cont.replace("'", " ?' ?")), repl)
+                       for (cont, repl) in contractions)
+        super().__init__(expressions, ignore_case=True)
+
