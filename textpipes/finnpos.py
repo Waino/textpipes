@@ -228,19 +228,20 @@ class ApplyClusteringToColumn(MapColumn):
 # apply a segmentation, copy tags to each component
 class SegmentColumn(MonoPipeComponent):
     def __init__(self, map_file, col_i, col_sep='\t',
-                 tok_sep=' ', bies=True, **kwargs):
+                 bnd_marker='@@', bies=True, **kwargs):
         super().__init__(side_inputs=[map_file], **kwargs)
         self.map_file = map_file
         self.col_i = col_i
         self.col_sep = col_sep
-        self.tok_sep = tok_sep
+        self.bnd_marker = bnd_marker
         self.bies = bies
         self.mapping = {}
 
     def pre_make(self, side_fobjs):
         for line in side_fobjs[self.map_file]:
-            tgt = line.split(self.tok_sep)
-            src = ''.join(tgt)
+            tgt = line.split()
+            # bnd_marker not part of actual surface form
+            src = ''.join(tgt).replace(self.bnd_marker, '')
             self.mapping[src] = tgt
 
     def __call__(self, stream, side_fobjs=None,
