@@ -78,3 +78,9 @@ class FilterCounts(Filter):
         """Returns True if the line should be filtered out"""
         count, wtype = line.strip().split()
         return self.filtr(wtype)
+
+
+class RemoveCounts(SingleCellComponent):
+    def single_cell(self, line):
+        count, wtype = line.strip().split()
+        return wtype
