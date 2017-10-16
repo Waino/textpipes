@@ -245,3 +245,28 @@ class NormalizeContractions(RegexSubstitution):
                        for (cont, repl) in contractions)
         super().__init__(expressions, ignore_case=True)
 
+
+# apply a segmentation
+class ApplySegmentation(MonoPipeComponent):
+    def __init__(self, map_file, bnd_marker='@@', **kwargs):
+        super().__init__(side_inputs=[map_file], **kwargs)
+        self.map_file = map_file
+        self.bnd_marker = bnd_marker
+        self.mapping = {}
+
+    def pre_make(self, side_fobjs):
+        for line in side_fobjs[self.map_file]:
+            tgt = line.split()
+            # bnd_marker not part of actual surface form
+            src = ''.join(tgt).replace(self.bnd_marker, '')
+            self.mapping[src] = tgt
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        for line in stream:
+            result = []
+            for token in line.split():
+                token = self.mapping.get(token, [token])
+                result.extend(token)
+            yield ' '.join(result)
+

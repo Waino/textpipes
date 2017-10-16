@@ -161,6 +161,9 @@ class Word2VecCluster(Rule):
     def make(self, conf, cli_args):
         infile = self.inputs[0](conf, cli_args)
         outfile = self.outputs[0](conf, cli_args)
+        # FIXME: would be much better if this would fail in --check
+        assert not infile.endswith('.gz')
+        assert not outfile.endswith('.gz')
         run('word2vec -train {infile} -output {outfile}'
             ' -size {dims} -classes {clusters}'.format(
                 infile=infile,

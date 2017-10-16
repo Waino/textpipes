@@ -55,6 +55,9 @@ class LearnBPE(Rule):
     def make(self, conf, cli_args):
         infile = self.inputs[0](conf, cli_args)
         outfile = self.outputs[0](conf, cli_args)
+        # FIXME: would be much better if this would fail in --check
+        assert not infile.endswith('.gz')
+        assert not outfile.endswith('.gz')
         run('{prog} --input {infile} --output {outfile}'
             ' --symbols {vocabulary} {wc}'.format(
                 prog=os.path.join(WRAPPER_DIR, 'learn_bpe.py'),
@@ -73,6 +76,10 @@ class ApplyBPE(Rule):
         infile = self.inputs[0](conf, cli_args)
         codes = self.inputs[1](conf, cli_args)
         outfile = self.outputs[0](conf, cli_args)
+        # FIXME: would be much better if this would fail in --check
+        assert not infile.endswith('.gz')
+        assert not codes.endswith('.gz')
+        assert not outfile.endswith('.gz')
         run('{prog} --input {infile} --codes {codes} --output {outfile}'
             ' --separator {sep}'.format(
                 prog=os.path.join(WRAPPER_DIR, 'apply_bpe.py'),
