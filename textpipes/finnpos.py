@@ -39,6 +39,7 @@ class ModifyLemmas(SingleCellComponent):
                  strip_numbers=True,
                  strip_hyphens=True,
                  **kwargs):
+        # FIXME: why doesn't mp work? compiled regexes?
         super().__init__(mp=False, **kwargs)
         self.lemma_col = lemma_col
         self.tags_col = tags_col
@@ -229,6 +230,7 @@ class SegmentColumn(MonoPipeComponent):
         for line in stream:
             if len(line) == 0:
                 yield line
+                continue
             cols = line.split(self.col_sep)
             val = cols[self.col_i]
             val = self.mapping.get(val, [val])
@@ -239,7 +241,7 @@ class SegmentColumn(MonoPipeComponent):
             if self.bies:
                 cols.append('')
             for (subword, bies_tag) in zip(val, bies_tags):
-                cols[self.col_i] = val
+                cols[self.col_i] = subword
                 if self.bies:
                     cols[-1] = bies_tag
                 yield self.col_sep.join(cols)
