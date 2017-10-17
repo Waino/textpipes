@@ -22,7 +22,7 @@ LANG_DIR = os.path.join(
 class TrainTrueCaserComponent(SingleCellComponent):
     def __init__(self, model_file, sure_thresh=.6):
         # sure_thresh: truecase also within sentence if common enough
-        super().__init__(side_outputs=[model_file])
+        super().__init__(mp=False, side_outputs=[model_file])
         self.model_file = model_file
         self.sure_thresh = sure_thresh
         self.counts = collections.defaultdict(collections.Counter)
