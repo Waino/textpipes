@@ -221,8 +221,8 @@ class SingleCellComponent(MonoPipeComponent):
     Automatically parallellizable using multiprocessing imap,
     unless mp is set to False.
     """
-    def __init__(self, *args, mp=True, side_outputs=None):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, mp=True, side_outputs=None, **kwargs):
+        super().__init__(*args, side_outputs=side_outputs, **kwargs)
         self.mp = mp
         assert (not mp) or side_outputs is None, \
             'side outputs not likely to be multi-processing safe'
