@@ -3,7 +3,7 @@ from .core.platform import run
 
 class MakeVocabularies(Rule):
     def __init__(self, *args, argstr='', **kwargs):
-        super()__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.argstr = argstr
 
     def make(self, conf, cli_args):

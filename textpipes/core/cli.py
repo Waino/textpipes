@@ -23,6 +23,7 @@ OPT_DEPS = (
 OPT_BINS = (
     ('ftb-label', 'Finnpos'),
     ('word2vec', 'Word2VecCluster'),
+    ('hnmt.py', 'hnmt'),
     )
 
 def get_parser(recipe):
