@@ -8,5 +8,6 @@ from . import filtering
 from . import newscorpus
 #from . import nltk
 from . import preprocessing
+from . import segmentation
 from . import subsampling
 from . import tokenizer

@@ -4,13 +4,25 @@ class SplitHyphens(RegexSubstitution):
     def __init__(self, before=' ', after=' '):
         """Splits hyphens by inserting a boundary string before and
         after the hyphen. The strings can be empty, or more than one character,
-        so e.g. before='', after=' @' results in 
+        so e.g. before='', after=' @' results in
         'foo-bar' -> 'foo- @bar'.
         """
         repl = '{}-{}'.format(before, after)
         # not preceded by: space or other hyphen
         # not followed by: space, number or other hyphen
         super().__init__([(r'(?<![-\s])-(?![-\d\s])', repl)])
+
+
+class StrictSplitHyphens(RegexSubstitution):
+    def __init__(self, before=' ', after=' '):
+        """Splits hyphens by inserting a boundary string before and
+        after the hyphen. The strings can be empty, or more than one character,
+        so e.g. before='', after=' @' results in
+        'foo-bar' -> 'foo- @bar'.
+        """
+        repl = '{}-{}'.format(before, after)
+        # preceded and followed by: at least 4 alphabetic chars
+        super().__init__([(r'(?<=[a-z]{4})-(?=[a-z]{4})', repl)], ignore_case=True)
 
 
 class ApplySegmentationLexicon(ApplyLexicon):
