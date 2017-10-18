@@ -7,6 +7,7 @@ class DummyTrainLoop(Rule):
         super().__init__([inp], outputs)
 
     def make(self, conf, cli_args):
+        print('in DummyTrainLoop')
         in_fobj = self.inputs[0].open(conf, cli_args, mode='rb')
         # for debug reasons, only outputs first two
         out_fobjs = [out.open(conf, cli_args, mode='wb')

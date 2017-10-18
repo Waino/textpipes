@@ -270,11 +270,11 @@ class CLI(object):
             try:
                 out = step.outputs[0]
                 idx = out.loop_index
-                seckey = (out.section, out.key)
-                if seckey not in seen:
+                key = (out.section, out.key, step.status)
+                if key not in seen:
                     # keep one from each loop
                     yield step
-                seen.add(seckey)
+                seen.add(key)
             except KeyError:
                 # keep all non-loop
                 yield step
