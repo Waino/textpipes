@@ -44,7 +44,7 @@ class Clean(SingleCellComponent):
 
 
 class NormalizePunctuation(RegexSubstitution):
-    def __init__(self):
+    def __init__(self, **kwargs):
         expressions = [
             ('[\u002d\u058a\u05be\u2011\u2012\u2013\u2014\u2015\u2e3a\u2e3b'
               '\u2212\ufe58\ufe63\uff0d\xad]', '-'),
@@ -58,19 +58,19 @@ class NormalizePunctuation(RegexSubstitution):
             ('\u066A', '%'),
             ('\u0609', '\u2030'),   # promille
             ]
-        super().__init__(expressions)
+        super().__init__(expressions, **kwargs)
 
 
 # FIXME: use of fancy quotes is really inconsistent between corpora
 class DeNormalizePunctuation(RegexSubstitution):
-    def __init__(self):
+    def __init__(self, **kwargs):
         expressions = [
             # fancy quotes FIXME: some langs have assymmetric
             (r'"', '\u201d'),
             # fancy apostrophe
             (r"'", '\u2019'),
             ]
-        super().__init__(expressions)
+        super().__init__(expressions, **kwargs)
 
 
 # FIXME: separate components to (de)normalize order of punctuation, if desired
@@ -238,12 +238,12 @@ class StripXml(MonoPipeComponent):
 class NormalizeContractions(RegexSubstitution):
     """replace contractions with normalized form"""
 
-    def __init__(self, lang):
+    def __init__(self, lang, **kwargs):
         contractions = [line.split('\t')
                         for line in read_lang_file('contractions', lang)]
         expressions = ((r'\b{}\b'.format(cont.replace("'", " ?' ?")), repl)
                        for (cont, repl) in contractions)
-        super().__init__(expressions, ignore_case=True)
+        super().__init__(expressions, ignore_case=True, **kwargs)
 
 
 # apply a segmentation

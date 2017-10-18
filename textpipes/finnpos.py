@@ -39,8 +39,7 @@ class ModifyLemmas(SingleCellComponent):
                  strip_numbers=True,
                  strip_hyphens=True,
                  **kwargs):
-        # FIXME: why doesn't mp work? compiled regexes?
-        super().__init__(mp=False, **kwargs)
+        super().__init__(**kwargs)
         self.lemma_col = lemma_col
         self.tags_col = tags_col
         self.sep = sep
@@ -173,8 +172,8 @@ class Word2VecCluster(Rule):
 
 class MapColumn(SingleCellComponent):
     """Applies a mapping table to values in a column."""
-    def __init__(self, map_file, col_i, sep='\t', unk=False):
-        super().__init__(side_inputs=[map_file])
+    def __init__(self, map_file, col_i, sep='\t', unk=False, **kwargs):
+        super().__init__(side_inputs=[map_file], **kwargs)
         self.map_file = map_file
         self.col_i = col_i
         self.sep = sep
@@ -202,8 +201,8 @@ class ApplyClusteringToColumn(MapColumn):
     The cluster file contains an arbitrary cluster label,
     but in the output the label is replaced by
     the first seen example from the cluster."""
-    def __init__(self, map_file, col_i, sep='\t', unk=False):
-        super().__init__(map_file, col_i, sep=sep, unk=unk)
+    def __init__(self, map_file, col_i, sep='\t', unk=False, **kwargs):
+        super().__init__(map_file, col_i, sep=sep, unk=unk, **kwargs)
         self.cluster_labels = {}
 
     def pre_make(self, side_fobjs):

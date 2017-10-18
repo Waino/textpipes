@@ -218,11 +218,14 @@ class Tee(MonoPipeComponent):
 class SingleCellComponent(MonoPipeComponent):
     """A component that applies a single function to each
     cell, with no state or dependencies between cells.
+    Manually parallellizable using multiprocessing imap,
+    by setting mp=True
     """
-    # FIXME: mp disabled
-    #Automatically parallellizable using multiprocessing imap,
     #unless mp is set to False.
-    def __init__(self, *args, mp=True, side_outputs=None, **kwargs):
+    # FIXME: Automatic mp disabled, need to manually set mp=True.
+    # FIXME: Only set it for *one* component per pipe,
+    # FIXME: otherwise a bug in multiprocessing will be triggered.
+    def __init__(self, *args, mp=False, side_outputs=None, **kwargs):
         super().__init__(*args, side_outputs=side_outputs, **kwargs)
         self.mp = mp
         assert (not mp) or side_outputs is None, \
@@ -230,12 +233,11 @@ class SingleCellComponent(MonoPipeComponent):
 
     def __call__(self, stream, side_fobjs=None,
                  config=None, cli_args=None):
-        # multi-processing disabled due to difficult to resolve bugs
-        #if self.mp:
-        #    #stream = list(stream)  # FIXME: workarounds some of the multiprocessing bugs
-        #    return config.pool.imap(self.single_cell, stream)
-        #else:
-        #    return map(self.single_cell, stream)
+        if self.mp:
+            #stream = list(stream)  # FIXME: workarounds some of the multiprocessing bugs
+            return config.pool.imap(self.single_cell, stream)
+        else:
+            return map(self.single_cell, stream)
         return map(self.single_cell, stream)
 
     def single_cell(self, line):
@@ -318,9 +320,8 @@ class IdentityComponent(SingleCellComponent):
 
 class RegexSubstitution(SingleCellComponent):
     """Arbitrary regular expression substitutions"""
-    def __init__(self, expressions, ignore_case=False):
-        # FIXME: wtf, why does it fail with multiprocessing?
-        super().__init__(mp=False)
+    def __init__(self, expressions, ignore_case=False, mp=False):
+        super().__init__(mp=mp)
         flags = re.UNICODE
         if ignore_case:
             flags += re.IGNORECASE

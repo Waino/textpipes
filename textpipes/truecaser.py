@@ -70,9 +70,9 @@ class TrainTrueCaser(DeadEndPipe):
 
 class TrueCase(SingleCellComponent):
     def __init__(self, model_file,
-                 titlecase_thresh=.5, lc_unseen_first=False):
+                 titlecase_thresh=.5, lc_unseen_first=False, **kwargs):
         # sure_thresh: truecase also within sentence if common enough
-        super().__init__(side_inputs=[model_file])
+        super().__init__(side_inputs=[model_file], **kwargs)
         self.model_file = model_file
         self.titlecase_thresh = titlecase_thresh
         self.lc_unseen_first = lc_unseen_first
@@ -139,8 +139,8 @@ class TrueCase(SingleCellComponent):
 # FIXME: using LM, alignment to source, ...
 # FIXME: after colon?
 class DeTrueCase(SingleCellComponent):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         #self.lang = node_in.column_tags.get_joined('lang')
         # FIXME: customizable punctuation?
         self.punctuation_re = CASE_PUNC_RE

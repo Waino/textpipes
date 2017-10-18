@@ -4,8 +4,8 @@ from .filtering import FilterRegex, ParallelFilter, NoFilter
 
 
 class RemoveLanguageTags(RegexSubstitution):
-    def __init__(self):
-        super().__init__([(r'^([\.-] )*\([A-Za-z][A-Za-z]\) ', '')])
+    def __init__(self, **kwargs):
+        super().__init__([(r'^([\.-] )*\([A-Za-z][A-Za-z]\) ', '')], **kwargs)
 
 
 class FilterContractions(FilterRegex):

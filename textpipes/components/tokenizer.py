@@ -17,8 +17,8 @@ TOK_PUNC_RE = re.compile(r'([\.,!?:;/@%\(\)\'"+£\$€])')
 # not good to split hyphens here
 # r'- \d',           # negative numbers (protected)
 class Tokenize(SingleCellComponent):
-    def __init__(self, lang):
-        super().__init__()
+    def __init__(self, lang, **kwargs):
+        super().__init__(**kwargs)
         self.lang = lang
         # FIXME: customizable punctuation?
         self.punctuation_re = TOK_PUNC_RE
@@ -127,8 +127,8 @@ class Tokenize(SingleCellComponent):
 
 
 class DeTokenize(SingleCellComponent):
-    def __init__(self, lang):
-        super().__init__()
+    def __init__(self, lang, **kwargs):
+        super().__init__(**kwargs)
         self.lang = lang
         expressions = [
             # collapse multispace
