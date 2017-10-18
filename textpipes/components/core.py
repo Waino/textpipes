@@ -218,9 +218,10 @@ class Tee(MonoPipeComponent):
 class SingleCellComponent(MonoPipeComponent):
     """A component that applies a single function to each
     cell, with no state or dependencies between cells.
-    Automatically parallellizable using multiprocessing imap,
-    unless mp is set to False.
     """
+    # FIXME: mp disabled
+    #Automatically parallellizable using multiprocessing imap,
+    #unless mp is set to False.
     def __init__(self, *args, mp=True, side_outputs=None, **kwargs):
         super().__init__(*args, side_outputs=side_outputs, **kwargs)
         self.mp = mp
@@ -229,10 +230,13 @@ class SingleCellComponent(MonoPipeComponent):
 
     def __call__(self, stream, side_fobjs=None,
                  config=None, cli_args=None):
-        if self.mp:
-            return config.pool.imap(self.single_cell, stream)
-        else:
-            return map(self.single_cell, stream)
+        # multi-processing disabled due to difficult to resolve bugs
+        #if self.mp:
+        #    #stream = list(stream)  # FIXME: workarounds some of the multiprocessing bugs
+        #    return config.pool.imap(self.single_cell, stream)
+        #else:
+        #    return map(self.single_cell, stream)
+        return map(self.single_cell, stream)
 
     def single_cell(self, line):
         # to enable parallel execution, side_fobj are not available
@@ -315,7 +319,8 @@ class IdentityComponent(SingleCellComponent):
 class RegexSubstitution(SingleCellComponent):
     """Arbitrary regular expression substitutions"""
     def __init__(self, expressions, ignore_case=False):
-        super().__init__()
+        # FIXME: wtf, why does it fail with multiprocessing?
+        super().__init__(mp=False)
         flags = re.UNICODE
         if ignore_case:
             flags += re.IGNORECASE
