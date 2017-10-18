@@ -235,6 +235,7 @@ class CLI(object):
             remaining = delayed
 
     def show_next_steps(self, nextsteps, dryrun=False, immediate=False):
+        nextsteps = list(self._remove_redundant(nextsteps))
         albl = 'scheduled:'
         if dryrun:
             albl = 'available:'
@@ -262,6 +263,21 @@ class CLI(object):
             tpls.append((
                 lbl, step.job_id, step.sec_key, step.rule.name, outfile))
         table_print(tpls, line_before='-')
+
+    def _remove_redundant(self, nextsteps):
+        seen = set()
+        for step in nextsteps:
+            try:
+                out = step.outputs[0]
+                idx = out.loop_index
+                seckey = (out.section, out.key)
+                if seckey not in seen:
+                    # keep one from each loop
+                    yield step
+                seen.add(seckey)
+            except KeyError:
+                # keep all non-loop
+                yield step
 
 # keep a log of jobs
 # - always: recipe, experiment id, timestamp
