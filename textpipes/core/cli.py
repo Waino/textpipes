@@ -231,7 +231,8 @@ class CLI(object):
                     continue
                 self._make_helper(step.outputs[0], step, '-')
             if len(delayed) == len(remaining):
-                raise Exception('Unmeetable dependencies')
+                keys = ', '.join(x.outputs[0].sec_key() for x in delayed)
+                raise Exception('Unmeetable dependencies: {}'.format(keys))
             remaining = delayed
 
     def show_next_steps(self, nextsteps, dryrun=False, immediate=False):
