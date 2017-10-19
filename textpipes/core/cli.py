@@ -73,6 +73,7 @@ class CLI(object):
     def _configure_debug_logger(self):
         # logger from logging module is used for stuff that is not parsed
         logger.setLevel(logging.DEBUG)
+        os.makedirs('logs', exist_ok=True)
         logfile = os.path.join('logs', 'debug.{}.log'.format(self.recipe.name))
         fh = logging.FileHandler(logfile)
         fh.setLevel(logging.DEBUG)
