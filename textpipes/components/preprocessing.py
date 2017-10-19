@@ -2,7 +2,7 @@ import logging
 import unicodedata
 import re
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('textpipes')
 
 FIVEDOT = '\u2059' # 5-dot punctuation
 LETTERING_BEG = '\u2e2b' # v 3-dot

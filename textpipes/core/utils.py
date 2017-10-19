@@ -2,9 +2,12 @@ import bz2
 import codecs
 import gzip
 import itertools
+import logging
 import os
 import subprocess
 from multiprocessing import Pool
+
+logger = logging.getLogger('textpipes')
 
 UNICODE_UNIT_SEP = '\u001F'
 FIVEDOT = '\u2059' # 5-dot punctuation
@@ -85,9 +88,9 @@ class LazyPool(object):
         chunksize = chunksize if chunksize is not None else self.chunksize
         if self.pool is None:
             if self.processes is not None:
-                print('Using pool of {} processes'.format(self.processes))
+                logger.info('Using pool of {} processes'.format(self.processes))
             else:
-                print('Using maximal pool.')
+                logger.info('Using maximal pool.')
             self.pool = Pool(processes=self.processes)
         for item in self.pool.imap(func, iterable, chunksize):
             yield item

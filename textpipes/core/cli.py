@@ -1,15 +1,18 @@
 import argparse
-from datetime import datetime
 import collections
+import importlib
 import itertools
+import logging
 import os
 import re
-import importlib
+from datetime import datetime
 
 from .configuration import Config
 from .platform import run
 from .recipe import *
 from .utils import *
+
+logger = logging.getLogger('textpipes')
 
 # optional dependencies and what requires them
 OPT_DEPS = (
@@ -62,8 +65,21 @@ class CLI(object):
         # the recipe-altering cli args
         self.cli_args = None # FIXME
         self.platform = self.conf.platform
+        # experimentlog is parsed and used to control behavior
         self.log = ExperimentLog(self.recipe, self.args.conf, self.platform)
         self.platform.read_log(self.log)
+        self._configure_debug_logger()
+
+    def _configure_debug_logger(self):
+        # logger from logging module is used for stuff that is not parsed
+        logger.setLevel(logging.DEBUG)
+        logfile = os.path.join('logs', 'debug.{}.log'.format(self.recipe.name))
+        fh = logging.FileHandler(logfile)
+        fh.setLevel(logging.DEBUG)
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.WARNING)
+        logger.addHandler(fh)
+        logger.addHandler(ch) 
 
     def main(self):
         """Called after building the recipe,

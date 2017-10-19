@@ -1,8 +1,11 @@
+import logging
 import os
+import re
 import shlex
 import subprocess
 import threading
-import re
+
+logger = logging.getLogger('textpipes')
 
 MULTISPACE_RE = re.compile(r'\s+')
 
@@ -196,6 +199,7 @@ def run(command):
     You can NOT use pipeing. This is intentional,
     as pipeing large data would fail anyhow.
     If pipeing is necessary, use a subshell."""
+    logger.info(command)
     command = expand_args(command)
     cmd = Command(command)
     out, err = cmd.run()

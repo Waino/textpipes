@@ -3,7 +3,7 @@ import re
 import os
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('textpipes')
 
 from ..core.utils import read_lang_file
 from .core import SingleCellComponent

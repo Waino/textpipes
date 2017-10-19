@@ -2,7 +2,7 @@ import collections
 import logging
 import re
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('textpipes')
 try:
     import pandas as pd
 except ImportError:

@@ -1,4 +1,7 @@
+import logging
 from .core.recipe import Rule, LoopRecipeFile
+
+logger = logging.getLogger('textpipes')
 
 class DummyTrainLoop(Rule):
     def __init__(self, inp, model, loop_indices):

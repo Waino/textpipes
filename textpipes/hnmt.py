@@ -74,11 +74,11 @@ class Train(Rule):
             ' --log-file {log_file}'
             ' --aux-type {aux_type}'
             ' {argstr}'.format(
-                model_base=model_base
-                shard_file=self.shard_file(conf, cli_args)
-                heldout_src=self.heldout_src(conf, cli_args)
-                heldout_trg=self.heldout_trg(conf, cli_args)
-                log_file=self.log_file(conf, cli_args)
+                model_base=model_base,
+                shard_file=self.shard_file(conf, cli_args),
+                heldout_src=self.heldout_src(conf, cli_args),
+                heldout_trg=self.heldout_trg(conf, cli_args),
+                log_file=self.log_file(conf, cli_args),
                 aux_type=aux_type,
                 argstr=argstr))
         #'--validate-every 5 --translate-every 5'

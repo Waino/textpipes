@@ -4,7 +4,7 @@ import re
 import os
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('textpipes')
 
 from .components.core import SingleCellComponent, DeadEndPipe
 

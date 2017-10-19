@@ -5,7 +5,7 @@ from .core.recipe import Rule
 from .components.core import SingleCellComponent, DeadEndPipe
 from .components.filtering import Filter
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('textpipes')
 
 
 class CountTokensComponent(SingleCellComponent):

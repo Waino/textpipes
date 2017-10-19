@@ -4,7 +4,7 @@ from .core.recipe import Rule
 from .components.core import ParallelPipe
 from .components.filtering import Filter, ParallelFilter
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('textpipes')
 
 try:
     from pybloom import BloomFilter
