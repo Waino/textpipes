@@ -50,13 +50,16 @@ class Train(Rule):
     def __init__(self,
                  shard_file, heldout_src, heldout_trg,
                  log_file, model_seckey, loop_indices,
-                 aux_type='none', argstr=''):
+                 save_every=2000, aux_type='none', argstr=''):
+        assert all(x % save_every == 0
+                   for x in loop_indices)
         models = LoopRecipeFile.loop_output(
             model_seckey[0], model_seckey[1], loop_indices)
         self.shard_file = shard_file
         self.heldout_src = heldout_src
         self.heldout_trg = heldout_trg
         self.log_file = log_file
+        self.save_every = save_every
         self.aux_type = aux_type
         self.argstr = argstr
 
@@ -67,11 +70,13 @@ class Train(Rule):
     def make(self, conf, cli_args):
         # loop index is appended by hnmt to given path
         model_base, _ = self.models[0](conf, cli_args).rsplit('.', 1)
-        run('hnmt.py --save-model {model_base}'
+        run('hnmt.py'
+            ' --save-model {model_base}'
             ' --train {shard_file}'
             ' --heldout-source {heldout_src}'
             ' --heldout-target {heldout_trg}'
             ' --log-file {log_file}'
+            ' --save-every {save_every}'
             ' --aux-type {aux_type}'
             ' {argstr}'.format(
                 model_base=model_base,
@@ -79,6 +84,7 @@ class Train(Rule):
                 heldout_src=self.heldout_src(conf, cli_args),
                 heldout_trg=self.heldout_trg(conf, cli_args),
                 log_file=self.log_file(conf, cli_args),
+                save_every=self.save_every,
                 aux_type=aux_type,
                 argstr=argstr))
         #'--validate-every 5 --translate-every 5'
