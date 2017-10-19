@@ -51,8 +51,7 @@ class Train(Rule):
                  shard_file, heldout_src, heldout_trg,
                  log_file, model_seckey, loop_indices,
                  save_every=2000, aux_type='none', argstr=''):
-        assert all(x % save_every == 0
-                   for x in loop_indices)
+        assert all(x % save_every == 0 for x in loop_indices)
         models = LoopRecipeFile.loop_output(
             model_seckey[0], model_seckey[1], loop_indices)
         self.shard_file = shard_file
