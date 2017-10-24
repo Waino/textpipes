@@ -86,7 +86,7 @@ class Train(Rule):
                 save_every=self.save_every,
                 aux_type=aux_type,
                 argstr=argstr))
-        #'--validate-every 5 --translate-every 5'
+        #'--validate-every 5 --translate-every 5 --backwards'
 
     def is_atomic(self, output):
         # all loop outputs are atomic
@@ -101,4 +101,49 @@ class Train(Rule):
 
 
 class Translate(Rule):
-    pass
+    def __init__(self,
+                 model,
+                 inp, out,
+                 nbest=0,
+                 beam=8,
+                 alpha=0.01,
+                 beta=0.4,
+                 gamma=0.0,
+                 len_smooth=5.0))
+        self.model = model
+        self.inp = inp
+        self.out = out
+        self.nbest = nbest
+        self.beam = beam
+        self.alpha = alpha
+        self.beta = beta
+        self.gamma = gamma
+        self.len_smooth = len_smooth
+
+        inputs = [model, inp]
+        outputs = [out]
+        super().__init__(inputs, outputs)
+
+    def make(self, conf, cli_args):
+        model = self.model(conf, cli_args)
+        inp = self.inp(conf, cli_args)
+        out = self.out(conf, cli_args)
+        run('hnmt.py'
+            ' --load-model {model}'
+            ' --translate {inp}'
+            ' --output {out}'
+            ' --nbest-list {nbest}'
+            ' --beam-size {beam}'
+            ' --alpha {alpha}'
+            ' --beta {beta}'
+            ' --gamma {gamma}'
+            ' --len-smooth {len_smooth}'.format(
+                model=model,
+                inp=inp,
+                out=out,
+                nbest=self.nbest,
+                beam=self.beam,
+                alpha=self.alpha,
+                beta=self.beta,
+                gamma=self.gamma,
+                len_smooth=self.len_smooth))
