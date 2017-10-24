@@ -297,7 +297,7 @@ class CLI(object):
                     # keep one from each loop
                     yield step
                 seen.add(key)
-            except KeyError:
+            except AttributeError:
                 # keep all non-loop
                 yield step
 

@@ -69,9 +69,9 @@ class Train(Rule):
         super().__init__(inputs, outputs)
 
     def make(self, conf, cli_args):
-        # loop index is appended by hnmt to given path
+        # loop index is appended by anmt to given path
         model_base, _ = self.models[0](conf, cli_args).rsplit('.', 1)
-        run('hnmt.py'
+        run('anmt'
             ' --save-model {model_base}'
             ' --train {shard_file}'
             ' --heldout-source {heldout_src}'
@@ -132,7 +132,7 @@ class Translate(Rule):
         model = self.model(conf, cli_args)
         inp = self.inp(conf, cli_args)
         out = self.out(conf, cli_args)
-        run('hnmt.py'
+        run('anmt'
             ' --load-model {model}'
             ' --translate {inp}'
             ' --output {out}'
