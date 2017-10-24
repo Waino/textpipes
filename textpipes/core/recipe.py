@@ -1,7 +1,10 @@
 import collections
+import logging
 import os
 
 from .utils import *
+
+logger = logging.getLogger('textpipes')
 
 class JobStatus(object):
     def __init__(self, status, outputs, inputs=None, rule=None, job_id='-'):
@@ -320,6 +323,8 @@ class LoopRecipeFile(RecipeFile):
 
     def __call__(self, conf, cli_args=None):
         path = conf.get_path(self.section, self.key)
+        if '{_loop_index}' not in path and not self._silence_warn:
+            logger.warning('LoopRecipeFile without _loop_index in template')
         fmt_args = {}
         if cli_args is not None:
             fmt_args.update(cli_args)
