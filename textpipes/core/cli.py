@@ -128,11 +128,15 @@ class CLI(object):
         # check existence of original inputs
         warn = False
         for rf in self.recipe.main_inputs:
-            fname = rf(self.conf, self.cli_args)
-            if rf.exists(self.conf, self.cli_args):
-                print('input OK: {}'.format(fname))
-            else:
-                print('MISSING:  {}'.format(fname))
+            try:
+                fname = rf(self.conf, self.cli_args)
+                if rf.exists(self.conf, self.cli_args):
+                    print('input OK:  {}'.format(fname))
+                else:
+                    print('MISSING:   {}'.format(fname))
+                    warn = True
+            except KeyError:
+                print(    'UNDEFINED: {}'.format(rf.sec_key()))
                 warn = True
         if warn:
             print('********** WARNING! Some inputs are missing **********')

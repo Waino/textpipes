@@ -1,6 +1,6 @@
 import os
 
-from .core.recipe import Rule
+from .core.recipe import Rule, LoopRecipeFile
 from .core.platform import run
 
 class MakeVocabularies(Rule):
@@ -52,7 +52,7 @@ class Train(Rule):
                  log_file, model_seckey, loop_indices,
                  save_every=2000, aux_type='none', argstr=''):
         assert all(x % save_every == 0 for x in loop_indices)
-        models = LoopRecipeFile.loop_output(
+        self.models = LoopRecipeFile.loop_output(
             model_seckey[0], model_seckey[1], loop_indices)
         self.shard_file = shard_file
         self.heldout_src = heldout_src
@@ -63,7 +63,7 @@ class Train(Rule):
         self.argstr = argstr
 
         inputs = [shard_file, heldout_src, heldout_trg]
-        outputs = models + [log_file]
+        outputs = self.models + [log_file]
         super().__init__(inputs, outputs)
 
     def make(self, conf, cli_args):
@@ -84,8 +84,8 @@ class Train(Rule):
                 heldout_trg=self.heldout_trg(conf, cli_args),
                 log_file=self.log_file(conf, cli_args),
                 save_every=self.save_every,
-                aux_type=aux_type,
-                argstr=argstr))
+                aux_type=self.aux_type,
+                argstr=self.argstr))
         #'--validate-every 5 --translate-every 5 --backwards'
 
     def is_atomic(self, output):
@@ -109,7 +109,7 @@ class Translate(Rule):
                  alpha=0.01,
                  beta=0.4,
                  gamma=0.0,
-                 len_smooth=5.0))
+                 len_smooth=5.0):
         self.model = model
         self.inp = inp
         self.out = out
