@@ -49,7 +49,8 @@ class PrepareData(Rule):
 class Train(Rule):
     def __init__(self,
                  shard_file, heldout_src, heldout_trg,
-                 log_file, model_seckey, loop_indices,
+                 log_file, pipe_file,
+                 model_seckey, loop_indices,
                  save_every=2000, aux_type='none', argstr=''):
         assert all(x % save_every == 0 for x in loop_indices)
         self.models = LoopRecipeFile.loop_output(
@@ -58,6 +59,7 @@ class Train(Rule):
         self.heldout_src = heldout_src
         self.heldout_trg = heldout_trg
         self.log_file = log_file
+        self.pipe_file = pipe_file
         self.save_every = save_every
         self.aux_type = aux_type
         self.argstr = argstr
@@ -77,7 +79,8 @@ class Train(Rule):
             ' --log-file {log_file}'
             ' --save-every {save_every}'
             ' --aux-type {aux_type}'
-            ' {argstr}'.format(
+            ' {argstr}'
+            ' > {pipe_file} 2>&1'.format(
                 model_base=model_base,
                 shard_file=self.shard_file(conf, cli_args),
                 heldout_src=self.heldout_src(conf, cli_args),
@@ -85,7 +88,8 @@ class Train(Rule):
                 log_file=self.log_file(conf, cli_args),
                 save_every=self.save_every,
                 aux_type=self.aux_type,
-                argstr=self.argstr))
+                argstr=self.argstr,
+                pipe_file=self.pipe_file(conf, cli_args)))
         #'--validate-every 5 --translate-every 5 --backwards'
 
     def is_atomic(self, output):

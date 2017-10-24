@@ -128,7 +128,13 @@ classes = {
 
 class Command(object):
     def __init__(self, cmd):
-        self.cmd = cmd
+        if '|' in cmd or '>' in cmd:
+            # subshell args should not be split
+            self.cmd = cmd
+            self.subshell = True
+        else:
+            self.cmd = shlex.split(cmd, posix=True)
+            self.subshell = False
         self.process = None
         self.out = None
         self.err = None
@@ -136,18 +142,29 @@ class Command(object):
         self.data = None
 
     def run(self):
-        def target():
+        if self.subshell:
+            self._run_shell()
+        else:
+            self._run_popen()
+        return self.out, self.err
 
-            self.process = subprocess.Popen(self.cmd,
+    def _run_shell(self):
+        self.returncode = subprocess.check_call(
+            self.cmd, shell=True)
+        self.out, self.err = None, None
+
+    def _run_popen(self):
+        def target():
+            self.process = subprocess.Popen(
+                self.cmd,
                 universal_newlines=True,
-                shell=False,
+                shell=self.subshell,
                 env=os.environ,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 bufsize=0,
             )
-
             self.out, self.err = self.process.communicate(None)
 
         thread = threading.Thread(target=target)
@@ -158,7 +175,6 @@ class Command(object):
             self.process.terminate()
             thread.join()
         self.returncode = self.process.returncode
-        return self.out, self.err
 
 
 class Response(object):
@@ -186,21 +202,12 @@ class Response(object):
                 self.command, self.status_code,
                 self.std_out, self.std_err))
 
-def expand_args(command):
-    """Parses command strings and returns a Popen-ready list."""
-    if '|' in command or '>' in command:
-        raise Exception('You can NOT use pipeing')
-
-    return shlex.split(command, posix=True)
 
 
 def run(command):
     """Executes given command as subprocess.
-    You can NOT use pipeing. This is intentional,
-    as pipeing large data would fail anyhow.
-    If pipeing is necessary, use a subshell."""
+    If pipeing is necessary, uses a subshell."""
     logger.info(command)
-    command = expand_args(command)
     cmd = Command(command)
     out, err = cmd.run()
 
