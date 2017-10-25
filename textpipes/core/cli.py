@@ -204,15 +204,20 @@ class CLI(object):
                 for output in step.outputs:
                     wait_ids[output] = step.job_id
             # FIXME: delayed jobs: add deps
+            print(step.job_id, wait_ids)
             if step.status != 'available':
                 continue
             wait_for_jobs = []
+            unk_deps = False
             for inp in step.inputs:
                 if inp not in wait_ids:
                     if not self.platform.make_immediately:
                         print('Dont know what id to wait on for ', inp)
+                        unk_deps = True
                     continue
                 wait_for_jobs.append(wait_ids[inp])
+            if unk_deps:
+                continue
             output_files = [(output.sec_key(), output(self.conf, self.cli_args))
                             for output in sorted(step.outputs)]
             job_id = self.platform.schedule(
