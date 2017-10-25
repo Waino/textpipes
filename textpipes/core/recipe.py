@@ -119,12 +119,17 @@ class Recipe(object):
             else:
                 border.add(rf)
 
-        # traverse the DAG
+        # JobStatus
         waiting = set()
         running = set()
+        # (input, rule)
         potential = set()
+        # potential rules in reverse DAG order
+        order = []
+        # input
         seen_done = set()
         missing = set()
+        # traverse the DAG
         while len(border) > 0:
             cursor = border.pop()
             rule = self.files[cursor]
@@ -150,13 +155,19 @@ class Recipe(object):
                 continue
             border.update(rule.inputs)
             potential.add((cursor, rule))
+            order.append(rule)
 
         if len(missing) > 0:
             # missing inputs block anything at all from running
             return [JobStatus('missing_inputs', [inp], inputs=[inp]) for inp in missing]
 
-        available = []
-        delayed = []
+        # rule -> JobStatus
+        items = {}
+        # rules
+        available = set()
+        delayed = set()
+        # one rule can produce multiple outputs, but we only want to schedule once
+        # so we group by the rule
         potential = sorted(potential, key=lambda x: (hash(x[1]), x[0]))
         for (rule, pairs) in itertools.groupby(potential, lambda x: x[1]):
             not_done = tuple(inp for inp in rule.inputs
@@ -164,24 +175,22 @@ class Recipe(object):
             if len(not_done) > 0:
                 # some inputs need to be built first
                 if recursive:
-                    delayed.append(
-                        JobStatus('available',
-                            tuple(output for (output, rule) in pairs),
-                            inputs=not_done,
-                            rule=rule)
-                        )
+                    delayed.add(rule)
+                    items[rule] = JobStatus('available',
+                        tuple(output for (output, rule) in pairs),
+                        inputs=not_done,
+                        rule=rule)
                 continue
-            available.append(
-                JobStatus('available',
-                          tuple(output for (output, rule) in pairs),
-                          rule=rule))
+            available.add(rule)
+            items[rule] = JobStatus('available',
+                tuple(output for (output, rule) in pairs),
+                rule=rule)
 
         waiting = sorted(waiting, key=lambda job: (job.job_id, job.sec_key))
         running = sorted(running, key=lambda job: (job.job_id, job.sec_key))
-        # available and delayed should not be sorted,
-        # that would ruin the partial ordering constructed above
-        # FIXME: already ruined by the hash sorting
-        return done + waiting + running + available + delayed
+        avail   = [items[rule] for rule in reversed(order) if rule in available]
+        delayd  = [items[rule] for rule in reversed(order) if rule in delayed]
+        return done + waiting + running + avail + delayd
 
     def make_output(self, output, cli_args=None):
         rf = self._rf(output)

@@ -263,13 +263,6 @@ class CLI(object):
             remaining = delayed
 
     def show_next_steps(self, nextsteps, dryrun=False, immediate=False):
-        ordering = {key: i for (i, key) 
-            in enumerate(('done', 'waiting', 'running', 'available'))}
-
-        nextsteps = sorted(
-            nextsteps, key=lambda job: (ordering.get(job.status, 4),
-                                        len(job.inputs),
-                                        job.job_id, job.sec_key))
         nextsteps = list(self._remove_redundant(nextsteps))
         albl = 'scheduled:'
         if dryrun:

@@ -75,6 +75,7 @@ class Slurm(Platform):
 
     def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
         rc_args = self.resource_class(rule.resource_class)
+        assert rc_args != 'make_immediately'
         cmd = 'python {recipe}.py {conf}.ini --make {sec_key}'.format(
             recipe=recipe.name, conf=conf.name, sec_key=sec_key)
         job_name = '{}:{}'.format(conf.name, sec_key)
