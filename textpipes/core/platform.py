@@ -79,7 +79,7 @@ class Slurm(Platform):
         else:
             dep_args = ''
         sbatch = 'sbatch --job-name {name} {rc_args}{dep_args} --wrap="{cmd}"'.format(
-            name=job_name, cmd=cmd, rc_args=rc_args, dep_args=dep_args))
+            name=job_name, cmd=cmd, rc_args=rc_args, dep_args=dep_args)
         r = run(sbatch)
         try:
             job_id = int(r.std_out)
