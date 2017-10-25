@@ -69,6 +69,10 @@ RE_SLURM_SUBMITTED_ID = re.compile(r'Submitted batch job (\d*)')
 
 class Slurm(Platform):
     """Schedule and return job id"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._job_status = None
+
     def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
         rc_args = self.resource_class(rule.resource_class)
         cmd = 'python {recipe}.py {conf}.ini --make {sec_key}'.format(
@@ -98,7 +102,7 @@ class Slurm(Platform):
 
     def _parse_q(self):
         self._job_status = {}
-        r = run('./slurm q')
+        r = run('slurm q')
         for (i, line) in enumerate(r.std_out.split('\n')):
             if i == 0:
                 continue
@@ -110,7 +114,7 @@ class Slurm(Platform):
             reason = ' '.join(fields[6:])
             # FIXME: non-slurm-specific namedtuple?
             self._job_status[job_id] = (time, start, status, reason)
-        r = run('./slurm history')
+        r = run('slurm history')
         for (i, line) in enumerate(r.std_out.split('\n')):
             if i == 0:
                 continue
@@ -121,17 +125,13 @@ class Slurm(Platform):
             job_id = fields[0]
             time = fields[6]
             start = fields[2]
-            status = fields[11]
+            status = fields[12]
             reason = ''
             # FIXME: non-slurm-specific namedtuple?
             self._job_status[job_id] = (time, start, status, reason)
 
 class LogOnly(Slurm):
     """dummy platform for testing"""
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._job_status = None
-
     def read_log(self, log):
         self.job_id = max([0] + list(int(x) for x in log.jobs.keys()))
 
@@ -212,6 +212,8 @@ class Command(object):
         if thread.is_alive():
             self.process.terminate()
             thread.join()
+        if self.process is None:
+            raise Exception('Running failed: {}'.format(self.cmd))
         self.returncode = self.process.returncode
 
 
