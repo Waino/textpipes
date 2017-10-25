@@ -8,7 +8,13 @@ source bin/activate
 
 TEXTPIPES_DIR=$(pwd)
 
-# FIXME: change when anmt is published
+# FIXME: anmt currently still requires bnas
+git clone https://github.com/robertostling/bnas.git
+pushd bnas
+python setup.py develop
+popd
+
+# FIXME: change repo path when anmt is published
 git clone gronsti@ummo:/data/gitrepos/hnmt
 pushd hnmt/
 git checkout anmt
