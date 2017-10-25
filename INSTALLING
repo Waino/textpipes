@@ -1,8 +1,56 @@
+# use package manager to install the following deps:
+# clang++ 
+
+# due to theano, anaconda3 might be preferable
 virtualenv -p python3 textpipes
 cd textpipes/
 source bin/activate
-git clone git@github.com:Waino/textpipes.git
-cd textpipes/
+
+TEXTPIPES_DIR=$(pwd)
+
+# FIXME: change when anmt is published
+git clone gronsti@ummo:/data/gitrepos/hnmt
+pushd hnmt/
+git checkout anmt
+# you might want to install theano manually first, installing as dep tends to have kinks
 python setup.py develop
-pip install ftfy
+popd
+
+git clone git@github.com:Waino/chrF.git
+pushd chrF/
+python setup.py develop
+popd
+
+git clone git@github.com:Waino/word2vec.git
+pushd word2vec/
+make clean
+make
+popd
+pushd bin
+ln -s ../word2vec/word2vec .
+popd
+
+git clone https://github.com/jaybaird/python-bloomfilter.git
+pushd python-bloomfilter
+python setup.py install
+popd
+
+git clone https://github.com/mpsilfve/FinnPos.git
+pushd FinnPos/
+make
+pushd share/finnpos/omorfi/
+wget "https://github.com/mpsilfve/FinnPos/releases/download/v0.1-alpha/morphology.omor.hfst.gz"
+gunzip morphology.omor.hfst.gz
+popd
+make ftb-omorfi-tagger
+make install -e INSTALL_DIR=${TEXTPIPES_DIR}
+popd
+cp -i FinnPos/share/finnpos/ftb_omorfi_model/* share/finnpos/ftb_omorfi_model/
+cp -ri FinnPos/share/finnpos/omorfi share/finnpos/
+
+
+git clone git@github.com:Waino/textpipes.git
+pushd textpipes/
+python setup.py develop
+popd
 
