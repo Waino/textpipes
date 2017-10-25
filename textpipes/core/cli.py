@@ -203,8 +203,6 @@ class CLI(object):
             if step.job_id != '-':
                 for output in step.outputs:
                     wait_ids[output] = step.job_id
-            # FIXME: delayed jobs: add deps
-            print(step.job_id, wait_ids)
             if step.status != 'available':
                 continue
             wait_for_jobs = []
@@ -228,6 +226,9 @@ class CLI(object):
                 continue
             step.job_id = job_id
             self.log.scheduled(step.rule.name, step.sec_key, job_id, output_files)
+            if step.job_id is not None and step.job_id != '-':
+                for output in step.outputs:
+                    wait_ids[output] = step.job_id
 
     def make(self, output):
         next_step = self.recipe.get_next_steps_for(
