@@ -6,6 +6,7 @@ virtualenv -p python3 textpipes
 cd textpipes/
 source bin/activate
 
+# if using anaconda, point this to the conda env root instead
 TEXTPIPES_DIR=$(pwd)
 
 # FIXME: anmt currently still requires bnas
@@ -51,8 +52,8 @@ popd
 make ftb-omorfi-tagger
 make install -e INSTALL_DIR=${TEXTPIPES_DIR}
 popd
-cp -i FinnPos/share/finnpos/ftb_omorfi_model/* share/finnpos/ftb_omorfi_model/
-cp -ri FinnPos/share/finnpos/omorfi share/finnpos/
+cp -i FinnPos/share/finnpos/ftb_omorfi_model/* ${TEXTPIPES_DIR}/share/finnpos/ftb_omorfi_model/
+cp -ri FinnPos/share/finnpos/omorfi ${TEXTPIPES_DIR}/share/finnpos/
 
 
 git clone git@github.com:Waino/textpipes.git

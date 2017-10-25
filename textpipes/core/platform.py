@@ -41,7 +41,91 @@ class Platform(object):
         return self.conf['resource_classes'][resource_class]
 
 
-class LogOnly(Platform):
+class Local(Platform):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.make_immediately = True
+
+    """Run immediately, instead of scheduling"""
+    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
+        return None
+
+    def check_job(self, job_id):
+        return 'unknown'
+
+# --gres=gpu:1 -p gpushort --mem=5000 --time=0-04:00:00
+# --time=5-00:00:00 --mem=23500
+# --gres=gpu:teslak80:1
+# --exclude=gpu12,gpu13,gpu14,gpu15,gpu16
+# -p coin --mem=30000
+
+SLURM_STATUS_MAP = {
+    'RUNNING': 'running',
+    'PENDING': 'scheduled',
+    'COMP': 'finished',
+    'FAIL': 'failed',
+    'CANC': 'failed',}
+
+class Slurm(Platform):
+    """Schedule and return job id"""
+    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
+        rc_args = self.resource_class(rule.resource_class)
+        cmd = 'python {recipe}.py {conf}.ini --make {sec_key}'.format(
+            recipe=recipe.name, conf=conf.name, sec_key=sec_key)
+        job_name = '{}:{}'.format(conf.name, sec_key)
+        if deps:
+            dep_args = ' --dependency=afterok:' + ':'.join(
+                str(dep) for dep in deps)
+        else:
+            dep_args = ''
+        sbatch = 'sbatch --job-name {name} {rc_args}{dep_args} --wrap="{cmd}"'.format(
+            name=job_name, cmd=cmd, rc_args=rc_args, dep_args=dep_args))
+        r = run(sbatch)
+        try:
+            job_id = int(r.std_out)
+        except ValueError:
+            raise Exception('Unexpected output from slurm: ' + r.describe())
+        return job_id
+
+    def check_job(self, job_id):
+        if self._job_status is None:
+            self._parse_q()
+        if job_id in self._job_status:
+            (_, _, status, _) = self._job_status[job_id]
+            return SLURM_STATUS_MAP[status]
+        return 'unknown'
+
+    def _parse_q(self):
+        self._job_status = {}
+        r = run('./slurm q')
+        for (i, line) in enumerate(r.std_out.split('\n')):
+            if i == 0:
+                continue
+            line = line.strip()
+            if len(line) == 0:
+                continue
+            fields = MULTISPACE_RE.split(line)
+            (job_id, _, _, time, start, status) = fields[:6]
+            reason = ' '.join(fields[6:])
+            # FIXME: non-slurm-specific namedtuple?
+            self._job_status[job_id] = (time, start, status, reason)
+        r = run('./slurm history')
+        for (i, line) in enumerate(r.std_out.split('\n')):
+            if i == 0:
+                continue
+            line = line.strip()
+            if len(line) < 12:
+                continue
+            fields = MULTISPACE_RE.split(line)
+            job_id = fields[0]
+            time = fields[6]
+            start = fields[2]
+            status = fields[11]
+            reason = ''
+            # FIXME: non-slurm-specific namedtuple?
+            self._job_status[job_id] = (time, start, status, reason)
+
+class LogOnly(Slurm):
     """dummy platform for testing"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -72,58 +156,11 @@ class LogOnly(Platform):
             self._parse_q()
         return 'running'    # FIXME
 
-    def _parse_q(self):
-        self._job_status = {}
-        r = run('./slurm q')
-        for (i, line) in enumerate(r.std_out.split('\n')):
-            if i == 0:
-                continue
-            line = line.strip()
-            if len(line) == 0:
-                continue
-            fields = MULTISPACE_RE.split(line)
-            (job_id, _, _, time, start, status) = fields[:6]
-            reason = ' '.join(fields[6:])
-            # FIXME: non-slurm-specific namedtuple?
-            self._job_status[job_id] = (time, start, status, reason)
-
-class Local(Platform):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.make_immediately = True
-
-    """Run immediately, instead of scheduling"""
-    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
-        return None
-
-    def check_job(self, job_id):
-        return 'unknown'
-
-class Slurm(Platform):
-    """Schedule and return job id"""
-    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
-        rc_args = self.resource_class(rule.resource_class)
-        cmd = 'python {recipe}.py {conf}.ini --make {sec_key}'.format(
-            recipe=recipe.name, conf=conf.name, sec_key=sec_key)
-        job_name = '{}:{}'.format(conf.name, sec_key)
-        sbatch = 'sbatch --job-name {name} --wrap="{cmd}" {rc_args}'.format(
-            name=job_name, cmd=cmd, rc_args=rc_args)
-        r = run(sbatch)
-        try:
-            job_id = int(r.std_out)
-        except ValueError:
-            raise Exception('Unexpected output from slurm: ' + r.describe())
-        return job_id
-
-    def check_job(self, job_id):
-        # FIXME: parse output of slurm q
-        return 'unknown'
-
 
 classes = {
     'logonly': LogOnly,
     'local': Local,
-    #'slurm': ,
+    'slurm': Slurm,
 }
 
 class Command(object):
