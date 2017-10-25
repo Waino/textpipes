@@ -178,8 +178,9 @@ class Recipe(object):
 
         waiting = sorted(waiting, key=lambda job: (job.job_id, job.sec_key))
         running = sorted(running, key=lambda job: (job.job_id, job.sec_key))
-        available = sorted(available, key=lambda job: job.sec_key)
-        delayed = sorted(delayed, key=lambda job: job.sec_key)
+        # available and delayed should not be sorted,
+        # that would ruin the partial ordering constructed above
+        # FIXME: already ruined by the hash sorting
         return done + waiting + running + available + delayed
 
     def make_output(self, output, cli_args=None):
