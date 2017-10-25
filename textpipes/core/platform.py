@@ -65,6 +65,7 @@ SLURM_STATUS_MAP = {
     'COMP': 'finished',
     'FAIL': 'failed',
     'CANC': 'failed',}
+RE_SLURM_SUBMITTED_ID = re.compile(r'Submitted batch job (\d*)')
 
 class Slurm(Platform):
     """Schedule and return job id"""
@@ -82,8 +83,8 @@ class Slurm(Platform):
             name=job_name, cmd=cmd, rc_args=rc_args, dep_args=dep_args)
         r = run(sbatch)
         try:
-            job_id = int(r.std_out)
-        except ValueError:
+            job_id = int(RE_SLURM_SUBMITTED_ID.match(r.std_out).group(1))
+        except Exception:
             raise Exception('Unexpected output from slurm: ' + r.describe())
         return job_id
 
