@@ -61,6 +61,7 @@ class Local(Platform):
 
 SLURM_STATUS_MAP = {
     'RUNNING': 'running',
+    'COMPLETI': 'running',
     'PENDING': 'scheduled',
     'COMP': 'finished',
     'FAIL': 'failed',
@@ -98,7 +99,7 @@ class Slurm(Platform):
             self._parse_q()
         if job_id in self._job_status:
             (_, _, status, _) = self._job_status[job_id]
-            return SLURM_STATUS_MAP[status]
+            return SLURM_STATUS_MAP.get(status, status)
         return 'unknown'
 
     def _parse_q(self):
