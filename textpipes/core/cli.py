@@ -199,12 +199,12 @@ class CLI(object):
     def schedule(self, nextsteps):
         # output -> job_id of job that builds it
         wait_ids = {}
-        for step in nextsteps:
+        for step in nextsteps.waiting + nextsteps.running:
             if step.job_id != '-':
                 for output in step.outputs:
                     wait_ids[output] = step.job_id
-            if step.status != 'available':
-                continue
+
+        for step in nextsteps.available + nextsteps.delayed:
             wait_for_jobs = []
             unk_deps = False
             for inp in step.inputs:
@@ -231,11 +231,13 @@ class CLI(object):
                     wait_ids[output] = step.job_id
 
     def make(self, output):
-        next_step = self.recipe.get_next_steps_for(
-            outputs=[output], cli_args=self.cli_args)[0]
-        if next_step.status not in ('waiting', 'available'):
+        next_steps = self.recipe.get_next_steps_for(
+            outputs=[output], cli_args=self.cli_args)
+        concat = next_steps.waiting + next_steps.available
+        if len(concat) == 0:
             raise Exception('Cannot start running {}: {}'.format(
-                output, next_step))
+                output, next_steps))
+        next_step = concat[0]
         job_id = self.log.outputs[next_step.outputs[0](self.conf, self.cli_args)]
         self._make_helper(output, next_step, job_id)
 
@@ -247,8 +249,7 @@ class CLI(object):
 
     def make_all(self, nextsteps):
         """immediately, sequentially make everything"""
-        remaining = [step for step in nextsteps
-                     if step.status == 'available']
+        remaining = nextsteps.available + nextsteps.delayed
         while len(remaining) > 0:
             delayed = []
             for step in remaining:
@@ -263,16 +264,14 @@ class CLI(object):
             remaining = delayed
 
     def show_next_steps(self, nextsteps, dryrun=False, immediate=False):
-        nextsteps = list(self._remove_redundant(nextsteps))
+        nextsteps = self._remove_redundant(nextsteps)
         albl = 'scheduled:'
         if dryrun:
             albl = 'available:'
         elif immediate:
             albl = 'immediate:'
         tpls = []
-        for step in nextsteps:
-            if step.status == 'available':
-                continue
+        for step in nextsteps.done + nextsteps.waiting + nextsteps.running:
             outfile = step.outputs[0](self.conf, self.cli_args)
             lbl = step.status + ':'
             tpls.append((
@@ -280,13 +279,12 @@ class CLI(object):
             # FIXME: show monitoring for running jobs here?
         table_print(tpls, line_before='-')
         tpls = []
-        for step in nextsteps:
-            if step.status != 'available':
-                continue
-            if len(step.inputs) > 0:
-                lbl = 'delayed:'
-            else:
-                lbl = albl
+        for step in nextsteps.available:
+            outfile = step.outputs[0](self.conf, self.cli_args)
+            tpls.append((
+                albl, step.job_id, step.sec_key, step.rule.name, outfile))
+        for step in nextsteps.delayed:
+            lbl = 'delayed:'
             outfile = step.outputs[0](self.conf, self.cli_args)
             tpls.append((
                 lbl, step.job_id, step.sec_key, step.rule.name, outfile))
@@ -294,18 +292,22 @@ class CLI(object):
 
     def _remove_redundant(self, nextsteps):
         seen = set()
-        for step in nextsteps:
-            try:
-                out = step.outputs[0]
-                idx = out.loop_index
-                key = (out.section, out.key, step.status)
-                if key not in seen:
-                    # keep one from each loop
-                    yield step
-                seen.add(key)
-            except AttributeError:
-                # keep all non-loop
-                yield step
+        result = []
+        for status in nextsteps:
+            result.append([])
+            for step in status:
+                try:
+                    out = step.outputs[0]
+                    idx = out.loop_index
+                    key = (out.section, out.key, step.status)
+                    if key not in seen:
+                        # keep one from each loop
+                        result[-1].append(step)
+                    seen.add(key)
+                except AttributeError:
+                    # keep all non-loop
+                    result[-1].append(step)
+        return NextSteps(*result)
 
 # keep a log of jobs
 # - always: recipe, experiment id, timestamp

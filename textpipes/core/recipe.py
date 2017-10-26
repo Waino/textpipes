@@ -38,6 +38,9 @@ class JobStatus(object):
             self.rule,
             self.job_id)
 
+NextSteps = collections.namedtuple('NextSteps',
+    ['done', 'waiting', 'running', 'available', 'delayed'])
+
 
 class Recipe(object):
     """Main class for building experiment recipes"""
@@ -153,7 +156,7 @@ class Recipe(object):
                 if not (rule.is_atomic(cursor) and cursor.exists(self.conf, cli_args)):
                     # must wait for non-atomic files until job stops running
                     # also wait for an atomic file that doesn't yet exist
-                    running.add(JobStatus('running', [cursor], job_id=job_fields.job_id))
+                    running.append(JobStatus('running', [cursor], job_id=job_fields.job_id))
                     known.add(cursor)
                     continue
             if cursor.exists(self.conf, cli_args):
@@ -161,7 +164,7 @@ class Recipe(object):
                 seen_done.add(cursor)
                 continue
             if status == 'scheduled':
-                waiting.add(JobStatus('waiting', [cursor], job_id=job_fields.job_id))
+                waiting.append(JobStatus('waiting', [cursor], job_id=job_fields.job_id))
                 known.add(cursor)
                 continue
             if rule is None:
@@ -205,7 +208,8 @@ class Recipe(object):
                 raise Exception('unmet dependencies: {}'.format(remaining))
             needed = remaining
 
-        return done + waiting + running + available + delayed
+        delayed = delayed if recursive else []
+        return NextSteps(done, waiting, running, available, delayed)
 
     def make_output(self, output, cli_args=None):
         rf = self._rf(output)
@@ -222,7 +226,7 @@ class Recipe(object):
             if not isinstance(out, RecipeFile):
                 raise Exception('output {} is not a RecipeFile'.format(out))
         self._main_out.update(outputs)
-    
+
     def main(self):
         self.cli.main()
 
