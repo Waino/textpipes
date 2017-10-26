@@ -10,7 +10,7 @@ class JobStatus(object):
     def __init__(self, status, outputs, inputs=None, rule=None, job_id='-'):
         assert status in (
             'done', 'waiting', 'running',   # info only: no need to schedule
-            'available',                    # schedule these
+            'available', 'delayed',         # schedule these
             'missing_inputs')               # error
         self.status = status
         self.outputs = tuple(outputs)
@@ -111,25 +111,33 @@ class Recipe(object):
                 outputs = [outputs]
             outputs = [self._rf(out) for out in outputs]
 
+        # outputs. nodes not yet visited for input gathering
         border = set()
+        # outputs. was on border, now visited
+        visited = set()
+        # outputs. all nodes in DAG except done/running/scheduled
+        needed = set()
+        # outputs. done or part of plan
+        known = set()
+        # outputs. done (subset of known)
+        seen_done = set()
+        # inputs
+        missing = set()
+        # JobStatus. informational only
         done = []
+        running = []
+        waiting = []
+        # JobStatus. to schedule
+        available = []
+        delayed = []
+
         for rf in outputs:
             if rf.exists(self.conf, cli_args):
                 done.append(JobStatus('done', [rf]))
+                seen_done.add(rf)
             else:
                 border.add(rf)
 
-        # JobStatus
-        waiting = set()
-        running = set()
-        # (ouput, rule)
-        potential = set()
-        # potential outputs in reverse DAG order
-        order = []
-        # input
-        visited = set()
-        seen_done = set()
-        missing = set()
         # traverse the DAG
         while len(border) > 0:
             cursor = border.pop()
@@ -146,57 +154,58 @@ class Recipe(object):
                     # must wait for non-atomic files until job stops running
                     # also wait for an atomic file that doesn't yet exist
                     running.add(JobStatus('running', [cursor], job_id=job_fields.job_id))
+                    known.add(cursor)
                     continue
             if cursor.exists(self.conf, cli_args):
+                known.add(cursor)
                 seen_done.add(cursor)
                 continue
             if status == 'scheduled':
                 waiting.add(JobStatus('waiting', [cursor], job_id=job_fields.job_id))
+                known.add(cursor)
                 continue
             if rule is None:
                 # an original input, but failed the exists check above
                 missing.add(cursor)
                 continue
             border.update(rule.inputs)
-            potential.add((cursor, rule))
-            order.append(cursor)
+            needed.add(cursor)
 
         if len(missing) > 0:
             # missing inputs block anything at all from running
             return [JobStatus('missing_inputs', [inp], inputs=[inp]) for inp in missing]
 
-        # rule -> JobStatus
-        items = {}
-        # outputs
-        available = set()
-        delayed = set()
-        # one rule can produce multiple outputs, but we only want to schedule once
-        # so we group by the rule
-        potential = sorted(potential, key=lambda x: (hash(x[1]), x[0]))
-        for (rule, pairs) in itertools.groupby(potential, lambda x: x[1]):
-            pairs = list(pairs)
-            not_done = tuple(inp for inp in rule.inputs
-                             if inp not in seen_done)
-            output = pairs[0][0]
-            if len(not_done) > 0:
-                # some inputs need to be built first
-                if recursive:
-                    delayed.add(output)
-                    items[output] = JobStatus('available',
-                        tuple(output for (output, rule) in pairs),
+        # iteratively sort needed
+        while len(needed) > 0:
+            remaining = set()
+            for cursor in needed:
+                if cursor in known:
+                    # don't reschedule
+                    continue
+                rule = self.files[cursor]
+                if any(inp not in known for inp in rule.inputs):
+                    # has inputs that are not yet part of the plan
+                    remaining.add(cursor)
+                    continue
+                known.update(rule.outputs)
+                not_done = tuple(inp for inp in rule.inputs
+                                 if inp not in seen_done)
+                if len(not_done) > 0:
+                    # must wait for some inputs to be built first
+                    delayed.append(JobStatus('delayed',
+                        rule.outputs,
                         inputs=not_done,
-                        rule=rule)
-                continue
-            available.add(output)
-            items[output] = JobStatus('available',
-                tuple(output for (output, rule) in pairs),
-                rule=rule)
+                        rule=rule))
+                    continue
+                # implicit else: ready for scheduling
+                available.append(JobStatus('available',
+                    rule.outputs,
+                    rule=rule))
+            if len(remaining) == len(needed):
+                raise Exception('unmet dependencies: {}'.format(remaining))
+            needed = remaining
 
-        waiting = sorted(waiting, key=lambda job: (job.job_id, job.sec_key))
-        running = sorted(running, key=lambda job: (job.job_id, job.sec_key))
-        avail   = [items[output] for output in reversed(order) if output in available]
-        delayd  = [items[output] for output in reversed(order) if output in delayed]
-        return done + waiting + running + avail + delayd
+        return done + waiting + running + available + delayed
 
     def make_output(self, output, cli_args=None):
         rf = self._rf(output)
