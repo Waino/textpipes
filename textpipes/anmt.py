@@ -51,7 +51,8 @@ class Train(Rule):
                  shard_file, heldout_src, heldout_trg,
                  log_file, pipe_file,
                  model_seckey, loop_indices,
-                 save_every=2000, aux_type='none', argstr=''):
+                 save_every=2000, aux_type='none', argstr='',
+                 **kwargs):
         assert all(x % save_every == 0 for x in loop_indices)
         self.models = LoopRecipeFile.loop_output(
             model_seckey[0], model_seckey[1], loop_indices)
@@ -66,7 +67,7 @@ class Train(Rule):
 
         inputs = [shard_file, heldout_src, heldout_trg]
         outputs = self.models + [log_file]
-        super().__init__(inputs, outputs)
+        super().__init__(inputs, outputs, **kwargs)
 
     def make(self, conf, cli_args):
         # loop index is appended by anmt to given path
@@ -98,9 +99,9 @@ class Train(Rule):
 
     def monitor(self, platform, conf, cli_args=None):
         highest = LoopRecipeFile.highest_written(
-            self.outputs, conf, cli_args)
+            self.models, conf, cli_args)
         if highest is None:
-            'no output'
+            return 'no output'
         return highest(conf, cli_args)
 
 

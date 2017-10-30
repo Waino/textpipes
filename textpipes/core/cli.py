@@ -422,7 +422,7 @@ class ExperimentLog(object):
             if status == 'finished':
                 self.consolidate_finished(job_id)
                 self.job_statuses[job_id] = 'finished'
-            elif status == 'failed':
+            elif status == 'failed' or status == 'unknown':
                 self.failed(job_id)
                 self.job_statuses[job_id] = 'failed'
 

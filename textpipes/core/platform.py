@@ -99,7 +99,8 @@ class Slurm(Platform):
             self._parse_q()
         if job_id in self._job_status:
             (_, _, status, _) = self._job_status[job_id]
-            return SLURM_STATUS_MAP.get(status, status)
+            result = SLURM_STATUS_MAP.get(status, status)
+            return result
         return 'unknown'
 
     def _parse_q(self):
@@ -246,7 +247,7 @@ class Response(object):
 
 
 
-def run(command):
+def run(command, allow_fail=False):
     """Executes given command as subprocess.
     If pipeing is necessary, uses a subshell."""
     logger.info(command)
@@ -259,5 +260,11 @@ def run(command):
     r.std_out = out
     r.std_err = err
     r.status_code = cmd.returncode
+
+    if not allow_fail:
+        if r.status_code != 0:
+            print(r.std_err)
+            raise Exception('Nonzero status code {} when running {}'.format(
+                r.status_code, r.command))
 
     return r

@@ -176,7 +176,8 @@ class Recipe(object):
 
         if len(missing) > 0:
             # missing inputs block anything at all from running
-            return [JobStatus('missing_inputs', [inp], inputs=[inp]) for inp in missing]
+            raise Exception(
+            '\n'.join(str(JobStatus('missing_inputs', [inp], inputs=[inp])) for inp in missing))
 
         # iteratively sort needed
         while len(needed) > 0:
