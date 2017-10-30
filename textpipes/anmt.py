@@ -81,7 +81,7 @@ class Train(Rule):
             ' --save-every {save_every}'
             ' --aux-type {aux_type}'
             ' {argstr}'
-            ' > {pipe_file} 2>&1'.format(
+            ' >> {pipe_file} 2>&1'.format(
                 model_base=model_base,
                 shard_file=self.shard_file(conf, cli_args),
                 heldout_src=self.heldout_src(conf, cli_args),

@@ -202,8 +202,13 @@ class Recipe(object):
                         rule=rule))
                     continue
                 # implicit else: ready for scheduling
+                not_done_outputs = [out for out in rule.outputs
+                                    if not out.exists(self.conf, cli_args)]
+                if len(not_done_outputs) == 0:
+                    raise Exception('tried to schedule job '
+                        'even though all outputs exist: {}'.format(rule))
                 available.append(JobStatus('available',
-                    rule.outputs,
+                    not_done_outputs,
                     rule=rule))
             if len(remaining) == len(needed):
                 raise Exception('unmet dependencies: {}'.format(remaining))
