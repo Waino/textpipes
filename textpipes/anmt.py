@@ -114,7 +114,8 @@ class Translate(Rule):
                  alpha=0.01,
                  beta=0.4,
                  gamma=0.0,
-                 len_smooth=5.0):
+                 len_smooth=5.0,
+                 **kwargs):
         self.model = model
         self.inp = inp
         self.out = out
@@ -127,7 +128,7 @@ class Translate(Rule):
 
         inputs = [model, inp]
         outputs = [out]
-        super().__init__(inputs, outputs)
+        super().__init__(inputs, outputs, **kwargs)
 
     def make(self, conf, cli_args):
         model = self.model(conf, cli_args)
