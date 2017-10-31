@@ -108,7 +108,7 @@ class Train(Rule):
 class Translate(Rule):
     def __init__(self,
                  model,
-                 inp, out,
+                 inputs, outputs,
                  nbest=0,
                  beam=8,
                  alpha=0.01,
@@ -117,8 +117,9 @@ class Translate(Rule):
                  len_smooth=5.0,
                  **kwargs):
         self.model = model
-        self.inp = inp
-        self.out = out
+        self.translation_inputs = inputs
+        self.outputs = outputs
+        assert(len(inputs) == len(outputs))
         self.nbest = nbest
         self.beam = beam
         self.alpha = alpha
@@ -126,14 +127,15 @@ class Translate(Rule):
         self.gamma = gamma
         self.len_smooth = len_smooth
 
-        inputs = [model, inp]
-        outputs = [out]
-        super().__init__(inputs, outputs, **kwargs)
+        all_inputs = [model] + inputs
+        super().__init__(all_inputs, outputs, **kwargs)
 
     def make(self, conf, cli_args):
         model = self.model(conf, cli_args)
-        inp = self.inp(conf, cli_args)
-        out = self.out(conf, cli_args)
+        inputs = ','.join(inp(conf, cli_args)
+                          for inp in self.translation_inputs)
+        outputs = ','.join(out(conf, cli_args)
+                          for out in self.outputs)
         run('anmt'
             ' --load-model {model}'
             ' --translate {inp}'
@@ -145,8 +147,8 @@ class Translate(Rule):
             ' --gamma {gamma}'
             ' --len-smooth {len_smooth}'.format(
                 model=model,
-                inp=inp,
-                out=out,
+                inp=inputs,
+                out=outputs,
                 nbest=self.nbest,
                 beam=self.beam,
                 alpha=self.alpha,

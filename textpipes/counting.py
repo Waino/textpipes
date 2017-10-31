@@ -9,10 +9,14 @@ logger = logging.getLogger('textpipes')
 
 
 class CountTokensComponent(SingleCellComponent):
-    def __init__(self, output, **kwargs):
+    def __init__(self, output, words_only=None, **kwargs):
+        side_outputs = [output]
+        if words_only:
+            side_outputs.append(words_only)
         # must disable multiprocessing
-        super().__init__(side_outputs=[output], mp=False, **kwargs)
+        super().__init__(side_outputs=side_outputs, mp=False, **kwargs)
         self.count_file = output
+        self.words_file = words_only
         self.counts = collections.Counter()
 
     def single_cell(self, sentence):
@@ -21,18 +25,23 @@ class CountTokensComponent(SingleCellComponent):
 
     def post_make(self, side_fobjs):
         fobj = side_fobjs[self.count_file]
+        if self.words_file:
+            wo_fobj = side_fobjs[self.words_file]
         for (wtype, count) in self.counts.most_common():
             fobj.write('{}\t{}\n'.format(count, wtype))
+            if self.words_file:
+                wo_fobj.write('{}\n'.format(wtype))
         del self.counts
 
 
 class CountTokens(DeadEndPipe):
-    def __init__(self, inp, output, **kwargs):
-        component = CountTokensComponent(output)
+    def __init__(self, inp, output, words_only=None, **kwargs):
+        component = CountTokensComponent(output, words_only=words_only)
         super().__init__([component], [inp], **kwargs)
 
 
 # concatenate countfiles before using this (has single input)
+# FIXME: DRY with CountTokensComponent
 class CombineCountsComponent(SingleCellComponent):
     def __init__(self, output, reverse=False, words_only=None, **kwargs):
         side_outputs = [output]
