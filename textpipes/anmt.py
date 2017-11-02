@@ -159,8 +159,8 @@ class Translate(Rule):
 class Evaluate(Rule):
     def __init__(self,
                  hyp,       # plain hyp
-                 ref_sgm,   # sgm ref (possibly multiref)
                  inp_sgm,   # sgm source input
+                 ref_sgm,   # sgm ref (possibly multiref)
                  hyp_sgm,   # hyp sgm conversion output
                  out_chrF1,
                  out_chrF2,
