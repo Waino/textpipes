@@ -2,41 +2,52 @@
 import collections
 import re
 
+from .components.core import MonoPipeComponent
 from .core.recipe import Rule
 from .core.utils import progress
 
-RE_SET = re.compile(r'<refset setid="([^"]*)" ([^>]*)>')
-RE_DOC = re.compile(r'<doc sysid="([^"]*)" docid="([^"]*)" ([^>]*)>')
-RE_DOCEND = re.compile(r'</doc>')
-RE_SEG = re.compile(r'<seg id="([^"]*)">(.*)</seg>')
+RE_SET = re.compile(r'<([a-z]*)set setid="([^"]*)" ([^>]*)>', flags=re.IGNORECASE)
+RE_DOC = re.compile(r'<doc sysid="([^"]*)" docid="([^"]*)" ([^>]*)>', flags=re.IGNORECASE)
+RE_DOCEND = re.compile(r'</doc>', flags=re.IGNORECASE)
+RE_SEG = re.compile(r'<seg id="([^"]*)">(.*)</seg>', flags=re.IGNORECASE)
 
 RE_BLEU = re.compile(r'BLEU score using 4-grams = ([0-9.]*) for system "([^"]*)" '
                      r'on segment ([^ ]*) of document "([^"]*)" (.*)')
 
-FMT_SET = '<refset setid="{setid}" {tail}>\n'
+FMT_SET = '<{settype}set setid="{setid}" {tail}>\n'
 FMT_DOC = '<doc sysid="{sysid}" docid="{docid}" {tail}>\n'
 FMT_DOC_MULTIREF = '<doc sysid="REF{sysid}" docid="{docid}" {tail}>\n'
 FMT_SEG = '<seg id="{segid}">{text}</seg>\n'
+FMT_END = '</{settype}set>\n'
 
 Segment = collections.namedtuple('Segment',
-    ['sysid', 'docid', 'segid', 'text'])
+    ['sysid', 'docid', 'segid', 'text', 'tail'])
 
 Bleu = collections.namedtuple('Bleu',
     ['sysid', 'docid', 'segid', 'bleu'])
 
-def read_sgm(lines):
+def read_sgm(lines, meta=None):
     docid = None
     sysid = None
+    tail = None
     for line in lines:
         line = line.strip()
+        if meta is not None:
+            m = RE_SET.match(line)
+            if m:
+                settype, setid, tail = m.groups()
+                meta[settype] = settype
+                meta[setid] = setid
+                meta[tail] = tail
+                continue
         m = RE_DOC.match(line)
         if m:
-            sysid, docid, _ = m.groups()
+            sysid, docid, tail = m.groups()
             continue
         m = RE_SEG.match(line)
         if m:
             segid, text = m.groups()
-            yield Segment(sysid, docid, segid, text)
+            yield Segment(sysid, docid, segid, text, tail)
 
 def read_bleu(lines):
     for line in lines:
@@ -60,9 +71,9 @@ class MergeXmlRefs(Rule):
             line = line.strip()
             m = RE_SET.match(line)
             if m:
-                _, tail = m.groups()
+                _, _, tail = m.groups()
                 outfobj.write(FMT_SET.format(
-                    setid=self.setid, tail=tail))
+                    settype='ref', setid=self.setid, tail=tail))
                 continue
             m = RE_DOC.match(line)
             if m:
@@ -113,3 +124,58 @@ class MergeXmlRefs(Rule):
                              self.outputs[0](conf, cli_args),
                              total=None)
             self.merge_sgm(lines, outfobj, alt_refs)
+
+
+class WrapInXml(MonoPipeComponent):
+    def __init__(self, inp_raw, out,
+                 template_xml=None, settype=None, setid=None, sysid=None,
+                 srclang='any', trglang=None):
+        side_inputs = [template_xml] if template_xml else []
+        self.settype = settype
+        self.setid = setid
+        self.sysid = sysid
+        self.srclang = srclang
+        self.trglang = trglang
+
+    def pre_make(self, side_fobjs):
+        if self.template_xml:
+            fobj = side_fobjs[self.template_xml]
+            meta = {}
+            self.template = read_sgm(lines, meta)
+            if self.settype is None:
+                self.settype = meta['settype']
+            if self.setid is None:
+                self.setid = meta['setid']
+        else:
+            self.template = self._running_numbers()
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        yield FMT_SET.format(
+            settype=self.settype, setid=self.setid,
+            tail='srclang="{src}" trglang="{trg}"'.format(
+                src=self.srclang,
+                trg=self.trglang)).rstrip()
+        current_doc = None
+        for line, tmpl in zip(stream, self.template):
+            if tmpl.docid != current_doc:
+                if current_doc is not None:
+                    yield '</p>'
+                    yield '</doc>'
+                yield FMT_DOC.format(
+                    sysid=self.sysid,
+                    docid=current_doc,
+                    tail=tmpl.tail).rstrip()
+            yield FMT_SEG.format(
+                segid=tmpl.segid,
+                text=line).rstrip()
+        yield '</p>'
+        yield '</doc>'
+        yield FMT_END.format(settype=self.settype).rstrip()
+
+
+    def _running_numbers(self):
+        i = 1
+        while True:
+            yield Segment(self.sysid, 'dummy', i, 'dummy')
+            i += 1
