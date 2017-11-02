@@ -127,7 +127,7 @@ class MergeXmlRefs(Rule):
 
 
 class WrapInXml(MonoPipeComponent):
-    def __init__(self, inp_raw, out,
+    def __init__(self,
                  template_xml=None, settype=None, setid=None, sysid=None,
                  srclang='any', trglang=None):
         side_inputs = [template_xml] if template_xml else []
