@@ -6,7 +6,7 @@ from .components.core import MonoPipeComponent
 from .core.recipe import Rule
 from .core.utils import progress
 
-RE_SET = re.compile(r'<([a-z]*)set setid="([^"]*)" ([^>]*)>', flags=re.IGNORECASE)
+RE_SET = re.compile(r'<([a-z]*)set .*setid="([^"]*)" ?([^>]*)>', flags=re.IGNORECASE)
 RE_DOC = re.compile(r'<doc sysid="([^"]*)" docid="([^"]*)" ([^>]*)>', flags=re.IGNORECASE)
 RE_DOCEND = re.compile(r'</doc>', flags=re.IGNORECASE)
 RE_SEG = re.compile(r'<seg id="([^"]*)">(.*)</seg>', flags=re.IGNORECASE)
@@ -36,9 +36,10 @@ def read_sgm(lines, meta=None):
             m = RE_SET.match(line)
             if m:
                 settype, setid, tail = m.groups()
-                meta[settype] = settype
-                meta[setid] = setid
-                meta[tail] = tail
+                meta['settype'] = settype
+                meta['setid'] = setid
+                meta['tail'] = tail
+                print('set setid', meta['setid'])
                 continue
         m = RE_DOC.match(line)
         if m:
@@ -130,22 +131,26 @@ class WrapInXml(MonoPipeComponent):
     def __init__(self,
                  template_xml=None, settype=None, setid=None, sysid=None,
                  srclang='any', trglang=None):
-        side_inputs = [template_xml] if template_xml else []
+        side_inputs = [template_xml] if template_xml is not None else []
+        self.template_xml = template_xml
         self.settype = settype
         self.setid = setid
         self.sysid = sysid
         self.srclang = srclang
         self.trglang = trglang
+        super().__init__(side_inputs=side_inputs)
 
     def pre_make(self, side_fobjs):
         if self.template_xml:
             fobj = side_fobjs[self.template_xml]
             meta = {}
-            self.template = read_sgm(lines, meta)
+            self.template = read_sgm(fobj, meta)
             if self.settype is None:
-                self.settype = meta['settype']
+                self.settype = meta.get('settype', None)
+                assert self.settype is not None, 'must set settype'
             if self.setid is None:
-                self.setid = meta['setid']
+                self.setid = meta.get('setid', None)
+                assert self.setid is not None, 'must set setid'
         else:
             self.template = self._running_numbers()
 

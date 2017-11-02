@@ -159,7 +159,6 @@ class Translate(Rule):
 class Evaluate(Rule):
     def __init__(self,
                  inp_sgm,   # sgm source input
-                 ref_sgm,   # sgm ref (possibly multiref)
                  hyp_sgm,   # hyp sgm conversion output
                  ref_sgm,   # sgm ref (possibly multiref)
                  out_chrF1,
@@ -178,14 +177,14 @@ class Evaluate(Rule):
         self.trg_lang = trg_lang
         self.sys_name = sys_name
 
-        inputs = [hyp, ref_sgm, inp_sgm, hyp_sgm]
+        inputs = [inp_sgm, hyp_sgm, ref_sgm]
         outputs = [out_chrF1, out_chrF2, out_bleu]
         super().__init__(inputs, outputs, **kwargs)
 
     def make(self, conf, cli_args):
-        ref_sgm = self.ref_sgm(conf, cli_args)
         inp_sgm = self.inp_sgm(conf, cli_args)
         hyp_sgm = self.hyp_sgm(conf, cli_args)
+        ref_sgm = self.ref_sgm(conf, cli_args)
 
         # wrap plain hyp in sgm
         #run('wrap-xml.perl'
