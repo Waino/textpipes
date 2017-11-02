@@ -158,20 +158,19 @@ class Translate(Rule):
 
 class Evaluate(Rule):
     def __init__(self,
-                 hyp,       # plain hyp
                  inp_sgm,   # sgm source input
                  ref_sgm,   # sgm ref (possibly multiref)
                  hyp_sgm,   # hyp sgm conversion output
+                 ref_sgm,   # sgm ref (possibly multiref)
                  out_chrF1,
                  out_chrF2,
                  out_bleu,
                  trg_lang,
                  sys_name,
                  **kwargs):
-        self.hyp = hyp
-        self.ref_sgm = ref_sgm
         self.inp_sgm = inp_sgm
         self.hyp_sgm = hyp_sgm
+        self.ref_sgm = ref_sgm
         self.out_chrF1 = out_chrF1
         self.out_chrF2 = out_chrF2
         self.out_bleu = out_bleu
@@ -179,26 +178,25 @@ class Evaluate(Rule):
         self.trg_lang = trg_lang
         self.sys_name = sys_name
 
-        inputs = [hyp, ref_sgm, inp_sgm]
-        outputs = [hyp_sgm, out_chrF1, out_chrF2, out_bleu]
+        inputs = [hyp, ref_sgm, inp_sgm, hyp_sgm]
+        outputs = [out_chrF1, out_chrF2, out_bleu]
         super().__init__(inputs, outputs, **kwargs)
 
     def make(self, conf, cli_args):
-        hyp = self.hyp(conf, cli_args)
         ref_sgm = self.ref_sgm(conf, cli_args)
         inp_sgm = self.inp_sgm(conf, cli_args)
         hyp_sgm = self.hyp_sgm(conf, cli_args)
 
         # wrap plain hyp in sgm
-        run('wrap-xml.perl'
-            ' {trg_lang} {inp_sgm} {system}'
-            ' < {hyp}'
-            ' > {hyp_sgm}'.format(
-                trg_lang=self.trg_lang,
-                inp_sgm=inp_sgm,
-                system=self.sys_name,
-                hyp=hyp,
-                hyp_sgm=hyp_sgm))
+        #run('wrap-xml.perl'
+        #    ' {trg_lang} {inp_sgm} {system}'
+        #    ' < {hyp}'
+        #    ' > {hyp_sgm}'.format(
+        #        trg_lang=self.trg_lang,
+        #        inp_sgm=inp_sgm,
+        #        system=self.sys_name,
+        #        hyp=hyp,
+        #        hyp_sgm=hyp_sgm)
         # evaluate
         if self.out_chrF1 is not None:
             out = self.out_chrF1(conf, cli_args)
