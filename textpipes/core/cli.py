@@ -422,9 +422,16 @@ class ExperimentLog(object):
             if status == 'finished':
                 self.consolidate_finished(job_id)
                 self.job_statuses[job_id] = 'finished'
-            elif status == 'failed' or status == 'unknown':
+            elif status == 'failed':
                 self.failed(job_id)
                 self.job_statuses[job_id] = 'failed'
+            elif status == 'unknown':
+                expected = self.job_statuses.get(job_id, None)
+                if expected != 'finished':
+                    # expecting waiting or running but not in list
+                    self.failed(job_id)
+                    self.job_statuses[job_id] = 'failed'
+                # else: finished, but too long ago to show up in history
 
     def scheduled(self, rule, sec_key, job_id, output_files):
         # main sec_key is the one used as --make argument

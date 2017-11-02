@@ -198,7 +198,7 @@ class Evaluate(Rule):
                 inp_sgm=inp_sgm,
                 system=self.sys_name,
                 hyp=hyp,
-                hyp_sgm=hyp_sgm)
+                hyp_sgm=hyp_sgm))
         # evaluate
         if self.out_chrF1 is not None:
             out = self.out_chrF1(conf, cli_args)
