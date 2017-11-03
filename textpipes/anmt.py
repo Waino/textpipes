@@ -166,6 +166,7 @@ class Evaluate(Rule):
                  out_bleu,
                  trg_lang,
                  sys_name,
+                 resource_class='make_immediately',
                  **kwargs):
         self.inp_sgm = inp_sgm
         self.hyp_sgm = hyp_sgm
@@ -179,7 +180,8 @@ class Evaluate(Rule):
 
         inputs = [inp_sgm, hyp_sgm, ref_sgm]
         outputs = [out_chrF1, out_chrF2, out_bleu]
-        super().__init__(inputs, outputs, **kwargs)
+        super().__init__(inputs, outputs,
+                         resource_class=resource_class, **kwargs)
 
     def make(self, conf, cli_args):
         inp_sgm = self.inp_sgm(conf, cli_args)
