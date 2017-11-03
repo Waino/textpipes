@@ -117,23 +117,39 @@ class FilterByLength(Filter):
         return False
 
 
-#class FilterByLengthRatio(Filter):
-#    def __init__(self, min_ratio, max_ratio=None):
-#        self.min_ratio = min_ratio
-#        self.max_ratio = max_ratio if max_ratio is not None \
-#            else 1. / min_ratio
-#
-#    def __call__(self, tpl):
-#        try:
-#            left, right = tpl
-#        except ValueError:
-#            raise Exception('FilterByLengthRatio got {} columns, '
-#                'expecting 2'.format(len(tpl)))
-#        try:
-#            ratio = len(left.split()) / len(right.split())
-#        except ZeroDivisionError:
-#            return True     # ratio is infinite
-#        return ratio < self.min_ratio or ratio > self.max_ratio
+# a Component, not a Filter! needs to compare the streams.
+class FilterByLengthRatio(ParallelPipeComponent):
+    def __init__(self, min_ratio, max_ratio=None, treshold=8, logfile=None):
+        super().__init__(side_outputs=[logfile])
+        self.logfile = logfile
+        self.min_ratio = min_ratio
+        self.max_ratio = max_ratio if max_ratio is not None \
+            else 1. / min_ratio
+        self.treshold = treshold
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        logfile = side_fobjs[self.logfile]
+        for tpl in stream:
+            left, right = tpl
+            llen = float(len(left.split()))
+            rlen = float(len(right.split()))
+            if llen < self.treshold and rlen < self.treshold:
+                # don't filter very short lines
+                yield tpl
+            if llen == 0 or rlen == 0:
+                # infinite ratio
+                continue
+            ratio = llen / rlen
+            if ratio < self.min_ratio or ratio > self.max_ratio:
+                # too extreme ratio, filter out this line
+                if logfile is not None:
+                    logfile.write('{} ||| {} ||| {}\n'.format(left, ratio, right))
+                continue
+            # implicit else
+            # keep this line
+            yield tpl
+
 
 class OnlyNames(Filter):
     """Only keep tokens that would be segmented by LetterizeNames"""
