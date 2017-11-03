@@ -30,6 +30,7 @@ def read_sgm(lines, meta=None):
     docid = None
     sysid = None
     tail = None
+    lines = list(lines)
     for line in lines:
         line = line.strip()
         if meta is not None:
@@ -39,7 +40,6 @@ def read_sgm(lines, meta=None):
                 meta['settype'] = settype
                 meta['setid'] = setid
                 meta['tail'] = tail
-                print('set setid', meta['setid'])
                 continue
         m = RE_DOC.match(line)
         if m:
@@ -144,7 +144,7 @@ class WrapInXml(MonoPipeComponent):
         if self.template_xml:
             fobj = side_fobjs[self.template_xml]
             meta = {}
-            self.template = read_sgm(fobj, meta)
+            self.template = list(read_sgm(fobj, meta))
             if self.settype is None:
                 self.settype = meta.get('settype', None)
                 assert self.settype is not None, 'must set settype'
@@ -154,6 +154,7 @@ class WrapInXml(MonoPipeComponent):
         else:
             self.template = self._running_numbers()
 
+    # assumes single <p> per doc
     def __call__(self, stream, side_fobjs=None,
                  config=None, cli_args=None):
         yield FMT_SET.format(
@@ -167,10 +168,12 @@ class WrapInXml(MonoPipeComponent):
                 if current_doc is not None:
                     yield '</p>'
                     yield '</doc>'
+                current_doc = tmpl.docid
                 yield FMT_DOC.format(
                     sysid=self.sysid,
                     docid=current_doc,
                     tail=tmpl.tail).rstrip()
+                yield '<p>'
             yield FMT_SEG.format(
                 segid=tmpl.segid,
                 text=line).rstrip()
