@@ -185,5 +185,5 @@ class WrapInXml(MonoPipeComponent):
     def _running_numbers(self):
         i = 1
         while True:
-            yield Segment(self.sysid, 'dummy', i, 'dummy')
+            yield Segment(self.sysid, 'dummy', i, 'dummy', '')
             i += 1

@@ -48,6 +48,10 @@ def get_parser(recipe):
                         'Default is to only schedule jobs that are ready to run.')
     parser.add_argument('--no-fork', default=False, action='store_true',
                         help='Do not use multiprocessing to speed up.')
+    parser.add_argument('--resource-classes', default=None, type=str,
+                        help='Only schedule jobs with one of these resource classes. '
+                        'Comma separated list of strings. '
+                        'Cannot be used with --recursive.')
 
     parser.add_argument('--make', default=None, type=str, metavar='OUTPUT',
                         help='Output to make, in section:key format. '
@@ -100,6 +104,10 @@ class CLI(object):
             outputs=self.args.output,
             cli_args=self.cli_args,
             recursive=self.args.recursive)
+        if self.args.resource_classes is not None:
+            assert not self.args.recursive
+            nextsteps = self._filter_by_resource(nextsteps,
+                                                 self.args.resource_classes.split(','))
         if not self.args.dryrun:
             self.schedule(nextsteps)
         self.show_next_steps(nextsteps,
@@ -264,6 +272,7 @@ class CLI(object):
             remaining = delayed
 
     def show_next_steps(self, nextsteps, dryrun=False, immediate=False):
+        # FIXME: don't filter out redundant scheduled?
         nextsteps = self._remove_redundant(nextsteps)
         albl = 'scheduled:'
         if dryrun:
@@ -307,6 +316,22 @@ class CLI(object):
                 except AttributeError:
                     # keep all non-loop
                     result[-1].append(step)
+        return NextSteps(*result)
+
+    def _filter_by_resource(self, nextsteps, classes):
+        result = []
+        for status in nextsteps:
+            result.append([])
+            for step in status:
+                if step.rule is None:
+                    # unknown and uninteresting resouce class
+                    result[-1].append(step)
+                    continue
+                if step.rule.resource_class in classes:
+                    # valid resource class
+                    result[-1].append(step)
+                    continue
+                # else remove
         return NextSteps(*result)
 
 # keep a log of jobs
