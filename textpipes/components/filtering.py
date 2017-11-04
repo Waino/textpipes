@@ -119,7 +119,10 @@ class FilterByLength(Filter):
 
 # a Component, not a Filter! needs to compare the streams.
 class FilterByLengthRatio(ParallelPipeComponent):
-    def __init__(self, min_ratio, max_ratio=None, treshold=8, logfile=None):
+    """A Component that filters parallel streams
+    by the ratio of their lenghts (in characters).
+    """
+    def __init__(self, min_ratio, max_ratio=None, treshold=10, logfile=None):
         super().__init__(side_outputs=[logfile])
         self.logfile = logfile
         self.min_ratio = min_ratio
@@ -132,8 +135,8 @@ class FilterByLengthRatio(ParallelPipeComponent):
         logfile = side_fobjs[self.logfile]
         for tpl in stream:
             left, right = tpl
-            llen = float(len(left.split()))
-            rlen = float(len(right.split()))
+            llen = float(len(left))
+            rlen = float(len(right))
             if llen < self.treshold and rlen < self.treshold:
                 # don't filter very short lines
                 yield tpl
@@ -144,7 +147,7 @@ class FilterByLengthRatio(ParallelPipeComponent):
             if ratio < self.min_ratio or ratio > self.max_ratio:
                 # too extreme ratio, filter out this line
                 if logfile is not None:
-                    logfile.write('{} ||| {} ||| {}\n'.format(left, ratio, right))
+                    logfile.write('{} ||| {} ||| {}\n'.format(ratio, left, right))
                 continue
             # implicit else
             # keep this line
