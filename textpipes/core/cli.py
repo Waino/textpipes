@@ -182,6 +182,8 @@ class CLI(object):
                 sorted(self.log.jobs.values(), key=keyfunc), keyfunc):
             if exp not in self.log.ongoing_experiments:
                 continue
+            # FIXME: passing current args to another experiments conf
+            exp_conf = Config(exp, self.args)
             print('=' * 80)
             print('Experiment: {}'.format(exp))
             tpls = []
@@ -195,7 +197,7 @@ class CLI(object):
                     continue
                 rule = self.recipe.get_rule(job.sec_key)
                 if status == 'running':
-                    monitoring = rule.monitor(self.platform, self.conf, self.cli_args)
+                    monitoring = rule.monitor(self.platform, exp_conf, None)
                 else:
                     monitoring = '-'
                 # FIXME: truncate too long?
