@@ -169,7 +169,7 @@ class CLI(object):
                 print('*** Unable to import optional dependency "{}"'.format(dep))
                 print('You will not be able to use {}'.format(msg))
         for (dep, msg) in OPT_BINS:
-            if run('which ' + dep).status_code != 0:
+            if run('which ' + dep, allow_fail=True).status_code != 0:
                 print('*** Optional binary "{}" not on PATH'.format(dep))
                 print('You will not be able to use {}'.format(msg))
 
