@@ -99,8 +99,6 @@ class Recipe(object):
             else:
                 raise Exception('Cannot parse section:key "{}"'.format(output))
         if check and rf not in self.files:
-            print(rf)
-            print(self.files.keys())
             raise Exception('No rule to make target {}'.format(output))
         return rf
 
