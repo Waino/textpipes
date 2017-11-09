@@ -195,14 +195,17 @@ class CLI(object):
                 # (no longer the designated job for any files)
                 if status == 'failed' and len(files_by_job_id[job.job_id]) == 0:
                     continue
-                rule = self.recipe.get_rule(job.sec_key)
-                if status == 'running':
-                    monitoring = rule.monitor(self.platform, exp_conf, None)
-                else:
-                    monitoring = '-'
-                # FIXME: truncate too long?
-                tpls.append(
-                    (status, job.job_id, job.sec_key, rule.name, monitoring))
+                try:
+                    rule = self.recipe.get_rule(job.sec_key)
+                    if status == 'running':
+                        monitoring = rule.monitor(self.platform, exp_conf, None)
+                    else:
+                        monitoring = '-'
+                    # FIXME: truncate too long?
+                    tpls.append(
+                        (status, job.job_id, job.sec_key, rule.name, monitoring))
+                except Exception:
+                    print('Rule for "{}" is obsolete'.format(job.sec_key))
             table_print(tpls, line_before='-')
             # FIXME: if nothing is scheduled or running, check if more is available?
 
@@ -275,7 +278,7 @@ class CLI(object):
 
     def show_next_steps(self, nextsteps, dryrun=False, immediate=False):
         # FIXME: don't filter out redundant scheduled?
-        nextsteps = self._remove_redundant(nextsteps)
+        nextsteps = self._remove_redundant(nextsteps, dryrun=dryrun)
         albl = 'scheduled:'
         if dryrun:
             albl = 'available:'
@@ -301,17 +304,17 @@ class CLI(object):
                 lbl, step.job_id, step.sec_key, step.rule.name, outfile))
         table_print(tpls, line_before='-')
 
-    def _remove_redundant(self, nextsteps):
-        seen = set()
+    def _remove_redundant(self, nextsteps, dryrun=False):
         result = []
         for status in nextsteps:
+            seen = set()    # filter each status separately
             result.append([])
             for step in status:
                 try:
                     out = step.outputs[0]
                     idx = out.loop_index
                     key = (out.section, out.key, step.status)
-                    if key not in seen:
+                    if key not in seen or (not dryrun and step.status == 'available'):
                         # keep one from each loop
                         result[-1].append(step)
                     seen.add(key)
