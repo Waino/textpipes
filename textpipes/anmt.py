@@ -105,6 +105,7 @@ class Train(Rule):
         return highest(conf, cli_args)
 
 
+# FIXME: --output-aux
 class Translate(Rule):
     def __init__(self,
                  model,

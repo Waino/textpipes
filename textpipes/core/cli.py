@@ -205,7 +205,8 @@ class CLI(object):
                     tpls.append(
                         (status, job.job_id, job.sec_key, rule.name, monitoring))
                 except Exception:
-                    print('Rule for "{}" is obsolete'.format(job.sec_key))
+                    #print('Rule for "{}" is obsolete'.format(job.sec_key))
+                    pass
             table_print(tpls, line_before='-')
             # FIXME: if nothing is scheduled or running, check if more is available?
 

@@ -65,6 +65,7 @@ SLURM_STATUS_MAP = {
     'PENDING': 'scheduled',
     'COMP': 'finished',
     'FAIL': 'failed',
+    'TIME': 'failed',
     'CANC': 'failed',}
 RE_SLURM_SUBMITTED_ID = re.compile(r'Submitted batch job (\d*)')
 
@@ -89,7 +90,7 @@ class Slurm(Platform):
             name=job_name, cmd=cmd, rc_args=rc_args, dep_args=dep_args)
         r = run(sbatch)
         try:
-            job_id = int(RE_SLURM_SUBMITTED_ID.match(r.std_out).group(1))
+            job_id = str(int(RE_SLURM_SUBMITTED_ID.match(r.std_out).group(1)))
         except Exception:
             raise Exception('Unexpected output from slurm: ' + r.describe())
         return job_id
@@ -153,7 +154,7 @@ class LogOnly(Slurm):
             name=job_name, cmd=cmd, rc_args=rc_args, dep_args=dep_args))
         # dummy incremental job_id
         self.job_id += 1 
-        return self.job_id
+        return str(self.job_id)
 
     def check_job(self, job_id):
         if self._job_status is None:

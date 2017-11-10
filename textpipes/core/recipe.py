@@ -17,7 +17,7 @@ class JobStatus(object):
         # only unsatisfied inputs
         self.inputs = inputs if inputs is not None else tuple()
         self.rule = rule
-        self.job_id = job_id
+        self.job_id = str(job_id)
 
     @property
     def sec_key(self):
