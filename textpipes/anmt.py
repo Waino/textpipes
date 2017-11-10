@@ -105,7 +105,6 @@ class Train(Rule):
         return highest(conf, cli_args)
 
 
-# FIXME: --output-aux
 class Translate(Rule):
     def __init__(self,
                  model,
@@ -116,6 +115,7 @@ class Translate(Rule):
                  beta=0.4,
                  gamma=0.0,
                  len_smooth=5.0,
+                 argstr='',
                  **kwargs):
         self.model = model
         self.translation_inputs = inputs
@@ -127,6 +127,7 @@ class Translate(Rule):
         self.beta = beta
         self.gamma = gamma
         self.len_smooth = len_smooth
+        self.argstr = argstr
 
         all_inputs = [model] + inputs
         super().__init__(all_inputs, outputs, **kwargs)
@@ -146,7 +147,8 @@ class Translate(Rule):
             ' --alpha {alpha}'
             ' --beta {beta}'
             ' --gamma {gamma}'
-            ' --len-smooth {len_smooth}'.format(
+            ' --len-smooth {len_smooth}'
+            ' {argstr}'.format(
                 model=model,
                 inp=inputs,
                 out=outputs,
@@ -155,7 +157,8 @@ class Translate(Rule):
                 alpha=self.alpha,
                 beta=self.beta,
                 gamma=self.gamma,
-                len_smooth=self.len_smooth))
+                len_smooth=self.len_smooth,
+                argstr=self.argstr))
 
 class Evaluate(Rule):
     def __init__(self,

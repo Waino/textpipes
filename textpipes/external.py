@@ -37,13 +37,12 @@ class Concatenate(Rule):
         else:
             raise Exception('trying to concatenate gzipped and plain files')
         zipcmd, outfile = maybe_gz_out(self.outputs[0](conf, cli_args))
-        subprocess.check_call(
-            ['{catcmd} {infiles} | {zipcmd} > {outfile}'.format(
+        run('{catcmd} {infiles} | {zipcmd} > {outfile}'.format(
                 catcmd=catcmd,
                 infiles=' '.join(infiles),
                 zipcmd=zipcmd,
                 outfile=outfile)
-            ], shell=True)
+            )
 
 
 class LearnBPE(Rule):
