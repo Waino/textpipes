@@ -267,3 +267,41 @@ class SegmentColumn(MonoPipeComponent):
                 if self.bies:
                     cols[-1] = bies_tag
                 yield self.col_sep.join(cols)
+
+# apply a segmentation, interleave tags and flatten
+class Interleave(MonoPipeComponent):
+    def __init__(self, map_file, col_i, col_sep='\t',
+                 bnd_marker='@@', aux_marker='%%', keep=(2,3,0), **kwargs):
+        super().__init__(side_inputs=[map_file], **kwargs)
+        self.map_file = map_file
+        self.col_i = col_i
+        self.col_sep = col_sep
+        self.bnd_marker = bnd_marker
+        self.aux_marker = aux_marker
+        self.keep = keep
+        self.mapping = {}
+
+    def pre_make(self, side_fobjs):
+        for line in side_fobjs[self.map_file]:
+            tgt = line.split()
+            # bnd_marker not part of actual surface form
+            src = ''.join(tgt).replace(self.bnd_marker, '')
+            self.mapping[src] = tgt
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        result = []
+        for line in stream:
+            line = line.strip()
+            if len(line) == 0:
+                yield ' '.join(result)
+                result = []
+                continue
+            cols = line.split(self.col_sep)
+            val = cols[self.col_i]
+            val = self.mapping.get(val, [val])
+            for i in self.keep:
+                if i == self.col_i:
+                    result.extend(val)
+                else:
+                    result.append(self.aux_marker + cols[i])
