@@ -249,7 +249,7 @@ class CLI(object):
             outputs=[output], cli_args=self.cli_args)
         concat = next_steps.waiting + next_steps.available
         if len(concat) == 0:
-            concrete = output(self.conf, self.cli_args)
+            concrete = next_step.outputs[0](self.conf, self.cli_args)
             raise Exception('Cannot start running {} [{}]: {}'.format(
                 output, concrete, next_steps))
         next_step = concat[0]

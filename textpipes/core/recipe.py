@@ -56,8 +56,11 @@ class Recipe(object):
         self.conf = self.cli.conf
         self.log = self.cli.log
 
-    def add_input(self, section, key):
-        rf = RecipeFile(section, key)
+    def add_input(self, section, key, loop_index=None):
+        if loop_index is None:
+            rf = RecipeFile(section, key)
+        else:
+            rf = LoopRecipeFile(section, key, loop_index)
         if rf not in self.files:
             self.files[rf] = None
         return rf
@@ -223,6 +226,10 @@ class Recipe(object):
             return JobStatus('done', [rf])
 
         rule = self.files[rf]
+        for out_rf in rule.outputs:
+            filepath = out_rf(self.conf, cli_args)
+            subdir, _ = os.path.split(filepath)
+            os.makedirs(subdir, exist_ok=True)
         return rule.make(self.conf, cli_args)
 
     def add_main_outputs(self, outputs):
@@ -326,7 +333,11 @@ class RecipeFile(object):
         return os.path.exists(self(conf, cli_args))
 
     def open(self, conf, cli_args=None, mode='rb', strip_newlines=True):
-        lines = open_text_file(self(conf, cli_args), mode)
+        filepath = self(conf, cli_args)
+        if 'w' in mode:
+            subdir, _ = os.path.split(filepath)
+            os.makedirs(subdir, exist_ok=True)
+        lines = open_text_file(filepath, mode)
         if strip_newlines and not 'w' in mode:
             lines = (line.rstrip('\n') for line in lines)
         return lines
