@@ -263,11 +263,11 @@ class Rule(object):
         if isinstance(inputs, RecipeFile):
             self.inputs = (inputs,)
         else:
-            self.inputs = tuple(inputs)
+            self.inputs = tuple(inp for inp in inputs if inp is not None)
         if isinstance(outputs, RecipeFile):
             self.outputs = (outputs,)
         else:
-            self.outputs = tuple(outputs)
+            self.outputs = tuple(out for out in outputs if out is not None)
         self.resource_class = resource_class
 
     def make(self, conf, cli_args=None):
