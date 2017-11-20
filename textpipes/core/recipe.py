@@ -56,20 +56,20 @@ class Recipe(object):
         self.conf = self.cli.conf
         self.log = self.cli.log
 
-    def add_input(self, section, key, loop_index=None):
+    def add_input(self, section, key, loop_index=None, **kwargs):
         if loop_index is None:
-            rf = RecipeFile(section, key)
+            rf = RecipeFile(section, key, **kwargs)
         else:
-            rf = LoopRecipeFile(section, key, loop_index)
+            rf = LoopRecipeFile(section, key, loop_index, **kwargs)
         if rf not in self.files:
             self.files[rf] = None
         return rf
 
-    def add_output(self, section, key, loop_index=None, main=False):
+    def add_output(self, section, key, loop_index=None, main=False, **kwargs):
         if loop_index is None:
-            rf = RecipeFile(section, key)
+            rf = RecipeFile(section, key, **kwargs)
         else:
-            rf = LoopRecipeFile(section, key, loop_index)
+            rf = LoopRecipeFile(section, key, loop_index, **kwargs)
         if rf in self.files:
             raise Exception('There is already a rule for {}'.format(rf))
         if main:
@@ -153,8 +153,9 @@ class Recipe(object):
             # check log for waiting/running jobs
             status, job_fields = self.log.get_status_of_output(
                 cursor(self.conf, cli_args))
+            is_atomic = rule.is_atomic(cursor) if rule is not None else False
             if status == 'running':
-                if not (rule.is_atomic(cursor) and cursor.exists(self.conf, cli_args)):
+                if not (is_atomic and cursor.exists(self.conf, cli_args)):
                     # must wait for non-atomic files until job stops running
                     # also wait for an atomic file that doesn't yet exist
                     running.append(JobStatus('running', [cursor], job_id=job_fields.job_id))
@@ -162,7 +163,11 @@ class Recipe(object):
                     continue
             if cursor.exists(self.conf, cli_args):
                 known.add(cursor)
-                seen_done.add(cursor)
+                if cursor.not_done(self.conf, cli_args, is_atomic=is_atomic):
+                    logger.warning('"{}" exists, but is neither running nor done'.format(
+                        cursor(self.conf, cli_args)))
+                else:
+                    seen_done.add(cursor)
                 continue
             if status == 'scheduled':
                 waiting.append(JobStatus('waiting', [cursor], job_id=job_fields.job_id))
@@ -319,15 +324,34 @@ class RecipeFile(object):
     """A RecipeFile is a file template
     that points to a concrete file when given conf and cli_args
     """
-    def __init__(self, section, key):
+    def __init__(self, section, key, exact_linecount=None):
         self.section = section
         self.key = key
+        # set if exact expected linecount is known
+        self.exact_linecount = exact_linecount
 
     def __call__(self, conf, cli_args=None):
         path = conf.get_path(self.section, self.key)
         if cli_args is not None:
             path = path.format(**cli_args)
         return path
+
+    def not_done(self, conf, cli_args=None, is_atomic=False):
+        if not self.exists(conf, cli_args):
+            # if it doesn't exist, it can't be done
+            return True
+        if self.exact_linecount is not None:
+            lc = external_linecount(self(conf, cli_args))
+            if lc != self.exact_linecount:
+                # linecount doesn't match expected, so not done
+                if lc > self.exact_linecount:
+                    # shouldn't be longer than expected
+                    logger.warning(
+                        'File "{}" is {} lines, longer than expected {}'.format(
+                            self(conf, cli_args),
+                            lc, self.exact_linecount))
+                return True
+        return False
 
     def exists(self, conf, cli_args=None):
         return os.path.exists(self(conf, cli_args))
@@ -361,8 +385,8 @@ class RecipeFile(object):
 class LoopRecipeFile(RecipeFile):
     """ Use special formatting {_loop_index} to include the
     loop index in the file path template."""
-    def __init__(self, section, key, loop_index):
-        super().__init__(section, key)
+    def __init__(self, section, key, loop_index, **kwargs):
+        super().__init__(section, key, **kwargs)
         self.loop_index = int(loop_index)
 
     def __call__(self, conf, cli_args=None):
