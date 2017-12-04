@@ -41,6 +41,8 @@ def get_parser(recipe):
                         help='Perform validity check')
     parser.add_argument('--status', default=False, action='store_true',
                         help='Status of ongoing experiments')
+    parser.add_argument('--quiet', default=False, action='store_true',
+                        help='Less verbose output, by hiding some info')
     parser.add_argument('--dryrun', default=False, action='store_true',
                         help='Show what would be done, but dont do it')
     parser.add_argument('-r', '--recursive', default=False, action='store_true',
@@ -190,6 +192,9 @@ class CLI(object):
             for job in sorted(jobs, key=lambda x: (x.status, x.last_time)):
                 status = self.log.job_statuses[job.job_id]
                 if status not in ('scheduled', 'running', 'failed'):
+                    continue
+                if self.args.quiet and status == 'failed':
+                    # suppress failed jobs when quiet
                     continue
                 # suppress failed jobs if it has been relaunched
                 # (no longer the designated job for any files)

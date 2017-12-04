@@ -115,6 +115,7 @@ class Translate(Rule):
                  beta=0.4,
                  gamma=0.0,
                  len_smooth=5.0,
+                 margin=1.0,
                  argstr='',
                  **kwargs):
         self.model = model
@@ -127,6 +128,7 @@ class Translate(Rule):
         self.beta = beta
         self.gamma = gamma
         self.len_smooth = len_smooth
+        self.margin = margin
         self.argstr = argstr
 
         all_inputs = [model] + inputs
@@ -148,6 +150,7 @@ class Translate(Rule):
             ' --beta {beta}'
             ' --gamma {gamma}'
             ' --len-smooth {len_smooth}'
+            ' --beam-prune-multiplier {margin}'
             ' {argstr}'.format(
                 model=model,
                 inp=inputs,
@@ -158,6 +161,7 @@ class Translate(Rule):
                 beta=self.beta,
                 gamma=self.gamma,
                 len_smooth=self.len_smooth,
+                margin=self.margin,
                 argstr=self.argstr))
 
 class Evaluate(Rule):
