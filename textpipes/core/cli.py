@@ -27,6 +27,7 @@ OPT_BINS = (
     ('ftb-label', 'Finnpos'),
     ('word2vec', 'Word2VecCluster'),
     ('anmt', 'anmt'),
+    ('morfessor-segment', 'ApplyMorfessor'),
     )
 
 def get_parser(recipe):

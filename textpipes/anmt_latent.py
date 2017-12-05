@@ -180,3 +180,79 @@ class Translate(Rule):
                 gamma=self.gamma,
                 len_smooth=self.len_smooth,
                 argstr=self.argstr))
+
+class TranslateTwoStep(Rule):
+    def __init__(self,
+                 model,
+                 inputs, 
+                 outputs,
+                 latent_inputs=None,
+                 step='draft',
+                 nbest=0,
+                 beam=8,
+                 alpha=0.01,
+                 beta=0.4,
+                 gamma=0.0,
+                 len_smooth=5.0,
+                 argstr='',
+                 **kwargs):
+        assert step in ('draft', 'final')
+        self.step = step
+        self.model = model
+        self.translation_inputs = inputs
+        self.translation_outputs = outputs
+        self.latent_inputs = latent_inputs
+        assert(len(inputs) == len(outputs))
+        if self.step == 'draft':
+            assert latent_inputs is None
+        else:
+            assert(len(inputs) == len(latent_inputs))
+        self.nbest = nbest
+        self.beam = beam
+        self.alpha = alpha
+        self.beta = beta
+        self.gamma = gamma
+        self.len_smooth = len_smooth
+        self.argstr = argstr
+
+        all_inputs = [model] + inputs + latent_inputs
+        all_outputs = outputs
+        super().__init__(all_inputs, all_outputs, **kwargs)
+
+    def make(self, conf, cli_args):
+        model = self.model(conf, cli_args)
+        inputs = ','.join(inp(conf, cli_args)
+                          for inp in self.translation_inputs)
+        outputs = ','.join(out(conf, cli_args)
+                          for out in self.translation_outputs)
+        if self.step == 'draft':
+            lat_str = ' --translate-aux {}'.format(
+                ','.join(out(conf, cli_args)
+                for out in self.latent_outputs))
+        else:
+            lat_str = ''
+        run('anmt_latent'
+            ' --step {step}'
+            ' --load-model {model}'
+            ' --translate {inp}{latent}'
+            ' --output {out}'
+            ' --nbest-list {nbest}'
+            ' --beam-size {beam}'
+            ' --alpha {alpha}'
+            ' --beta {beta}'
+            ' --gamma {gamma}'
+            ' --len-smooth {len_smooth}'
+            ' {argstr}'.format(
+                step=self.step,
+                model=model,
+                inp=inputs,
+                latent=lat_str,
+                out=outputs,
+                latent=latent,
+                nbest=self.nbest,
+                beam=self.beam,
+                alpha=self.alpha,
+                beta=self.beta,
+                gamma=self.gamma,
+                len_smooth=self.len_smooth,
+                argstr=self.argstr))

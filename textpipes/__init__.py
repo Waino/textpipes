@@ -21,7 +21,7 @@ def get_version():
 
 from .core import *
 from . import components, check
-from . import finnpos, anmt, wmt_sgm, dummy
+from . import finnpos, anmt, wmt_sgm, morfessor, dummy
 from . import anmt_latent
 
 # Most common rules for easy access
