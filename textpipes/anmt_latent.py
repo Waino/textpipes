@@ -215,7 +215,9 @@ class TranslateTwoStep(Rule):
         self.len_smooth = len_smooth
         self.argstr = argstr
 
-        all_inputs = [model] + inputs + latent_inputs
+        all_inputs = [model] + inputs
+        if latent_inputs is not None:
+            all_inputs.extend(latent_inputs)
         all_outputs = outputs
         super().__init__(all_inputs, all_outputs, **kwargs)
 
@@ -226,7 +228,9 @@ class TranslateTwoStep(Rule):
         outputs = ','.join(out(conf, cli_args)
                           for out in self.translation_outputs)
         if self.step == 'draft':
-            lat_str = ' --translate-aux {}'.format(
+            lat_str = '--output-aux'
+        else:
+            lat_str = '--translate-aux {}'.format(
                 ','.join(out(conf, cli_args)
                 for out in self.latent_outputs))
         else:
@@ -234,7 +238,8 @@ class TranslateTwoStep(Rule):
         run('anmt_latent'
             ' --step {step}'
             ' --load-model {model}'
-            ' --translate {inp}{latent}'
+            ' --translate {inp}'
+            ' {latent}'
             ' --output {out}'
             ' --nbest-list {nbest}'
             ' --beam-size {beam}'
