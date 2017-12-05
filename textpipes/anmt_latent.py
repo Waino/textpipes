@@ -233,8 +233,6 @@ class TranslateTwoStep(Rule):
             lat_str = '--translate-aux {}'.format(
                 ','.join(out(conf, cli_args)
                 for out in self.latent_outputs))
-        else:
-            lat_str = ''
         run('anmt_latent'
             ' --step {step}'
             ' --load-model {model}'
