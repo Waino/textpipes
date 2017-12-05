@@ -248,7 +248,6 @@ class TranslateTwoStep(Rule):
                 inp=inputs,
                 latent=lat_str,
                 out=outputs,
-                latent=latent,
                 nbest=self.nbest,
                 beam=self.beam,
                 alpha=self.alpha,
