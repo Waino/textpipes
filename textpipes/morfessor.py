@@ -17,7 +17,7 @@ class ApplyMorfessor(Rule):
         model = self.inputs[1](conf, cli_args)
         outfile = self.outputs[0](conf, cli_args)
         run('{prog} {infile} --load-segmentation {model} --output {outfile}'
-            ' --construction-separator "{sep}" --output-format {fmt} --output-newlines'.format(
+            ' --output-format-separator "{sep}" --output-format {fmt} --output-newlines'.format(
                 prog='morfessor-segment',
                 infile=infile,
                 model=model,

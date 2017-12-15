@@ -305,3 +305,26 @@ class Interleave(MonoPipeComponent):
                     result.extend(val)
                 else:
                     result.append(self.aux_marker + cols[i])
+
+
+class OnlyFirstSubword(MonoPipeComponent):
+    def __init__(self, col_i, col_sep='\t', bnd_marker='@@', **kwargs):
+        super().__init__(**kwargs)
+        self.col_i = col_i
+        self.col_sep = col_sep
+        self.bnd_marker = bnd_marker
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        suppress = False
+        for line in stream:
+            line = line.strip()
+            if len(line) == 0:
+                yield line
+                suppress = False
+                continue
+            if not suppress:
+                yield line
+            cols = line.split(self.col_sep)
+            val = cols[self.col_i]
+            suppress = self.bnd_marker in val
