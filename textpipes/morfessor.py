@@ -7,10 +7,12 @@ from .core.platform import run
 class ApplyMorfessor(Rule):
     def __init__(self, *args,
                  sep='@@ ', fmt='{analysis}',
+                 no_space_ok=False,
                  **kwargs):
         super().__init__(*args, **kwargs)
         self.sep = sep
         self.fmt = fmt
+        assert no_space_ok or ' ' in self.sep
 
     def make(self, conf, cli_args):
         infile = self.inputs[0](conf, cli_args)
