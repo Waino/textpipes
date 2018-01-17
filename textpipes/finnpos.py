@@ -96,11 +96,13 @@ class FilterTags(SingleCellComponent):
                  tags_col=3, sep='\t',
                  keep=('POS', 'NUM', 'CASE', 'PERS', 'MOOD', 'TENSE',),
                  #'PROPER',
+                 mangle_fun=None,
                  **kwargs):
         super().__init__(**kwargs)
         self.tags_col = tags_col
         self.sep = sep
         self.keep = keep
+        self.mangle_fun = mangle_fun
 
         self.re_tag = re.compile(r'\[([A-Z]*)=.*')
 
@@ -117,6 +119,8 @@ class FilterTags(SingleCellComponent):
     def _modify(self, tags):
         tags = tags.split('|')
         tags = {self._tag_cat(x): x for x in tags}
+        if self.mangle_fun is not None:
+            tags = self.mangle_fun(tags)
         result = [tags[key] for key in self.keep if key in tags]
         return '|'.join(result)
 

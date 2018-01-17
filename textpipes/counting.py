@@ -1,8 +1,9 @@
 import collections
 import logging
+import math
 
 from .core.recipe import Rule
-from .components.core import SingleCellComponent, DeadEndPipe
+from .components.core import SingleCellComponent, DeadEndPipe, MonoPipe
 from .components.filtering import Filter
 
 logger = logging.getLogger('textpipes')
@@ -38,6 +39,22 @@ class CountTokens(DeadEndPipe):
     def __init__(self, inp, output, words_only=None, **kwargs):
         component = CountTokensComponent(output, words_only=words_only)
         super().__init__([component], [inp], **kwargs)
+
+
+class ScaleCountsComponent(SingleCellComponent):
+    def __init__(self, scale, **kwargs):
+        self.scale = scale
+
+    def single_cell(self, line):
+        count, wtype = line.strip().split()
+        count = math.ceil(float(count) * self.scale)
+        yield '{}\t{}\n'.format(count, wtype)
+
+
+class ScaleCounts(MonoPipe):
+    def __init__(self, inp, output, scale, **kwargs):
+        component = ScaleCountsComponent(scale)
+        super().__init__([component], [inp], [output], **kwargs)
 
 
 # concatenate countfiles before using this (has single input)
