@@ -119,9 +119,10 @@ class SplitLemmas(MonoPipeComponent):
                  config=None, cli_args=None):
         seen = set(self.seed_prefixes)
         for line in stream:
+            line = line.strip()
             if len(line) == 0:
                 continue
-            lemma = line
+            _, lemma = line.split()
 
             parts = self.split(lemma, seen)
             if parts is None:
