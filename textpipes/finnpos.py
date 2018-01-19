@@ -38,6 +38,8 @@ class ModifyLemmas(SingleCellComponent):
                  hyphen_compounds=True,
                  strip_numbers=True,
                  strip_hyphens=True,
+                 strip_junk=True,
+                 collapse_repeats=True,
                  **kwargs):
         super().__init__(**kwargs)
         self.lemma_col = lemma_col
@@ -49,11 +51,15 @@ class ModifyLemmas(SingleCellComponent):
         self.hyphen_compounds = hyphen_compounds
         self.strip_numbers = strip_numbers
         self.strip_hyphens = strip_hyphens
+        self.strip_junk = strip_junk
+        self.collapse_repeats = collapse_repeats
 
         self.re_proper = re.compile(r'\[PROPER=PROPER\]')
         self.re_num = re.compile(r'[0-9]')
         self.re_punc = re.compile(r'^[,\.-]+$')
         self.re_numpunc = re.compile(r'^[0-9,\.-]+$')
+        self.re_repeats = re.compile(r'(.)\1\1*')
+        self.junk = ".,[]<>()@'#*-"
 
     def single_cell(self, line):
         if len(line) == 0:
@@ -88,6 +94,10 @@ class ModifyLemmas(SingleCellComponent):
         if self.hyphen_compounds:
             # internal hyphens: keep last part
             lemma = lemma.split('-')[-1]
+        if self.strip_junk:
+            lemma = lemma.strip(self.junk)
+        if self.collapse_repeats:
+            lemma = self.re_repeats.sub(r'\1\1', lemma)
         return lemma
 
 # remove unwanted tag categories

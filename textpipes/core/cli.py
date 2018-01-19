@@ -255,9 +255,9 @@ class CLI(object):
             outputs=[output], cli_args=self.cli_args)
         concat = next_steps.waiting + next_steps.available
         if len(concat) == 0:
-            concrete = next_step.outputs[0](self.conf, self.cli_args)
-            raise Exception('Cannot start running {} [{}]: {}'.format(
-                output, concrete, next_steps))
+            #concrete = next_step.outputs[0](self.conf, self.cli_args)
+            raise Exception('Cannot start running {}: {}'.format(
+                output, next_steps))
         next_step = concat[0]
         job_id = self.log.outputs[next_step.outputs[0](self.conf, self.cli_args)]
         self._make_helper(output, next_step, job_id)

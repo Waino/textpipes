@@ -43,12 +43,13 @@ class CountTokens(DeadEndPipe):
 
 class ScaleCountsComponent(SingleCellComponent):
     def __init__(self, scale, **kwargs):
+        super().__init__(mp=False, **kwargs)
         self.scale = scale
 
     def single_cell(self, line):
         count, wtype = line.strip().split()
         count = math.ceil(float(count) * self.scale)
-        yield '{}\t{}\n'.format(count, wtype)
+        return '{}\t{}'.format(count, wtype)
 
 
 class ScaleCounts(MonoPipe):
