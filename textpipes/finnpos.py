@@ -2,6 +2,7 @@ import itertools
 import subprocess
 import re
 
+from .core import utils
 from .core.recipe import Rule
 from .core.platform import run
 from .components.core import MonoPipeComponent, SingleCellComponent
@@ -148,7 +149,7 @@ class SplitLemmas(MonoPipeComponent):
             if pre not in seen:
                 # first part must be a single seen part
                 continue
-            suf = split(lemma[i:], seen)
+            suf = self.split(lemma[i:], seen)
             if suf is None:
                 continue
             return [pre] + suf
@@ -158,7 +159,7 @@ class SplitLemmas(MonoPipeComponent):
     def simplify(self, lemma):
         for suffix in self.strip_suffixes:
             if lemma.endswith(suffix):
-                return lemma[:-len(suffix)]
+                yield lemma[:-len(suffix)]
 
 # remove unwanted tag categories
 class FilterTags(SingleCellComponent):
