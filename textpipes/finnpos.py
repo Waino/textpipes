@@ -76,6 +76,8 @@ class ModifyLemmas(SingleCellComponent):
         return self.sep.join(cols)
 
     def _modify(self, lemma):
+        if lemma in (self.number_tag, self.proper_tag)
+            return lemma
         ## numbers and punctuation
         # pure punctuation unchanged
         if self.re_punc.match(lemma):
@@ -99,6 +101,58 @@ class ModifyLemmas(SingleCellComponent):
         if self.collapse_repeats:
             lemma = self.re_repeats.sub(r'\1\1', lemma)
         return lemma
+
+class SplitLemmas(MonoPipeComponent):
+    def __init__(self, min_len=5, seed_prefixes, strip_suffixes, lang, **kwargs):
+        super().__init__(**kwargs)
+        self.min_len = min_len
+        if seed_prefixes is not None:
+            self.seed_prefixes = utils.read_lang_file(seed_prefixes, lang)
+        else:
+            self.seed_prefixes = []
+        if strip_suffixes is not None:
+            self.strip_suffixes = utils.read_lang_file(strip_suffixes, lang)
+        else:
+            self.strip_suffixes = []
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        seen = set(self.seed_prefixes)
+        for line in stream:
+            if len(line) == 0:
+                continue
+            lemma = line
+
+            parts = self.split(lemma, seen)
+            if parts is None:
+                parts = [lemma]
+            for part in parts:
+                if len(part) >= self.min_len:
+                    seen.add(part)
+            yield '{}\t{}'.format(lemma, ' '.join(parts))
+
+    def split(self, lemma, seen):
+        if lemma in seen:
+            return [lemma]
+        for trunc in self.simplify(lemma):
+            if trunc in seen:
+                return [trunc]
+        for i in range(self.min_len, len(lemma) - self.min_len + 1):
+            pre = lemma[:i]
+            if pre not in seen:
+                # first part must be a single seen part
+                continue
+            suf = split(lemma[i:], seen)
+            if suf is None:
+                continue
+            return [pre] + suf
+        # no valid split found
+        return None
+
+    def simplify(self, lemma):
+        for suffix in self.strip_suffixes:
+            if lemma.endswith(suffix):
+                return lemma[:-len(suffix)]
 
 # remove unwanted tag categories
 class FilterTags(SingleCellComponent):
@@ -244,7 +298,7 @@ class ApplyClusteringToColumn(MapColumn):
 # apply a segmentation, copy tags to each component
 class SegmentColumn(MonoPipeComponent):
     def __init__(self, map_file, col_i, col_sep='\t',
-                 bnd_marker='@@', bies=True, **kwargs):
+                 bnd_marker='@@', bies=True, replace=None, **kwargs):
         super().__init__(side_inputs=[map_file], **kwargs)
         self.map_file = map_file
         self.col_i = col_i
@@ -252,6 +306,7 @@ class SegmentColumn(MonoPipeComponent):
         self.bnd_marker = bnd_marker
         self.bies = bies
         self.mapping = {}
+        self.replace = replace
 
     def pre_make(self, side_fobjs):
         for line in side_fobjs[self.map_file]:
@@ -277,10 +332,15 @@ class SegmentColumn(MonoPipeComponent):
             if self.bies:
                 cols.append('')
             for (subword, bies_tag) in zip(val, bies_tags):
-                cols[self.col_i] = subword
+                tmp = list(cols)
+                tmp[self.col_i] = subword
                 if self.bies:
-                    cols[-1] = bies_tag
-                yield self.col_sep.join(cols)
+                    tmp[-1] = bies_tag
+                if self.replace is not None and bies_tag not in 'ES':
+                    # don't replace last
+                    col, repl = self.replace
+                    tmp[col] = repl
+                yield self.col_sep.join(tmp)
 
 # apply a segmentation, interleave tags and flatten
 class Interleave(MonoPipeComponent):
