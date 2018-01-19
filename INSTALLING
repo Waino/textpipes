@@ -7,7 +7,7 @@ cd textpipes/
 source bin/activate
 
 # if using anaconda, point this to the conda env root instead
-TEXTPIPES_DIR=$(pwd)
+export TEXTPIPES_DIR=$(pwd)
 
 # FIXME: anmt currently still requires bnas
 git clone https://github.com/robertostling/bnas.git

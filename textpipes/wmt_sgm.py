@@ -2,7 +2,7 @@
 import collections
 import re
 
-from .components.core import MonoPipeComponent
+from .components.core import MonoPipeComponent, RegexSubstitution
 from .core.recipe import Rule
 from .core.utils import progress
 
@@ -187,3 +187,7 @@ class WrapInXml(MonoPipeComponent):
         while True:
             yield Segment(self.sysid, 'dummy', i, 'dummy', '')
             i += 1
+
+class ReplaceSetId(RegexSubstitution):
+    def __init__(self, setid, **kwargs):
+        super().__init__([(r'^(<.*setid=")[^"]*"', r'\1' + setid + '"')], **kwargs)

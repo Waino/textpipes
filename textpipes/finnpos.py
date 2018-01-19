@@ -103,7 +103,12 @@ class ModifyLemmas(SingleCellComponent):
         return lemma
 
 class SplitLemmas(MonoPipeComponent):
-    def __init__(self, seed_prefixes, strip_suffixes, lang, min_len=5, **kwargs):
+    def __init__(self,
+                 lang,
+                 min_len=5,
+                 seed_prefixes='finnpos_mislemma_prefix',
+                 strip_suffixes='finnpos_mislemma_suffix',
+                 **kwargs):
         super().__init__(**kwargs)
         self.min_len = min_len
         if seed_prefixes is not None:
@@ -119,9 +124,10 @@ class SplitLemmas(MonoPipeComponent):
                  config=None, cli_args=None):
         seen = set(self.seed_prefixes)
         for line in stream:
+            line = line.strip()
             if len(line) == 0:
                 continue
-            lemma = line
+            _, lemma = line.split()
 
             parts = self.split(lemma, seen)
             if parts is None:
