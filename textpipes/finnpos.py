@@ -76,7 +76,7 @@ class ModifyLemmas(SingleCellComponent):
         return self.sep.join(cols)
 
     def _modify(self, lemma):
-        if lemma in (self.number_tag, self.proper_tag)
+        if lemma in (self.number_tag, self.proper_tag):
             return lemma
         ## numbers and punctuation
         # pure punctuation unchanged
@@ -103,7 +103,7 @@ class ModifyLemmas(SingleCellComponent):
         return lemma
 
 class SplitLemmas(MonoPipeComponent):
-    def __init__(self, min_len=5, seed_prefixes, strip_suffixes, lang, **kwargs):
+    def __init__(self, seed_prefixes, strip_suffixes, lang, min_len=5, **kwargs):
         super().__init__(**kwargs)
         self.min_len = min_len
         if seed_prefixes is not None:
