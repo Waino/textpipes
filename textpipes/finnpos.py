@@ -125,46 +125,36 @@ class SplitLemmas(MonoPipeComponent):
     def __call__(self, stream, side_fobjs=None,
                  config=None, cli_args=None):
         seen = set(self.seed_prefixes)
-        print('seen at start', seen)
         for line in stream:
             line = line.strip()
             if len(line) == 0:
                 continue
             _, lemma = line.split()
-            print('************ new word', lemma)
 
             parts = self.split(lemma, seen)
-            print('parts', parts)
             if parts is None:
                 parts = [lemma]
             for part in parts:
                 if len(part) >= self.min_len:
-                    print('adding to seen:', part)
                     seen.add(part)
             yield '{}\t{}'.format(lemma, ' '.join(parts))
 
     def split(self, lemma, seen):
         if lemma in seen:
-            print('was seen', lemma)
             return [lemma]
         for trunc in self.simplify(lemma):
-            print('trunc', trunc)
             if trunc in seen:
-                print('trunc was seen', trunc)
                 return [trunc]
         for i in range(self.min_with_seed, len(lemma) - self.min_with_seed + 1):
-            print('split', lemma[:i], lemma[i:])
             pre = lemma[:i]
             if pre not in seen:
                 # first part must be a single seen part
                 continue
             suf = self.split(lemma[i:], seen)
-            print('suf', suf)
             if suf is None:
                 continue
             return [pre] + suf
         # no valid split found
-        print('no valid split for', lemma)
         return None
 
     def simplify(self, lemma):
