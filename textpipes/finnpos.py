@@ -60,7 +60,7 @@ class ModifyLemmas(SingleCellComponent):
         self.re_punc = re.compile(r'^[,\.-]+$')
         self.re_numpunc = re.compile(r'^[0-9,\.-]+$')
         self.re_repeats = re.compile(r'(.)\1\1*')
-        self.junk = ".,[]<>()@'#*-"
+        self.junk = ".,[]<>()@'#*/-"
 
     def single_cell(self, line):
         if len(line) == 0:
@@ -82,6 +82,9 @@ class ModifyLemmas(SingleCellComponent):
         ## numbers and punctuation
         # pure punctuation unchanged
         if self.re_punc.match(lemma):
+            # except for collapsing repeats
+            if self.collapse_repeats:
+                lemma = self.re_repeats.sub(r'\1\1', lemma)
             return lemma
         if self.number_tag and self.re_numpunc.match(lemma):
             # collapse if only numbers and punctuation
