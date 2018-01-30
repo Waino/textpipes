@@ -110,11 +110,13 @@ class SplitLemmas(MonoPipeComponent):
     def __init__(self,
                  lang,
                  min_len=5,
+                 min_count=2,
                  seed_prefixes='finnpos_mislemma_prefix',
                  strip_suffixes='finnpos_mislemma_suffix',
                  **kwargs):
         super().__init__(**kwargs)
         self.min_len = min_len
+        self.min_count = min_count
         if seed_prefixes is not None:
             self.seed_prefixes = utils.read_lang_file(seed_prefixes, lang)
         else:
@@ -132,13 +134,14 @@ class SplitLemmas(MonoPipeComponent):
             line = line.strip()
             if len(line) == 0:
                 continue
-            _, lemma = line.split()
+            count, lemma = line.split()
+            count = int(count)
 
             parts = self.split(lemma, seen)
             if parts is None:
                 parts = [lemma]
             for part in parts:
-                if len(part) >= self.min_len:
+                if len(part) >= self.min_len and count >= self.min_count:
                     seen.add(part)
             yield '{}\t{}'.format(lemma, ' '.join(parts))
 
