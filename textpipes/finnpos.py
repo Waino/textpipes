@@ -96,12 +96,18 @@ class ModifyLemmas(SingleCellComponent):
         ## hyphens and hyphen compounds
         if self.strip_hyphens:
             # strip leading and trailing hyphens
-            lemma = lemma.strip('-')
+            candidate = lemma.strip('-')
+            if len(candidate) > 0:
+                # unless nothing remains
+                lemma = candidate
         if self.hyphen_compounds:
             # internal hyphens: keep last part
             lemma = lemma.split('-')[-1]
         if self.strip_junk:
-            lemma = lemma.strip(self.junk)
+            candidate = lemma.strip(self.junk)
+            if len(candidate) > 0:
+                # unless nothing remains
+                lemma = candidate
         if self.collapse_repeats:
             lemma = self.re_repeats.sub(r'\1\1', lemma)
         return lemma
@@ -395,6 +401,28 @@ class Interleave(MonoPipeComponent):
                     result.append(self.aux_marker + cols[i])
 
 
+class InterleaveNoSeg(MonoPipeComponent):
+    def __init__(self, col_sep='\t',
+                 aux_marker='', keep=(2,3), **kwargs):
+        super().__init__(**kwargs)
+        self.col_sep = col_sep
+        self.aux_marker = aux_marker
+        self.keep = keep
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        result = []
+        for line in stream:
+            line = line.strip()
+            if len(line) == 0:
+                yield ' '.join(result)
+                result = []
+                continue
+            cols = line.split(self.col_sep)
+            for i in self.keep:
+                result.append(self.aux_marker + cols[i])
+
+
 class OnlyFirstSubword(MonoPipeComponent):
     def __init__(self, col_i, col_sep='\t', bnd_marker='@@', **kwargs):
         super().__init__(**kwargs)
@@ -416,3 +444,35 @@ class OnlyFirstSubword(MonoPipeComponent):
             cols = line.split(self.col_sep)
             val = cols[self.col_i]
             suppress = self.bnd_marker in val
+
+
+class OnlyFirstProperOrNum(MonoPipeComponent):
+    def __init__(self, col_i, col_sep='\t',
+                 lemmas=('<NUM>', '<PROPER>'),
+                 **kwargs):
+        super().__init__(**kwargs)
+        self.col_i = col_i
+        self.col_sep = col_sep
+        self.lemmas = lemmas
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        prev_match = False
+        match = False
+        for line in stream:
+            line = line.strip()
+            if len(line) == 0:
+                yield line
+                match = False
+                continue
+            cols = line.split(self.col_sep)
+            val = cols[self.col_i]
+            prev_match = match
+            if val in self.lemmas:
+                match = val
+            else:
+                match = False
+            if prev_match and match and prev_match == match:
+                # suppress later matches
+                continue
+            yield line

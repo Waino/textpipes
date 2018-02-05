@@ -269,4 +269,3 @@ class ApplySegmentation(MonoPipeComponent):
                 token = self.mapping.get(token, [token])
                 result.extend(token)
             yield ' '.join(result)
-

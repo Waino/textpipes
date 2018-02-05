@@ -120,6 +120,14 @@ class CLI(object):
             self.make_all(nextsteps)
 
     def check_validity(self):
+        # check that script is correctly named
+        try:
+            import __main__
+            if self.recipe.name + '.py' not in __main__.__file__:
+                raise Exception('Recipe name ({}) must match file name ({})'
+                    .format(self.recipe.name, __main__.__file__))
+        except AttributeError:
+            print('**** unable to check filename of recipe')
         # check validity of interpolations in conf
         for section in self.conf.conf.sections():
             for key in self.conf.conf[section]:
