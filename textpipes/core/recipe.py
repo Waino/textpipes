@@ -223,6 +223,39 @@ class Recipe(object):
         delayed = delayed if recursive else []
         return NextSteps(done, waiting, running, available, delayed)
 
+    def check_mtime_inversions(self, outputs=None, cli_args=None):
+        if not outputs:
+            outputs = self.main_outputs
+        else:
+            if isinstance(outputs, str):
+                outputs = [outputs]
+            outputs = [self._rf(out) for out in outputs]
+
+        border = set(outputs)
+        mtimes = {}
+        while len(border) > 0:
+            cursor = border.pop()
+            if cursor in mtimes:
+                continue
+            if not cursor.exists(self.conf, cli_args):
+                continue
+            mtime = os.path.getmtime(cursor(self.conf, cli_args))
+            mtimes[cursor] = mtime
+            rule = self.files[cursor]
+            if rule is None:
+                continue
+            border.update(rule.inputs)
+        inversions = []
+        for cursor in mtimes:
+            rule = self.files[cursor]
+            if rule is None:
+                continue
+            for inp in rule.inputs:
+                if mtimes.get(inp, 0) > mtimes[cursor]:
+                    inversions.append((cursor, inp))
+                    continue
+        return inversions
+
     def make_output(self, output, cli_args=None):
         rf = self._rf(output)
         if rf not in self.files:

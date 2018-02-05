@@ -42,6 +42,8 @@ def get_parser(recipe):
                         help='Perform validity check')
     parser.add_argument('--status', default=False, action='store_true',
                         help='Status of ongoing experiments')
+    parser.add_argument('--mtimes', default=False, action='store_true',
+                        help='Look for outputs that are older than their inputs')
     parser.add_argument('--quiet', default=False, action='store_true',
                         help='Less verbose output, by hiding some info')
     parser.add_argument('--dryrun', default=False, action='store_true',
@@ -97,6 +99,9 @@ class CLI(object):
             return  # don't do anything more
         if self.args.status:
             self.status()
+            return  # don't do anything more
+        if self.args.mtimes:
+            self.mtimes()
             return  # don't do anything more
         if self.args.make is not None:
             self.make(self.args.make)
@@ -223,6 +228,18 @@ class CLI(object):
                     pass
             table_print(tpls, line_before='-')
             # FIXME: if nothing is scheduled or running, check if more is available?
+
+    def mtimes(self):
+        inversions = self.recipe.check_mtime_inversions(
+            outputs=self.args.output,
+            cli_args=self.cli_args)
+        if len(inversions) == 0:
+            print('Everything in order')
+        else:
+            for cursor, inp in inversions:
+                print('{}    is newer than {}'.format(
+                    cursor(self.conf, self.cli_args),
+                    inp(self.conf, self.cli_args)))
 
     def schedule(self, nextsteps):
         # output -> job_id of job that builds it
