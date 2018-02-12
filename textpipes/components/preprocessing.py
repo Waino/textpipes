@@ -270,6 +270,7 @@ class NormalizeContractions(RegexSubstitution):
 
 
 # apply a segmentation
+# FIXME: there are two different apply components (the other in segmentation.py)
 class ApplySegmentation(MonoPipeComponent):
     def __init__(self, map_file, bnd_marker='@@', **kwargs):
         super().__init__(side_inputs=[map_file], **kwargs)
@@ -292,3 +293,9 @@ class ApplySegmentation(MonoPipeComponent):
                 token = self.mapping.get(token, [token])
                 result.extend(token)
             yield ' '.join(result)
+
+
+class SplitNumbers(RegexSubstitution):
+    """ split number-punctuation sequences """
+    def __init__(self, **kwargs):
+        super().__init__((r'(\d)([.,/-])(\d)', r'\1@@ \2@@ \3'), **kwargs)
