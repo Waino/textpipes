@@ -297,5 +297,6 @@ class ApplySegmentation(MonoPipeComponent):
 
 class SplitNumbers(RegexSubstitution):
     """ split number-punctuation sequences """
+    # FIXME: also split long numbers into shorter chunks?
     def __init__(self, **kwargs):
         super().__init__((r'(\d)([.,/-])(\d)', r'\1@@ \2@@ \3'), **kwargs)
