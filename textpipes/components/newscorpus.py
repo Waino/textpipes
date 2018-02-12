@@ -1,3 +1,4 @@
+from .core import RegexSubstitution
 from .filtering import FilterRegex
 
 class FilterIltasanomat(FilterRegex):
@@ -16,3 +17,9 @@ class FilterIltasanomat(FilterRegex):
             expressions = ('http://www\.iltasanomat\.fi/haku/',
                            'http://www\.iltasanomat\.fi/henkilo/',)
         super().__init__(expressions)
+
+
+class ForceTokenizeUrl(RegexSubstitution):
+    """ add space in front of urls, if missing """
+    def __init__(self, **kwargs):
+        super().__init__([(r'([^ ])(https?://)', r'\1 \2')], **kwargs)
