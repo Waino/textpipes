@@ -41,6 +41,17 @@ class CountTokens(DeadEndPipe):
         super().__init__([component], [inp], **kwargs)
 
 
+class CountCharsComponent(CountTokensComponent):
+    def single_cell(self, sentence):
+        for char in sentence:
+            self.counts[char] += 1
+
+class CountChars(DeadEndPipe):
+    def __init__(self, inp, output, **kwargs):
+        component = CountCharsComponent(output, words_only=None)
+        super().__init__([component], [inp], **kwargs)
+
+
 class ScaleCountsComponent(SingleCellComponent):
     def __init__(self, scale, **kwargs):
         super().__init__(mp=False, **kwargs)

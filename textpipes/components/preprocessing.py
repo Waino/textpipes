@@ -189,6 +189,29 @@ class MapChars(SingleCellComponent):
             return policy
 
 
+class StripRareChars(SingleCellComponent):
+    def __init__(self, char_counts, min_count=10):
+        super().__init__(side_inputs=[char_counts], **kwargs)
+        self.char_counts = char_counts
+        self.min_count = min_count
+        self.keep = set()
+
+    def pre_make(self, side_fobjs):
+        for line in side_fobjs[self.char_counts]:
+            count, char = line.strip().split()
+            count = int(count)
+            if count >= self.min_count:
+                self.keep.add(char)
+
+    def single_cell(self, line):
+        result = []
+        for char in line:
+            if char not in self.keep:
+                continue
+            result.append(char)
+        return ''.join(result)
+
+
 class LetterizeNames(SingleCellComponent):
     """Segment tokens starting with capital or digit into chars"""
     def single_cell(self, line):
