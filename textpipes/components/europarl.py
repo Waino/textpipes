@@ -1,6 +1,6 @@
 from ..core.utils import read_lang_file
 from .core import RegexSubstitution
-from .filtering import FilterRegex, ParallelFilter, NoFilter
+from .filtering import Filter, FilterRegex, ParallelFilter, NoFilter
 
 
 class RemoveLanguageTags(RegexSubstitution):
@@ -33,3 +33,13 @@ class FilterUntranslatedContractions(ParallelFilter):
         # No filter on source side. Only apply to target side.
         filters = [NoFilter(), FilterContractions()]
         super().__init__(filters, logfile=logfile)
+
+
+#class FilterReferences(object):
+#    """ References to sections of some documents """
+#    def __call__(self, line, side_fobjs=None):
+#        """Returns True if the line should be filtered out"""
+#        # if several of the following are present:
+#        # several types of brackets: () and [], puctuation / -
+#        # large number > 5 tokens containing numbers
+#        # large number > 5 commas
