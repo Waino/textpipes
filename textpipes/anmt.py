@@ -191,7 +191,7 @@ class TranslateEnsemble(Rule):
         self.margin = margin
         self.argstr = argstr
 
-        flat_models = [model for for savepoints in self.models for model in savepoints]
+        flat_models = [model for savepoints in self.models for model in savepoints]
         all_inputs = flat_models + inputs
         super().__init__(all_inputs, outputs, **kwargs)
 
