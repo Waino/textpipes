@@ -164,6 +164,69 @@ class Translate(Rule):
                 margin=self.margin,
                 argstr=self.argstr))
 
+class TranslateEnsemble(Rule):
+    def __init__(self,
+                 models,
+                 inputs, outputs,
+                 nbest=0,
+                 beam=8,
+                 alpha=0.01,
+                 beta=0.4,
+                 gamma=0.0,
+                 len_smooth=5.0,
+                 margin=1.0,
+                 argstr='',
+                 **kwargs):
+        # models is a list-of-lists
+        self.models = models
+        self.translation_inputs = inputs
+        self.outputs = outputs
+        assert(len(inputs) == len(outputs))
+        self.nbest = nbest
+        self.beam = beam
+        self.alpha = alpha
+        self.beta = beta
+        self.gamma = gamma
+        self.len_smooth = len_smooth
+        self.margin = margin
+        self.argstr = argstr
+
+        flat_models = [model for for savepoints in self.models for model in savepoints]
+        all_inputs = flat_models + inputs
+        super().__init__(all_inputs, outputs, **kwargs)
+
+    def make(self, conf, cli_args):
+        models = ','.join(':'.join(model(conf, cli_args)
+                                   for model in savepoints)
+                          for savepoints in self.models)
+        inputs = ','.join(inp(conf, cli_args)
+                          for inp in self.translation_inputs)
+        outputs = ','.join(out(conf, cli_args)
+                          for out in self.outputs)
+        run('anmt'
+            ' --load-model {models}'
+            ' --translate {inp}'
+            ' --output {out}'
+            ' --nbest-list {nbest}'
+            ' --beam-size {beam}'
+            ' --alpha {alpha}'
+            ' --beta {beta}'
+            ' --gamma {gamma}'
+            ' --len-smooth {len_smooth}'
+            ' --beam-prune-multiplier {margin}'
+            ' {argstr}'.format(
+                models=models,
+                inp=inputs,
+                out=outputs,
+                nbest=self.nbest,
+                beam=self.beam,
+                alpha=self.alpha,
+                beta=self.beta,
+                gamma=self.gamma,
+                len_smooth=self.len_smooth,
+                margin=self.margin,
+                argstr=self.argstr))
+
 class Evaluate(Rule):
     def __init__(self,
                  inp_sgm,   # sgm source input
