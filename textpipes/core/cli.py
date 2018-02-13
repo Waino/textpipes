@@ -165,9 +165,12 @@ class CLI(object):
         if warn:
             print('********** WARNING! Some inputs are missing **********')
         else:
-            # ensure that subdirs exist
-            for subdir in self.conf.conf['paths.dirs'].values():
-                os.makedirs(subdir, exist_ok=True)
+            if 'paths.dirs' in self.conf.conf:
+                # ensure that subdirs exist
+                for subdir in self.conf.conf['paths.dirs'].values():
+                    os.makedirs(subdir, exist_ok=True)
+            else:
+                print('********** WARNING! No paths.dirs defined')
         # check that output paths are in config
         warn = False
         for rf in self.recipe.files:

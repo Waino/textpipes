@@ -190,7 +190,7 @@ class MapChars(SingleCellComponent):
 
 
 class StripRareChars(SingleCellComponent):
-    def __init__(self, char_counts, min_count=10):
+    def __init__(self, char_counts, min_count=10, **kwargs):
         super().__init__(side_inputs=[char_counts], **kwargs)
         self.char_counts = char_counts
         self.min_count = min_count
@@ -198,7 +198,7 @@ class StripRareChars(SingleCellComponent):
 
     def pre_make(self, side_fobjs):
         for line in side_fobjs[self.char_counts]:
-            count, char = line.strip().split()
+            count, char = line.lstrip().rstrip('\n').split('\t')
             count = int(count)
             if count >= self.min_count:
                 self.keep.add(char)
@@ -299,4 +299,4 @@ class SplitNumbers(RegexSubstitution):
     """ split number-punctuation sequences """
     # FIXME: also split long numbers into shorter chunks?
     def __init__(self, **kwargs):
-        super().__init__((r'(\d)([.,/-])(\d)', r'\1@@ \2@@ \3'), **kwargs)
+        super().__init__([(r'(\d)([.,/-])(\d)', r'\1@@ \2@@ \3')], **kwargs)
