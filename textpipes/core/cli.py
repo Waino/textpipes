@@ -141,14 +141,17 @@ class CLI(object):
         # exp section is assumed to always exist
         if 'exp' not in self.conf.conf.sections():
             print('********** WARNING! NO "exp" SECTION in conf **********')
-        try:
-            gitdir = self.platform.conf['git']['gitdir']
-            if not os.path.exists(gitdir) or \
-                    not os.path.exists(os.path.join(gitdir, 'HEAD')):
-                print('********** WARNING! invalid gitdir **********')
-                print(gitdir)
-        except KeyError:
-            print('********** WARNING! NO "git.gitdir" in platform conf **********')
+        if 'git' in self.platform.conf:
+            if len(self.platform.conf['git']) == 0:
+                print('********** WARNING! EMPTY gitdir list in platform conf **********')
+            for key in self.platform.conf['git']:
+                gitdir = self.platform.conf['git'][key]
+                if not os.path.exists(gitdir) or \
+                        not os.path.exists(os.path.join(gitdir, 'HEAD')):
+                    print('********** WARNING! invalid gitdir **********')
+                    print(key, gitdir)
+        else:
+            print('********** WARNING! NO "git" section in platform conf **********')
         # check existence of original inputs
         warn = False
         for rf in self.recipe.main_inputs:
@@ -397,7 +400,7 @@ LogItem = collections.namedtuple('LogItem',
     ['last_time', 'recipe', 'exp', 'status', 'job_id', 'sec_key', 'rule'])
 
 TIMESTAMP = '%d.%m.%Y %H:%M:%S'
-GIT_FMT = '{time} {recipe} {exp} : git commit {commit} branch {branch}'
+GIT_FMT = '{time} {recipe} {exp} : {key} git commit {commit} branch {branch}'
 LOG_FMT = '{time} {recipe} {exp} : status {status} {job} {sec_key} {rule}'
 FILE_FMT = '{time} {recipe} {exp} : output {job} {sec_key} {filename}'
 END_FMT = '{time} {recipe} {exp} : experiment ended'
@@ -578,18 +581,20 @@ class ExperimentLog(object):
             ),
             logfile=logfile)
         # alternative would be git describe --always, but that mainly works with tags
-        gitdir = self.platform.conf['git']['gitdir']
-        commit = run('git --git-dir={} rev-parse HEAD'.format(gitdir)).std_out.strip()
-        branch = run('git --git-dir={} symbolic-ref --short HEAD'.format(gitdir)).std_out.strip()
-        timestamp = datetime.now().strftime(TIMESTAMP)
-        self._append(GIT_FMT.format(
-            time=timestamp,
-            recipe=self.recipe.name,
-            exp=self.conf,
-            commit=commit,
-            branch=branch,
-            ),
-            logfile=logfile)
+        for gitkey in  self.platform.conf['git']:
+            gitdir = self.platform.conf['git'][gitkey]
+            commit = run('git --git-dir={} rev-parse HEAD'.format(gitdir)).std_out.strip()
+            branch = run('git --git-dir={} symbolic-ref --short HEAD'.format(gitdir)).std_out.strip()
+            timestamp = datetime.now().strftime(TIMESTAMP)
+            self._append(GIT_FMT.format(
+                key=gitkey,
+                time=timestamp,
+                recipe=self.recipe.name,
+                exp=self.conf,
+                commit=commit,
+                branch=branch,
+                ),
+                logfile=logfile)
 
     def finished_running(self, step, job_id, rule):
         logfile = os.path.join('logs', 'job.{}.{}.log'.format(
