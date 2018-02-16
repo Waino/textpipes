@@ -1,5 +1,6 @@
 import logging
 from .core.recipe import Rule, LoopRecipeFile
+from .components.core import MonoPipeComponent, MonoPipe
 
 logger = logging.getLogger('textpipes')
 
@@ -32,3 +33,27 @@ class DummyTrainLoop(Rule):
         if highest is None:
             'no output'
         return highest(conf, cli_args)
+
+
+class DummyParamPrintComponent(MonoPipeComponent):
+    def __init__(self, name='Dummy', params=[], **kwargs):
+        super().__init__(**kwargs)
+        self.name = name
+        self.params = params
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        for line in stream:
+            yield line
+        yield '{}: {}'.format(self.__class__.__name__, self.name)
+        for param in self.params:
+            sec, key = param.split(':')
+            yield '{} param {}: {}'.format(
+                self.name, param, config[sec][key])
+
+
+class DummyParamPrint(MonoPipe):
+    def __init__(self, inp, out, **kwargs):
+        super().__init__(
+            [DummyParamPrintComponent(**kwargs)],
+            [inp], [out])
