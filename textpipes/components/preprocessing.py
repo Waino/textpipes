@@ -269,20 +269,17 @@ class NormalizeContractions(RegexSubstitution):
         super().__init__(expressions, ignore_case=True, **kwargs)
 
 
-# apply a segmentation
-# FIXME: there are two different apply components (the other in segmentation.py)
-class ApplySegmentation(MonoPipeComponent):
-    def __init__(self, map_file, bnd_marker='@@', **kwargs):
+class ApplyMapping(MonoPipeComponent):
+    def __init__(self, map_file, **kwargs):
         super().__init__(side_inputs=[map_file], **kwargs)
         self.map_file = map_file
-        self.bnd_marker = bnd_marker
         self.mapping = {}
 
     def pre_make(self, side_fobjs):
         for line in side_fobjs[self.map_file]:
-            tgt = line.split()
-            # bnd_marker not part of actual surface form
-            src = ''.join(tgt).replace(self.bnd_marker, '')
+            # mapping contains both source and target form
+            # separated by tab
+            src, tgt = line.split('\t')
             self.mapping[src] = tgt
 
     def __call__(self, stream, side_fobjs=None,
@@ -290,9 +287,25 @@ class ApplySegmentation(MonoPipeComponent):
         for line in stream:
             result = []
             for token in line.split():
-                token = self.mapping.get(token, [token])
-                result.extend(token)
+                token = self.mapping.get(token, token)
+                result.append(token)
             yield ' '.join(result)
+
+
+# apply a segmentation
+# FIXME: there are two different apply components (the other in segmentation.py)
+class ApplySegmentation(ApplyMapping):
+    def __init__(self, map_file, bnd_marker='@@', **kwargs):
+        super().__init__(map_file, **kwargs)
+        self.bnd_marker = bnd_marker
+
+    def pre_make(self, side_fobjs):
+        for line in side_fobjs[self.map_file]:
+            # only the segmented form is given
+            parts = line.split()
+            # bnd_marker not part of actual surface form
+            src = ''.join(parts).replace(self.bnd_marker, '')
+            self.mapping[src] = target
 
 
 class SplitNumbers(RegexSubstitution):
