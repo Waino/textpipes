@@ -3,6 +3,7 @@ import os
 import re
 import shlex
 import subprocess
+import sys
 import threading
 
 logger = logging.getLogger('textpipes')
@@ -46,9 +47,17 @@ class Local(Platform):
         super().__init__(*args, **kwargs)
         self.make_immediately = True
 
+    def read_log(self, log):
+        self.job_id = max([0] + list(int(x) for x in log.jobs.keys()))
+
     """Run immediately, instead of scheduling"""
     def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
-        return None
+        cmd = 'python {recipe}.py {conf}.ini --make {sec_key}'.format(
+            recipe=recipe.name, conf=conf.name, sec_key=sec_key)
+        r = run(cmd)
+        # dummy incremental job_id
+        self.job_id += 1
+        return str(self.job_id)
 
     def check_job(self, job_id):
         return 'unknown'
@@ -153,7 +162,7 @@ class LogOnly(Slurm):
         print('DUMMY: sbatch --job-name {name} {rc_args}{dep_args} --wrap="{cmd}"'.format(
             name=job_name, cmd=cmd, rc_args=rc_args, dep_args=dep_args))
         # dummy incremental job_id
-        self.job_id += 1 
+        self.job_id += 1
         return str(self.job_id)
 
     def check_job(self, job_id):
@@ -207,7 +216,13 @@ class Command(object):
                 stderr=subprocess.PIPE,
                 bufsize=0,
             )
-            self.out, self.err = self.process.communicate(None)
+            #self.out, self.err = self.process.communicate(None)
+            with self.process.stderr as lines:
+                for line in lines:
+                    sys.stderr.write(line)
+                    sys.stderr.flush()
+            self.process.wait()
+            self.out = self.process.stdout.read()
 
         thread = threading.Thread(target=target)
         thread.start()

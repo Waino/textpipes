@@ -116,13 +116,19 @@ class CLI(object):
             assert not self.args.recursive
             nextsteps = self._filter_by_resource(nextsteps,
                                                  self.args.resource_classes.split(','))
+
+        if self.platform.make_immediately:
+            # show before running locally
+            self.show_next_steps(nextsteps,
+                                 dryrun=self.args.dryrun,
+                                 immediate=self.platform.make_immediately)
         if not self.args.dryrun:
             self.schedule(nextsteps)
-        self.show_next_steps(nextsteps,
-                             dryrun=self.args.dryrun,
-                             immediate=self.platform.make_immediately)
-        if self.platform.make_immediately and not self.args.dryrun:
-            self.make_all(nextsteps)
+        if not self.platform.make_immediately:
+            # show after schduling on cluster
+            self.show_next_steps(nextsteps,
+                                 dryrun=self.args.dryrun,
+                                 immediate=self.platform.make_immediately)
 
     def check_validity(self):
         # check that script is correctly named
@@ -290,7 +296,14 @@ class CLI(object):
             raise Exception('Cannot start running {}: {}'.format(
                 output, next_steps))
         next_step = concat[0]
-        job_id = self.log.outputs[next_step.outputs[0](self.conf, self.cli_args)]
+        job_id = self.log.outputs.get(
+            next_step.outputs[0](self.conf, self.cli_args), None)
+        if job_id is None:
+            if self.platform.make_immediately:
+                job_id = '-'
+            else:
+                raise Exception('No scheduled job id for {}'.format(
+                    next_step.outputs[0](self.conf, self.cli_args)))
         self._make_helper(output, next_step, job_id)
 
     def _make_helper(self, output, next_step, job_id):
@@ -298,22 +311,6 @@ class CLI(object):
         self.log.started_running(next_step, job_id, rule.name)
         self.recipe.make_output(output=output, cli_args=self.cli_args)
         self.log.finished_running(next_step, job_id, rule.name)
-
-    def make_all(self, nextsteps):
-        """immediately, sequentially make everything"""
-        remaining = nextsteps.available + nextsteps.delayed
-        while len(remaining) > 0:
-            delayed = []
-            for step in remaining:
-                if any(not rf.exists(self.conf, self.cli_args)
-                       for rf in step.inputs):
-                    delayed.append(step)
-                    continue
-                self._make_helper(step.outputs[0], step, '-')
-            if len(delayed) == len(remaining):
-                keys = ', '.join(x.outputs[0].sec_key() for x in delayed)
-                raise Exception('Unmeetable dependencies: {}'.format(keys))
-            remaining = delayed
 
     def show_next_steps(self, nextsteps, dryrun=False, immediate=False):
         # FIXME: don't filter out redundant scheduled?
