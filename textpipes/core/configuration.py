@@ -52,8 +52,14 @@ class Config(object):
     def __getitem__(self, key):
         return self.conf[key]
         
-
 # use interpolation in configparser
 # '${FILE:corpus}.${resection:some}'
 # can also include dollar-free, which can be formatted from command line args
 # '${resection:some}.mb{minibatch}'
+
+
+class GridConfig(object):
+    def __init__(self, grid_conf_file, args):
+        pass    # FIXME
+
+    def 

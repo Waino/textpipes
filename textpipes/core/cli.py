@@ -7,7 +7,7 @@ import os
 import re
 from datetime import datetime
 
-from .configuration import Config
+from .configuration import Config, GridConfig
 from .platform import run
 from .recipe import *
 from .utils import *
@@ -57,6 +57,8 @@ def get_parser(recipe):
                         help='Only schedule jobs with one of these resource classes. '
                         'Comma separated list of strings. '
                         'Cannot be used with --recursive.')
+    parser.add_argument('--grid', default=None, type=str, metavar='CONF',
+                        help='Perform grid search specified by the given conf. ')
 
     parser.add_argument('--make', default=None, type=str, metavar='OUTPUT',
                         help='Output to make, in section:key format. '
@@ -71,6 +73,10 @@ class CLI(object):
         parser = get_parser(recipe)
         self.args = parser.parse_args(args=argv)
         self.conf = Config(self.args.conf, self.args)
+        if self.args.grid is not None:
+            self.grid_conf = GridConfig(self.args.grid, self.args)
+        else:
+            self.grid_conf = None
         # the recipe-altering cli args
         self.cli_args = None # FIXME
         self.platform = self.conf.platform
