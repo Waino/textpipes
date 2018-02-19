@@ -7,7 +7,8 @@ from .utils import *
 logger = logging.getLogger('textpipes')
 
 class JobStatus(object):
-    def __init__(self, status, outputs, inputs=None, rule=None, job_id='-'):
+    def __init__(self, status, outputs, inputs=None, rule=None, job_id='-',
+                 concrete=None, overrides=None):
         assert status in (
             'done', 'waiting', 'running',   # info only: no need to schedule
             'available', 'delayed',         # schedule these
@@ -18,6 +19,8 @@ class JobStatus(object):
         self.inputs = inputs if inputs is not None else tuple()
         self.rule = rule
         self.job_id = str(job_id)
+        self.concrete = concrete
+        self.overrides = overrides if overrides else dict()
 
     @property
     def sec_key(self):
@@ -105,8 +108,12 @@ class Recipe(object):
             raise Exception('No rule to make target {}'.format(output))
         return rf
 
-    def get_next_steps_for(self, outputs=None, cli_args=None, recursive=False):
+    def get_next_steps_for(self, outputs=None, cli_args=None, recursive=False,
+                           overrides=None):
         # -> [JobStatus]
+        if overrides is None:
+            overrides = {}
+        conf = dict(self.conf).update(overrides)
         outputs = outputs 
         if not outputs:
             outputs = self.main_outputs
@@ -136,8 +143,11 @@ class Recipe(object):
         delayed = []
 
         for rf in outputs:
-            if rf.exists(self.conf, cli_args):
-                done.append(JobStatus('done', [rf]))
+            if rf.exists(conf, cli_args):
+                done.append(JobStatus('done',
+                                      [rf],
+                                      concrete=rf(conf, cli_args),
+                                      overrides=overrides))
                 seen_done.add(rf)
             else:
                 border.add(rf)
@@ -149,28 +159,36 @@ class Recipe(object):
                 continue
             visited.add(cursor)
             rule = self.files[cursor]
-            # FIXME: pass self.conf and cli_args so that flexible rules can adjust?
+            # FIXME: pass conf and cli_args so that flexible rules can adjust?
             # check log for waiting/running jobs
-            status, job_fields = self.log.get_status_of_output(
-                cursor(self.conf, cli_args))
+            concrete = cursor(conf, cli_args)
+            status, job_fields = self.log.get_status_of_output(concrete)
             is_atomic = rule.is_atomic(cursor) if rule is not None else False
             if status == 'running':
-                if not (is_atomic and cursor.exists(self.conf, cli_args)):
+                if not (is_atomic and cursor.exists(conf, cli_args)):
                     # must wait for non-atomic files until job stops running
                     # also wait for an atomic file that doesn't yet exist
-                    running.append(JobStatus('running', [cursor], job_id=job_fields.job_id))
+                    running.append(JobStatus('running',
+                                             [cursor],
+                                             job_id=job_fields.job_id,
+                                             concrete=concrete,
+                                             overrides=overrides))
                     known.add(cursor)
                     continue
-            if cursor.exists(self.conf, cli_args):
+            if cursor.exists(conf, cli_args):
                 known.add(cursor)
-                if cursor.not_done(self.conf, cli_args, is_atomic=is_atomic):
+                if cursor.not_done(conf, cli_args, is_atomic=is_atomic):
                     logger.warning('"{}" exists, but is neither running nor done'.format(
-                        cursor(self.conf, cli_args)))
+                        cursor(conf, cli_args)))
                 else:
                     seen_done.add(cursor)
                 continue
             if status == 'scheduled':
-                waiting.append(JobStatus('waiting', [cursor], job_id=job_fields.job_id))
+                waiting.append(JobStatus('waiting',
+                                         [cursor],
+                                         job_id=job_fields.job_id,
+                                         concrete=concrete,
+                                         overrides=overrides))
                 known.add(cursor)
                 continue
             if rule is None:
@@ -183,7 +201,11 @@ class Recipe(object):
         if len(missing) > 0:
             # missing inputs block anything at all from running
             raise Exception(
-            '\n'.join(str(JobStatus('missing_inputs', [inp], inputs=[inp])) for inp in missing))
+            '\n'.join(str(JobStatus('missing_inputs',
+                                    [inp],
+                                    inputs=[inp],
+                                    concrete=inp(conf, cli_args),
+                                    overrides=overrides)) for inp in missing))
 
         # iteratively sort needed
         while len(needed) > 0:
@@ -206,10 +228,11 @@ class Recipe(object):
                         rule.outputs,
                         inputs=not_done,
                         rule=rule))
+                    # FIXME: all paths into concrete?
                     continue
                 # implicit else: ready for scheduling
                 not_done_outputs = [out for out in rule.outputs
-                                    if not out.exists(self.conf, cli_args)]
+                                    if not out.exists(conf, cli_args)]
                 if len(not_done_outputs) == 0:
                     raise Exception('tried to schedule job '
                         'even though all outputs exist: {}'.format(rule))
@@ -237,9 +260,9 @@ class Recipe(object):
             cursor = border.pop()
             if cursor in mtimes:
                 continue
-            if not cursor.exists(self.conf, cli_args):
+            if not cursor.exists(conf, cli_args):
                 continue
-            mtime = os.path.getmtime(cursor(self.conf, cli_args))
+            mtime = os.path.getmtime(cursor(conf, cli_args))
             mtimes[cursor] = mtime
             rule = self.files[cursor]
             if rule is None:
