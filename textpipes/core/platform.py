@@ -15,6 +15,21 @@ MULTISPACE_RE = re.compile(r'\s+')
 # other suggestions:
 # gpu, gpushort, multicore, bigmem, long
 
+def make_override_string(overrides):
+    if not overrides:
+        return ''
+    override_str = ';'.join(
+        '{sec_key}={val}'.format(sec_key=sec_key, val=val)
+        for (sec_key, val) in sorted(overrides.items()))
+    return ' --overrides "{}"'.format(override_str)
+
+def parse_override_string(override_str):
+    overrides = {}
+    for pair in override_str.split(';'):
+        sec_key, val = pair.split('=')
+        overrides[sec_key] = val
+    return overrides
+
 class Platform(object):
     def __init__(self, name, conf):
         self.name = name
@@ -51,9 +66,13 @@ class Local(Platform):
         self.job_id = max([0] + list(int(x) for x in log.jobs.keys()))
 
     """Run immediately, instead of scheduling"""
-    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
-        cmd = 'python {recipe}.py {conf}.ini --make {sec_key}'.format(
-            recipe=recipe.name, conf=conf.name, sec_key=sec_key)
+    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args,
+                 deps=None, overrides=None):
+        override_str = make_override_string(overrides)
+        cmd = 'python {recipe}.py {conf}.ini --make {sec_key}{overrides}'.format(
+            recipe=recipe.name, conf=conf.name,
+            sec_key=sec_key, overrides=override_str)
+        print('running: ', cmd)
         r = run(cmd)
         # dummy incremental job_id
         self.job_id += 1
@@ -84,11 +103,14 @@ class Slurm(Platform):
         super().__init__(*args, **kwargs)
         self._job_status = None
 
-    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
+    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args,
+                 deps=None, overrides=None):
+        override_str = make_override_string(overrides)
         rc_args = self.resource_class(rule.resource_class)
         assert rc_args != 'make_immediately'
-        cmd = 'python {recipe}.py {conf}.ini --make {sec_key}'.format(
-            recipe=recipe.name, conf=conf.name, sec_key=sec_key)
+        cmd = 'python {recipe}.py {conf}.ini --make {sec_key}{overrides}'.format(
+            recipe=recipe.name, conf=conf.name,
+            sec_key=sec_key, overrides=override_str)
         job_name = '{}:{}'.format(conf.name, sec_key)
         if deps:
             dep_args = ' --dependency=afterok:' + ':'.join(

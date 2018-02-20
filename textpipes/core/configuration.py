@@ -75,6 +75,8 @@ class GridConfig(object):
 
     @staticmethod
     def apply_override(base_conf, overrides):
+        # this trick is necessary, because ConfigParser
+        # doesn't support deepcopy
         conf_string = io.StringIO()
         base_conf.conf.write(conf_string)
         # We must reset the buffer ready for reading.

@@ -128,8 +128,6 @@ class Recipe(object):
                     if any(path in seen for path in step.concrete):
                         # this step has a non-grid-differentiated output
                         # we need only one copy of it
-                        print('removing dup', step)
-                        print('seen', seen)
                         continue
                     seen.update(step.concrete)
                     result[i].append(step)
@@ -313,19 +311,21 @@ class Recipe(object):
                     continue
         return inversions
 
-    def make_output(self, output, cli_args=None):
+    def make_output(self, output, conf=None, cli_args=None):
+        if conf is None:
+            conf = self.conf 
         rf = self._rf(output)
         if rf not in self.files:
             raise Exception('No rule to make target {}'.format(output))
-        if rf.exists(self.conf, cli_args):
+        if rf.exists(conf, cli_args):
             return JobStatus('done', [rf])
 
         rule = self.files[rf]
         for out_rf in rule.outputs:
-            filepath = out_rf(self.conf, cli_args)
+            filepath = out_rf(conf, cli_args)
             subdir, _ = os.path.split(filepath)
             os.makedirs(subdir, exist_ok=True)
-        return rule.make(self.conf, cli_args)
+        return rule.make(conf, cli_args)
 
     def add_main_outputs(self, outputs):
         for out in outputs:

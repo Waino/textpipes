@@ -8,7 +8,7 @@ import re
 from datetime import datetime
 
 from .configuration import Config, GridConfig
-from .platform import run
+from .platform import run, parse_override_string
 from .recipe import *
 from .utils import *
 
@@ -65,6 +65,9 @@ def get_parser(recipe):
     parser.add_argument('--make', default=None, type=str, metavar='OUTPUT',
                         help='Output to make, in section:key format. '
                         'You should NOT call this directly')
+    parser.add_argument('--overrides', default=None, type=str, metavar='str',
+                        help='Overridden params in grid search. '
+                        'You should NOT call this directly')
 
     return parser
 
@@ -113,7 +116,7 @@ class CLI(object):
             self.mtimes()
             return  # don't do anything more
         if self.args.make is not None:
-            self.make(self.args.make)
+            self.make(self.args.make, self.args.overrides)
             return  # don't do anything more
         # implicit else 
 
@@ -292,11 +295,16 @@ class CLI(object):
                 wait_for_jobs.append(wait_ids[inp])
             if unk_deps:
                 continue
-            output_files = [(output.sec_key(), output(self.conf, self.cli_args))
+            if step.overrides:
+                conf = GridConfig.apply_override(self.conf, step.overrides)
+            else:
+                conf = self.conf
+            output_files = [(output.sec_key(), output(conf, self.cli_args))
                             for output in sorted(step.outputs)]
             job_id = self.platform.schedule(
-                self.recipe, self.conf, step.rule, step.sec_key,
-                output_files, self.cli_args, deps=wait_for_jobs)
+                self.recipe, conf, step.rule, step.sec_key,
+                output_files, self.cli_args, deps=wait_for_jobs,
+                overrides=step.overrides)
             if job_id is None:
                 # not scheduled for some reason
                 continue
@@ -306,29 +314,30 @@ class CLI(object):
                 for output in step.outputs:
                     wait_ids[output] = step.job_id
 
-    def make(self, output):
+    def make(self, output, override_str):
+        overrides = parse_override_string(override_str)
         next_steps = self.recipe.get_next_steps_for(
-            outputs=[output], cli_args=self.cli_args)
+            outputs=[output], cli_args=self.cli_args, overrides=overrides)
         concat = next_steps.waiting + next_steps.available
         if len(concat) == 0:
-            #concrete = next_step.outputs[0](self.conf, self.cli_args)
             raise Exception('Cannot start running {}: {}'.format(
                 output, next_steps))
         next_step = concat[0]
         job_id = self.log.outputs.get(
-            next_step.outputs[0](self.conf, self.cli_args), None)
+            next_step.concrete[0], None)
         if job_id is None:
             if self.platform.make_immediately:
                 job_id = '-'
             else:
                 raise Exception('No scheduled job id for {}'.format(
-                    next_step.outputs[0](self.conf, self.cli_args)))
-        self._make_helper(output, next_step, job_id)
-
-    def _make_helper(self, output, next_step, job_id):
+                    next_step.concrete[0]))
         rule = self.recipe.files.get(next_step.outputs[0], None)
         self.log.started_running(next_step, job_id, rule.name)
-        self.recipe.make_output(output=output, cli_args=self.cli_args)
+        if overrides:
+            conf = GridConfig.apply_override(self.conf, overrides)
+        else:
+            conf = self.conf
+        self.recipe.make_output(output=output, conf=conf, cli_args=self.cli_args)
         self.log.finished_running(next_step, job_id, rule.name)
 
     def show_next_steps(self, nextsteps, dryrun=False, immediate=False, show_all=False):
