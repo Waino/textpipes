@@ -46,6 +46,8 @@ def get_parser(recipe):
                         help='Look for outputs that are older than their inputs')
     parser.add_argument('--quiet', default=False, action='store_true',
                         help='Less verbose output, by hiding some info')
+    parser.add_argument('--show-all', default=False, action='store_true',
+                        help='More verbose output, by showing all grid points')
     parser.add_argument('--dryrun', default=False, action='store_true',
                         help='Show what would be done, but dont do it')
     parser.add_argument('-r', '--recursive', default=False, action='store_true',
@@ -72,7 +74,8 @@ class CLI(object):
         self.recipe = recipe
         parser = get_parser(recipe)
         self.args = parser.parse_args(args=argv)
-        self.conf = Config(self.args.conf, self.args)
+        self.conf = Config()
+        self.conf.read(self.args.conf, self.args)
         if self.args.grid is not None:
             self.grid_conf = GridConfig(self.args.grid, self.args)
         else:
@@ -114,10 +117,18 @@ class CLI(object):
             return  # don't do anything more
         # implicit else 
 
-        nextsteps = self.recipe.get_next_steps_for(
-            outputs=self.args.output,
-            cli_args=self.cli_args,
-            recursive=self.args.recursive)
+        if self.grid_conf is None:
+            nextsteps = self.recipe.get_next_steps_for(
+                outputs=self.args.output,
+                cli_args=self.cli_args,
+                recursive=self.args.recursive)
+        else:
+            nextsteps = self.recipe.grid_next_steps(
+                grid=self.grid_conf.get_overrides(),
+                outputs=self.args.output,
+                cli_args=self.cli_args,
+                recursive=self.args.recursive)
+
         if self.args.resource_classes is not None:
             assert not self.args.recursive
             nextsteps = self._filter_by_resource(nextsteps,
@@ -127,14 +138,16 @@ class CLI(object):
             # show before running locally
             self.show_next_steps(nextsteps,
                                  dryrun=self.args.dryrun,
-                                 immediate=self.platform.make_immediately)
+                                 immediate=self.platform.make_immediately,
+                                 show_all=self.args.show_all)
         if not self.args.dryrun:
             self.schedule(nextsteps)
         if not self.platform.make_immediately:
             # show after schduling on cluster
             self.show_next_steps(nextsteps,
                                  dryrun=self.args.dryrun,
-                                 immediate=self.platform.make_immediately)
+                                 immediate=self.platform.make_immediately,
+                                 show_all=args.show_all)
 
     def check_validity(self):
         # check that script is correctly named
@@ -318,9 +331,10 @@ class CLI(object):
         self.recipe.make_output(output=output, cli_args=self.cli_args)
         self.log.finished_running(next_step, job_id, rule.name)
 
-    def show_next_steps(self, nextsteps, dryrun=False, immediate=False):
+    def show_next_steps(self, nextsteps, dryrun=False, immediate=False, show_all=False):
         # FIXME: don't filter out redundant scheduled?
-        nextsteps = self._remove_redundant(nextsteps, dryrun=dryrun)
+        if not show_all:
+            nextsteps = self._remove_redundant(nextsteps, dryrun=dryrun)
         albl = 'scheduled:'
         if dryrun:
             albl = 'available:'
@@ -328,7 +342,7 @@ class CLI(object):
             albl = 'immediate:'
         tpls = []
         for step in nextsteps.done + nextsteps.waiting + nextsteps.running:
-            outfile = step.outputs[0](self.conf, self.cli_args)
+            outfile = step.concrete[0]
             lbl = step.status + ':'
             tpls.append((
                 lbl, step.job_id, step.sec_key, outfile))
@@ -336,12 +350,12 @@ class CLI(object):
         table_print(tpls, line_before='-')
         tpls = []
         for step in nextsteps.available:
-            outfile = step.outputs[0](self.conf, self.cli_args)
+            outfile = step.concrete[0]
             tpls.append((
                 albl, step.job_id, step.sec_key, step.rule.name, outfile))
         for step in nextsteps.delayed:
             lbl = 'delayed:'
-            outfile = step.outputs[0](self.conf, self.cli_args)
+            outfile = step.concrete[0]
             tpls.append((
                 lbl, step.job_id, step.sec_key, step.rule.name, outfile))
         table_print(tpls, line_before='-')

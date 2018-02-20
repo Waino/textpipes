@@ -3,6 +3,7 @@ import logging
 import os
 
 from .utils import *
+from .configuration import GridConfig
 
 logger = logging.getLogger('textpipes')
 
@@ -19,7 +20,7 @@ class JobStatus(object):
         self.inputs = inputs if inputs is not None else tuple()
         self.rule = rule
         self.job_id = str(job_id)
-        self.concrete = concrete
+        self.concrete = concrete if concrete else []
         self.overrides = overrides if overrides else dict()
 
     @property
@@ -33,13 +34,15 @@ class JobStatus(object):
         return self.outputs == other.outputs
 
     def __repr__(self):
-        return "{}('{}', {}, {}, {}, {})".format(
+        return "{}('{}', {}, {}, {}, {}, {}, {})".format(
             self.__class__.__name__,
             self.status,
             self.outputs,
             self.inputs,
             self.rule,
-            self.job_id)
+            self.job_id,
+            self.concrete,
+            self.overrides)
 
 NextSteps = collections.namedtuple('NextSteps',
     ['done', 'waiting', 'running', 'available', 'delayed'])
@@ -108,12 +111,36 @@ class Recipe(object):
             raise Exception('No rule to make target {}'.format(output))
         return rf
 
+    def grid_next_steps(self,
+                        grid,
+                        outputs=None,
+                        cli_args=None,
+                        recursive=False):
+        seen = set()
+        result = NextSteps([], [], [], [], [])
+        for overrides in grid:
+            steps = self.get_next_steps_for(outputs=outputs,
+                                            cli_args=cli_args,
+                                            recursive=recursive,
+                                            overrides=overrides)
+            for (i, phase) in enumerate(steps):
+                for step in phase:
+                    if any(path in seen for path in step.concrete):
+                        # this step has a non-grid-differentiated output
+                        # we need only one copy of it
+                        print('removing dup', step)
+                        print('seen', seen)
+                        continue
+                    seen.update(step.concrete)
+                    result[i].append(step)
+        return result
+
     def get_next_steps_for(self, outputs=None, cli_args=None, recursive=False,
                            overrides=None):
         # -> [JobStatus]
         if overrides is None:
             overrides = {}
-        conf = dict(self.conf).update(overrides)
+        conf = GridConfig.apply_override(self.conf, overrides)
         outputs = outputs 
         if not outputs:
             outputs = self.main_outputs
@@ -146,7 +173,7 @@ class Recipe(object):
             if rf.exists(conf, cli_args):
                 done.append(JobStatus('done',
                                       [rf],
-                                      concrete=rf(conf, cli_args),
+                                      concrete=[rf(conf, cli_args)],
                                       overrides=overrides))
                 seen_done.add(rf)
             else:
@@ -161,8 +188,11 @@ class Recipe(object):
             rule = self.files[cursor]
             # FIXME: pass conf and cli_args so that flexible rules can adjust?
             # check log for waiting/running jobs
-            concrete = cursor(conf, cli_args)
-            status, job_fields = self.log.get_status_of_output(concrete)
+            if rule is not None:
+                concrete = [rf(conf, cli_args) for rf in rule.outputs]
+            else:
+                concrete = []
+            status, job_fields = self.log.get_status_of_output(cursor(conf, cli_args))
             is_atomic = rule.is_atomic(cursor) if rule is not None else False
             if status == 'running':
                 if not (is_atomic and cursor.exists(conf, cli_args)):
@@ -204,7 +234,7 @@ class Recipe(object):
             '\n'.join(str(JobStatus('missing_inputs',
                                     [inp],
                                     inputs=[inp],
-                                    concrete=inp(conf, cli_args),
+                                    concrete=[inp(conf, cli_args)],
                                     overrides=overrides)) for inp in missing))
 
         # iteratively sort needed
@@ -222,13 +252,15 @@ class Recipe(object):
                 known.update(rule.outputs)
                 not_done = tuple(inp for inp in rule.inputs
                                  if inp not in seen_done)
+                concrete = [rf(conf, cli_args) for rf in rule.outputs]
                 if len(not_done) > 0:
                     # must wait for some inputs to be built first
                     delayed.append(JobStatus('delayed',
                         rule.outputs,
                         inputs=not_done,
-                        rule=rule))
-                    # FIXME: all paths into concrete?
+                        rule=rule,
+                        concrete=concrete,
+                        overrides=overrides))
                     continue
                 # implicit else: ready for scheduling
                 not_done_outputs = [out for out in rule.outputs
@@ -238,7 +270,9 @@ class Recipe(object):
                         'even though all outputs exist: {}'.format(rule))
                 available.append(JobStatus('available',
                     not_done_outputs,
-                    rule=rule))
+                    rule=rule,
+                    concrete=concrete,
+                    overrides=overrides))
             if len(remaining) == len(needed):
                 raise Exception('unmet dependencies: {}'.format(remaining))
             needed = remaining
