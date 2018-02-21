@@ -116,13 +116,19 @@ class CLI(object):
             assert not self.args.recursive
             nextsteps = self._filter_by_resource(nextsteps,
                                                  self.args.resource_classes.split(','))
+
+        if self.platform.make_immediately:
+            # show before running locally
+            self.show_next_steps(nextsteps,
+                                 dryrun=self.args.dryrun,
+                                 immediate=self.platform.make_immediately)
         if not self.args.dryrun:
             self.schedule(nextsteps)
-        self.show_next_steps(nextsteps,
-                             dryrun=self.args.dryrun,
-                             immediate=self.platform.make_immediately)
-        if self.platform.make_immediately and not self.args.dryrun:
-            self.make_all(nextsteps)
+        if not self.platform.make_immediately:
+            # show after schduling on cluster
+            self.show_next_steps(nextsteps,
+                                 dryrun=self.args.dryrun,
+                                 immediate=self.platform.make_immediately)
 
     def check_validity(self):
         # check that script is correctly named
@@ -141,14 +147,17 @@ class CLI(object):
         # exp section is assumed to always exist
         if 'exp' not in self.conf.conf.sections():
             print('********** WARNING! NO "exp" SECTION in conf **********')
-        try:
-            gitdir = self.platform.conf['git']['gitdir']
-            if not os.path.exists(gitdir) or \
-                    not os.path.exists(os.path.join(gitdir, 'HEAD')):
-                print('********** WARNING! invalid gitdir **********')
-                print(gitdir)
-        except KeyError:
-            print('********** WARNING! NO "git.gitdir" in platform conf **********')
+        if 'git' in self.platform.conf:
+            if len(self.platform.conf['git']) == 0:
+                print('********** WARNING! EMPTY gitdir list in platform conf **********')
+            for key in self.platform.conf['git']:
+                gitdir = self.platform.conf['git'][key]
+                if not os.path.exists(gitdir) or \
+                        not os.path.exists(os.path.join(gitdir, 'HEAD')):
+                    print('********** WARNING! invalid gitdir **********')
+                    print(key, gitdir)
+        else:
+            print('********** WARNING! NO "git" section in platform conf **********')
         # check existence of original inputs
         warn = False
         for rf in self.recipe.main_inputs:
@@ -287,7 +296,14 @@ class CLI(object):
             raise Exception('Cannot start running {}: {}'.format(
                 output, next_steps))
         next_step = concat[0]
-        job_id = self.log.outputs[next_step.outputs[0](self.conf, self.cli_args)]
+        job_id = self.log.outputs.get(
+            next_step.outputs[0](self.conf, self.cli_args), None)
+        if job_id is None:
+            if self.platform.make_immediately:
+                job_id = '-'
+            else:
+                raise Exception('No scheduled job id for {}'.format(
+                    next_step.outputs[0](self.conf, self.cli_args)))
         self._make_helper(output, next_step, job_id)
 
     def _make_helper(self, output, next_step, job_id):
@@ -295,22 +311,6 @@ class CLI(object):
         self.log.started_running(next_step, job_id, rule.name)
         self.recipe.make_output(output=output, cli_args=self.cli_args)
         self.log.finished_running(next_step, job_id, rule.name)
-
-    def make_all(self, nextsteps):
-        """immediately, sequentially make everything"""
-        remaining = nextsteps.available + nextsteps.delayed
-        while len(remaining) > 0:
-            delayed = []
-            for step in remaining:
-                if any(not rf.exists(self.conf, self.cli_args)
-                       for rf in step.inputs):
-                    delayed.append(step)
-                    continue
-                self._make_helper(step.outputs[0], step, '-')
-            if len(delayed) == len(remaining):
-                keys = ', '.join(x.outputs[0].sec_key() for x in delayed)
-                raise Exception('Unmeetable dependencies: {}'.format(keys))
-            remaining = delayed
 
     def show_next_steps(self, nextsteps, dryrun=False, immediate=False):
         # FIXME: don't filter out redundant scheduled?
@@ -397,7 +397,7 @@ LogItem = collections.namedtuple('LogItem',
     ['last_time', 'recipe', 'exp', 'status', 'job_id', 'sec_key', 'rule'])
 
 TIMESTAMP = '%d.%m.%Y %H:%M:%S'
-GIT_FMT = '{time} {recipe} {exp} : git commit {commit} branch {branch}'
+GIT_FMT = '{time} {recipe} {exp} : {key} git commit {commit} branch {branch}'
 LOG_FMT = '{time} {recipe} {exp} : status {status} {job} {sec_key} {rule}'
 FILE_FMT = '{time} {recipe} {exp} : output {job} {sec_key} {filename}'
 END_FMT = '{time} {recipe} {exp} : experiment ended'
@@ -578,18 +578,20 @@ class ExperimentLog(object):
             ),
             logfile=logfile)
         # alternative would be git describe --always, but that mainly works with tags
-        gitdir = self.platform.conf['git']['gitdir']
-        commit = run('git --git-dir={} rev-parse HEAD'.format(gitdir)).std_out.strip()
-        branch = run('git --git-dir={} symbolic-ref --short HEAD'.format(gitdir)).std_out.strip()
-        timestamp = datetime.now().strftime(TIMESTAMP)
-        self._append(GIT_FMT.format(
-            time=timestamp,
-            recipe=self.recipe.name,
-            exp=self.conf,
-            commit=commit,
-            branch=branch,
-            ),
-            logfile=logfile)
+        for gitkey in  self.platform.conf['git']:
+            gitdir = self.platform.conf['git'][gitkey]
+            commit = run('git --git-dir={} rev-parse HEAD'.format(gitdir)).std_out.strip()
+            branch = run('git --git-dir={} symbolic-ref --short HEAD'.format(gitdir)).std_out.strip()
+            timestamp = datetime.now().strftime(TIMESTAMP)
+            self._append(GIT_FMT.format(
+                key=gitkey,
+                time=timestamp,
+                recipe=self.recipe.name,
+                exp=self.conf,
+                commit=commit,
+                branch=branch,
+                ),
+                logfile=logfile)
 
     def finished_running(self, step, job_id, rule):
         logfile = os.path.join('logs', 'job.{}.{}.log'.format(
