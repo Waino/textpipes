@@ -297,7 +297,7 @@ class ApplyMapping(MonoPipeComponent):
 class ApplySegmentation(ApplyMapping):
     def __init__(self, map_file, bnd_marker='@@', **kwargs):
         super().__init__(map_file, **kwargs)
-        self.bnd_marker = bnd_marker
+        self.bnd_marker = bnd_marker.strip()
 
     def pre_make(self, side_fobjs):
         for line in side_fobjs[self.map_file]:
@@ -305,7 +305,7 @@ class ApplySegmentation(ApplyMapping):
             parts = line.split()
             # bnd_marker not part of actual surface form
             src = ''.join(parts).replace(self.bnd_marker, '')
-            self.mapping[src] = target
+            self.mapping[src] = line
 
 
 class SplitNumbers(RegexSubstitution):
