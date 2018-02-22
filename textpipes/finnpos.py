@@ -481,14 +481,16 @@ class OnlyFirstProperOrNum(MonoPipeComponent):
 # apply an aligned segmentation, copy tags to each component
 class SegmentSurfaceAndLemma(MonoPipeComponent):
     def __init__(self, map_file, surf_col_i, lemma_col_i, col_sep='\t',
-                 bies=True, **kwargs):
+                 bies=True, use_fallback=True, **kwargs):
         super().__init__(side_inputs=[map_file], **kwargs)
         self.map_file = map_file
-        self.col_i = col_i
+        self.surf_col_i = surf_col_i
+        self.lemma_col_i = lemma_col_i
         self.col_sep = col_sep
-        self.bnd_marker = bnd_marker
         self.bies = bies
         self.mapping = {}
+        self.fallback_map = {}
+        self.use_fallback = use_fallback
 
     def pre_make(self, side_fobjs):
         for line in side_fobjs[self.map_file]:
@@ -497,6 +499,8 @@ class SegmentSurfaceAndLemma(MonoPipeComponent):
             parts = parts.split()
             assert len(morphs) == len(parts)
             self.mapping[(surf, lemma)] = (morphs, parts)
+            if self.use_fallback:
+                self.fallback_map[surf] = (morphs, parts)
 
     def __call__(self, stream, side_fobjs=None,
                  config=None, cli_args=None):
@@ -508,8 +512,14 @@ class SegmentSurfaceAndLemma(MonoPipeComponent):
             cols = line.split(self.col_sep)
             surf = cols[self.surf_col_i]
             lemma = cols[self.lemma_col_i]
-            # no fallback
-            morphs, parts = self.mapping[(surf, lemma)]
+            try:
+                morphs, parts = self.mapping[(surf, lemma)]
+            except KeyError:
+                if self.use_fallback:
+                    if surf in self.fallback_map:
+                        morphs, parts = self.fallback_map[surf]
+                    else:
+                        morphs, parts = surf, lemma
             if len(surf) == 1:
                 bies_tags = 'S'
             else:

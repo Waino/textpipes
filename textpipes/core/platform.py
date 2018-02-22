@@ -216,13 +216,14 @@ class Command(object):
                 stderr=subprocess.PIPE,
                 bufsize=0,
             )
-            #self.out, self.err = self.process.communicate(None)
-            with self.process.stderr as lines:
-                for line in lines:
-                    sys.stderr.write(line)
-                    sys.stderr.flush()
-            self.process.wait()
-            self.out = self.process.stdout.read()
+            self.out, self.err = self.process.communicate(None)
+            # FIXME: this causes deadlocked sleep
+            #with self.process.stderr as lines:
+            #    for line in lines:
+            #        sys.stderr.write(line)
+            #        sys.stderr.flush()
+            #self.process.wait()
+            #self.out = self.process.stdout.read()
 
         thread = threading.Thread(target=target)
         thread.start()
