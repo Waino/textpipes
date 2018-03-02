@@ -60,7 +60,7 @@ class DedupFilter(Filter):
                 self.potential.add(line)
             bloom_all.add(line)
 
-    def __call__(self, line):
+    def __call__(self, line, side_fobjs=None):
         if line in self.potential:
             line_trunc = line[:self.truncate]
             if line_trunc in self.seen:

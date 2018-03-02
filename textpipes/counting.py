@@ -69,7 +69,6 @@ class ScaleCounts(MonoPipe):
         super().__init__([component], [inp], [output], **kwargs)
 
 
-# concatenate countfiles before using this (has single input)
 # FIXME: DRY with CountTokensComponent
 class CombineCountsComponent(SingleCellComponent):
     def __init__(self, output, reverse=False, words_only=None, **kwargs):
@@ -85,7 +84,7 @@ class CombineCountsComponent(SingleCellComponent):
         self.reverse = reverse
 
     def single_cell(self, line):
-        count, wtype = line.strip().split()
+        count, wtype = line.split('\t')
         self.counts[wtype] += int(count)
 
     def post_make(self, side_fobjs):
@@ -100,10 +99,10 @@ class CombineCountsComponent(SingleCellComponent):
         del self.counts
 
 class CombineCounts(DeadEndPipe):
-    def __init__(self, inp, output, reverse=False, words_only=None, **kwargs):
+    def __init__(self, inputs, output, reverse=False, words_only=None, **kwargs):
         component = CombineCountsComponent(
             output, reverse=reverse, words_only=words_only)
-        super().__init__([component], [inp], **kwargs)
+        super().__init__([component], inputs, **kwargs)
 
 
 class FilterCounts(Filter):
