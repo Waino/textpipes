@@ -3,6 +3,10 @@ import re
 from .core import MonoPipeComponent, ParallelPipeComponent
 from .preprocessing import Clean
 
+# used for removal of nonalphabetic content for rough comparisons
+# space and punc intentionally not included: tokenization invariant
+FILTER_ALPHA = set('abcdefghijklmnopqrstuvwxyz')
+
 class MonoFilter(MonoPipeComponent):
     def __init__(self, filtr, logfile=None):
         super().__init__(side_outputs=[logfile])
@@ -11,12 +15,13 @@ class MonoFilter(MonoPipeComponent):
 
     def __call__(self, stream, side_fobjs=None,
                  config=None, cli_args=None):
+        logfile = side_fobjs.get(self.logfile, None)
         for line in stream:
-            if self.filtr(line):
+            if self.filtr(line, side_fobjs=side_fobjs):
                 # filter out this line
-                if self.logfile is not None:
-                    # FIXME: write into logfile
-                    pass
+                if logfile is not None:
+                    # FIXME: not possible to log the reason
+                    logfile.write(line)
             else:
                 # keep this line
                 yield line
@@ -30,16 +35,17 @@ class ParallelFilter(ParallelPipeComponent):
     def __call__(self, stream, side_fobjs=None,
                  config=None, cli_args=None):
         filters = self.filters
+        logfile = side_fobjs.get(self.logfile, None)
         for tpl in stream:
             if isinstance(filters, Filter):
                 # use same filter for all streams
                 filters = [filters] * len(tpl)
-            if any(filtr(line) for (filtr, line)
+            if any(filtr(line, side_fobjs=side_fobjs)
+                   for (filtr, line)
                    in zip(filters, tpl)):
                 # filter out this line
-                if self.logfile is not None:
-                    # FIXME: write into logfile
-                    pass
+                if logfile is not None:
+                    logfile.write(line)
             else:
                 # keep this line
                 yield tpl
@@ -122,19 +128,24 @@ class FilterByLengthRatio(ParallelPipeComponent):
     """A Component that filters parallel streams
     by the ratio of their lenghts (in characters).
     """
-    def __init__(self, min_ratio, max_ratio=None, treshold=10, logfile=None):
+    def __init__(self, min_ratio, max_ratio=None, treshold=10,
+                 only_alpha=False, logfile=None):
         super().__init__(side_outputs=[logfile])
         self.logfile = logfile
         self.min_ratio = min_ratio
         self.max_ratio = max_ratio if max_ratio is not None \
             else 1. / min_ratio
         self.treshold = treshold
+        self.only_alpha = only_alpha
 
     def __call__(self, stream, side_fobjs=None,
                  config=None, cli_args=None):
-        logfile = side_fobjs[self.logfile]
+        logfile = side_fobjs.get(self.logfile, None)
         for tpl in stream:
             left, right = tpl
+            if self.only_alpha:
+                left = ''.join([x for x in left.lower() if x in FILTER_ALPHA])
+                right = ''.join([x for x in right.lower() if x in FILTER_ALPHA])
             llen = float(len(left))
             rlen = float(len(right))
             if llen < self.treshold and rlen < self.treshold:
@@ -147,7 +158,39 @@ class FilterByLengthRatio(ParallelPipeComponent):
             if ratio < self.min_ratio or ratio > self.max_ratio:
                 # too extreme ratio, filter out this line
                 if logfile is not None:
-                    logfile.write('{} ||| {} ||| {}\n'.format(ratio, left, right))
+                    logfile.write('{} ||| {} ||| {}\n'.format(ratio, tpl[0], tpl[1]))
+                continue
+            # implicit else
+            # keep this line
+            yield tpl
+
+
+# a Component, not a Filter! needs to compare the streams.
+class FilterLongUntranslated(ParallelPipeComponent):
+    """A Component that filters parallel streams
+    to remove untranslated content.
+    """
+    def __init__(self, treshold=20, logfile=None):
+        super().__init__(side_outputs=[logfile])
+        self.logfile = logfile
+        self.treshold = treshold
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        logfile = side_fobjs.get(self.logfile, None)
+        for tpl in stream:
+            left, right = tpl
+            left = ''.join([x for x in left.lower() if x in FILTER_ALPHA])
+            right = ''.join([x for x in right.lower() if x in FILTER_ALPHA])
+            llen = float(len(left))
+            rlen = float(len(right))
+            if llen < self.treshold or rlen < self.treshold:
+                # don't filter short lines
+                yield tpl
+            if left == right:
+                # same content on both sides
+                if logfile is not None:
+                    logfile.write('{} ||| {}\n'.format(*tpl))
                 continue
             # implicit else
             # keep this line
