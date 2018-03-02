@@ -84,7 +84,7 @@ class CombineCountsComponent(SingleCellComponent):
         self.reverse = reverse
 
     def single_cell(self, line):
-        count, wtype = line.strip().split()
+        count, wtype = line.split('\t')
         self.counts[wtype] += int(count)
 
     def post_make(self, side_fobjs):

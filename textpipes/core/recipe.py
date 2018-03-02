@@ -307,6 +307,10 @@ class Rule(object):
         else:
             self.outputs = tuple(out for out in outputs if out is not None)
         self.resource_class = resource_class
+        for rf in self.inputs:
+            assert isinstance(rf, RecipeFile)
+        for rf in self.outputs:
+            assert isinstance(rf, RecipeFile)
 
     def make(self, conf, cli_args=None):
         raise NotImplementedError()
