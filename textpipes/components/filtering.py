@@ -45,7 +45,7 @@ class ParallelFilter(ParallelPipeComponent):
                    in zip(filters, tpl)):
                 # filter out this line
                 if logfile is not None:
-                    logfile.write(line)
+                    logfile.write(' ||| '.join(tpl))
             else:
                 # keep this line
                 yield tpl
