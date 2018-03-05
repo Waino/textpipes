@@ -7,6 +7,8 @@ from .preprocessing import Clean
 # space and punc intentionally not included: tokenization invariant
 FILTER_ALPHA = set('abcdefghijklmnopqrstuvwxyz')
 
+RE_NUMPUNC = re.compile(r'^[0-9,\.-]+$')
+
 class MonoFilter(MonoPipeComponent):
     def __init__(self, filtr, logfile=None):
         super().__init__(side_outputs=[logfile])
@@ -205,3 +207,40 @@ class OnlyNames(Filter):
         if len(token) > 1 and (token[0].isupper() or token[0].isdigit()):
             return False    # these trigger the lettering operation
         return True
+
+
+class FilterBureaucratic(Filter):
+    """Filters out sentences that don't flow naturally due
+    to a large number of parenthesized references etc.
+    Use after tokenization."""
+    def __init__(self,
+                 threshold=4,
+                 numeric=(4, 6, 10),
+                 chars={'(': (2, 4, 6),
+                        ')': (2, 4, 6),
+                        '[': (2, 4, 6),
+                        ']': (2, 4, 6),
+                        ';': (2, 4, 6),
+                        '/': (3, 4, 6),
+                        ':': (3, 4, 6),
+                        '-': (4, 6, 10),
+                        ',': (4, 6, 10),})
+        self.threshold = threshold
+        self.numeric = numeric
+        self.chars = chars
+
+    def __call__(self, line, side_fobjs=None):
+        total = 0
+        n_numeric = sum(1 for token in line.split()
+                        if RE_NUMPUNC.match(token))
+        for limit in self.numeric:
+            if n_numeric >= limit:
+                total += 1
+        for char, limits in self.chars.items():
+            n_char = sum(1 for c in line
+                         if c == char)
+            for limit in limits:
+                if n_char >= limit:
+                    total += 1
+        # more strikes than the threshold: filter out
+        return total >= self.threshold:
