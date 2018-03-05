@@ -24,6 +24,7 @@ class MonoFilter(MonoPipeComponent):
                 if logfile is not None:
                     # FIXME: not possible to log the reason
                     logfile.write(line)
+                    logfile.write('\n')
             else:
                 # keep this line
                 yield line
@@ -190,6 +191,7 @@ class FilterLongUntranslated(ParallelPipeComponent):
             if llen < self.treshold or rlen < self.treshold:
                 # don't filter short lines
                 yield tpl
+                continue
             if left == right:
                 # same content on both sides
                 if logfile is not None:
