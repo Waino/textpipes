@@ -48,6 +48,7 @@ class ParallelFilter(ParallelPipeComponent):
                 # filter out this line
                 if logfile is not None:
                     logfile.write(' ||| '.join(tpl))
+                    logfile.write('\n')
             else:
                 # keep this line
                 yield tpl
@@ -224,7 +225,7 @@ class FilterBureaucratic(Filter):
                         '/': (3, 4, 6),
                         ':': (3, 4, 6),
                         '-': (4, 6, 10),
-                        ',': (4, 6, 10),})
+                        ',': (4, 6, 10),}):
         self.threshold = threshold
         self.numeric = numeric
         self.chars = chars
@@ -243,4 +244,4 @@ class FilterBureaucratic(Filter):
                 if n_char >= limit:
                     total += 1
         # more strikes than the threshold: filter out
-        return total >= self.threshold:
+        return total >= self.threshold
