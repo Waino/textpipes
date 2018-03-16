@@ -21,8 +21,9 @@ def get_version():
 
 from .core import *
 from . import components, check
-from . import finnpos, anmt, wmt_sgm, morfessor, dummy
+from . import finnpos, anmt, wmt_sgm, morfessor, multiling, dummy
 from . import anmt_latent
+from . import translation_analysis
 
 # Most common rules for easy access
 from .dedup import Deduplicate

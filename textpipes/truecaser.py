@@ -20,11 +20,12 @@ LANG_DIR = os.path.join(
     os.path.dirname(__file__), 'langs')
 
 class TrainTrueCaserComponent(SingleCellComponent):
-    def __init__(self, model_file, sure_thresh=.6):
+    def __init__(self, model_file, sure_thresh=.6, min_count=2):
         # sure_thresh: truecase also within sentence if common enough
         super().__init__(mp=False, side_outputs=[model_file])
         self.model_file = model_file
         self.sure_thresh = sure_thresh
+        self.min_count = min_count
         self.counts = collections.defaultdict(collections.Counter)
         # punctuation that resets seen_first
         # note that this is a smaller set than tokenizer punctuation
@@ -49,6 +50,9 @@ class TrainTrueCaserComponent(SingleCellComponent):
         for (word, counts) in self.counts.items():
             # FIXME: use prefix counts
             total = sum(counts.values())
+            if total < self.min_count:
+                # filter out rare words to keep table smaller
+                continue
             best, bestcount = counts.most_common(1)[0]
             sure = (float(bestcount) / total) > self.sure_thresh
             self.words[word] = (best, sure)

@@ -28,6 +28,7 @@ OPT_BINS = (
     ('word2vec', 'Word2VecCluster'),
     ('anmt', 'anmt'),
     ('morfessor-segment', 'ApplyMorfessor'),
+    ('fast_align', 'FastAlign'),
     )
 
 def get_parser(recipe):
