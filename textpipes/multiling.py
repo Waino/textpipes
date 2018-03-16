@@ -147,5 +147,5 @@ class FilterLevenshtein(Filter):
         if lleft < self.min_len or lright < self.min_len:
             # must match exactly
             return left != right
-        longer = max(lleft, lright)
-        return int(dist) > math.ceil(longer * self.ratio)
+        mean = (lleft + lright) / 2
+        return int(dist) > math.ceil(mean * self.ratio)
