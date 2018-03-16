@@ -1,7 +1,16 @@
 import collections
 import re
+import math
 
-from .components.filtering import FILTER_ALPHA
+try:
+    import Levenshtein as lev
+except ImportError:
+    # install python-Levenshtein
+    # warnings emitted by check in cli
+    pass
+
+from .components.core import SingleCellComponent
+from .components.filtering import FILTER_ALPHA, Filter
 from .core.platform import run
 from .core.recipe import Rule
 from .core.utils import safe_zip, progress
@@ -111,3 +120,32 @@ class WordPairs(Rule):
             fobj.write('{}\t{}\n'.format(*pair))
         fobj.close()
 
+
+class Levenshtein(SingleCellComponent):
+    def __init__(self, separator='\t', **kwargs):
+        super().__init__(**kwargs)
+        self.separator = separator
+
+    def single_cell(self, line):
+        left, right = line.split(self.separator)
+        dist = lev.distance(left, right)
+        return '{dist}{sep}{left}{sep}{right}'.format(
+            dist=dist, sep=self.separator, right=right, left=left)
+
+
+class FilterLevenshtein(Filter):
+    def __init__(self, min_len=4, ratio=1/3, separator='\t', **kwargs):
+        super().__init__(**kwargs)
+        self.min_len = min_len
+        self.ratio = ratio
+        self.separator = separator
+
+    def __call__(self, line, side_fobjs=None):
+        dist, left, right = line.split(self.separator)
+        lleft = len(left)
+        lright = len(right)
+        if lleft < self.min_len or lright < self.min_len:
+            # must match exactly
+            return left != right
+        longer = max(lleft, lright)
+        return int(dist) > math.ceil(longer * self.ratio)
