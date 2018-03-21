@@ -21,7 +21,7 @@ def get_version():
 
 from .core import *
 from . import components, check
-from . import finnpos, anmt, wmt_sgm, morfessor, multiling, dummy
+from . import finnpos, anmt, wmt_sgm, morfessor, multiling, dummy, opennmt
 from . import anmt_latent
 from . import translation_analysis
 
