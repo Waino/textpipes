@@ -4,6 +4,7 @@ Components are text processing operations expressed as Python generators.
 
 from .core import *
 from . import europarl
+from . import estonian
 from . import filtering
 from . import newscorpus
 #from . import nltk

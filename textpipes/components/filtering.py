@@ -1,3 +1,4 @@
+import collections
 import re
 
 from .core import MonoPipeComponent, ParallelPipeComponent
@@ -105,15 +106,19 @@ class FilterByLength(Filter):
     def __init__(self,
                  min_tokens=None,
                  max_tokens=None,
+                 min_chars=None,
                  max_chars=None,
                  max_chars_per_token=None):
         super().__init__()
         self.min_tokens = min_tokens
         self.max_tokens = max_tokens
+        self.min_chars = min_chars
         self.max_chars = max_chars
         self.max_chars_per_token = max_chars_per_token
 
     def __call__(self, line, side_fobjs=None):
+        if self.min_chars and len(line) < self.min_chars:
+            return True
         if self.max_chars and len(line) > self.max_chars:
             return True
         tokens = line.split()
@@ -247,3 +252,36 @@ class FilterBureaucratic(Filter):
                     total += 1
         # more strikes than the threshold: filter out
         return total >= self.threshold
+
+
+class FilterRepetitions(Filter):
+    """Filters out sentences with very repetitive content"""
+    def __init__(self,
+                 min_anywhere=15,
+                 min_consequent=5):
+        self.min_anywhere = min_anywhere
+        self.min_consequent = min_consequent
+
+    def __call__(self, line, side_fobjs=None):
+        tokens = line.split()
+        counts = collections.Counter(tokens)
+        for word, count in counts.most_common():
+            if count >= self.min_anywhere:
+                return True
+            if count < self.min_consequent:
+                # can't be any streaks left anymore
+                return False
+            consequent = 0
+            for token in tokens:
+                if token == word:
+                    consequent += 1
+                    if consequent >= self.min_consequent:
+                        return True
+                else:
+                    consequent = 0
+        return False
+
+class FilterSingleUrl(FilterRegex):
+    """Filters out lines with only a single url"""
+    def __init__(self):
+        super().__init__((r'^https?://[^ ]*$',), ignore_case=True)
