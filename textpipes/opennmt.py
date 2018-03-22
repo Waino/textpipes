@@ -41,12 +41,14 @@ class Train(Rule):
                  model_seckey,
                  loop_indices,
                  argstr='',
+                 opennmt_dir='.',
                  **kwargs):
         self.models = WildcardLoopRecipeFile.loop_output(
             model_seckey[0], model_seckey[1], loop_indices)
         self.data_dir = data_dir
         self.pipe_file = pipe_file
         self.argstr = argstr
+        self.opennmt_dir = opennmt_dir
 
         inputs = [data_dir]
         outputs = self.models
@@ -88,19 +90,20 @@ class Translate(Rule):
                  beam=8,
                  alpha=0.01,
                  beta=0.4,
-                 len_smooth=5.0,
+                 penalty_type='none',
                  argstr='',
+                 opennmt_dir='.',
                  **kwargs):
         self.model = model
-        # no support for translating multiple
-        self.translation_inputs = inputs[0]
-        self.outputs = outputs[0]
+        self.translation_inputs = inputs
+        self.outputs = outputs
         self.nbest = nbest
         self.beam = beam
         self.alpha = alpha
         self.beta = beta
-        self.len_smooth = len_smooth
+        self.penalty_type = penalty_type
         self.argstr = argstr
+        self.opennmt_dir = opennmt_dir
 
         all_inputs = [model] + inputs
         super().__init__(all_inputs, outputs, **kwargs)
@@ -108,8 +111,8 @@ class Translate(Rule):
     def make(self, conf, cli_args):
         model = self.model(conf, cli_args)
         # no support for translating multiple
-        inputs = self.translation_inputs(conf, cli_args)
-        outputs = self.outputs(conf, cli_args)
+        inputs = self.translation_inputs[0](conf, cli_args)
+        outputs = self.outputs[0](conf, cli_args)
                   
         run('{opennmt_dir}/translate.py'
             ' -model {model}'
@@ -119,8 +122,10 @@ class Translate(Rule):
             ' -beam_size {beam}'
             ' -alpha {alpha}'
             ' -beta {beta}'
-            ' -length_penalty {len_smooth}'
+            ' -coverage_penalty {penalty_type}'
+            ' -length_penalty {penalty_type}'
             ' {argstr}'.format(
+                opennmt_dir=self.opennmt_dir,
                 model=model,
                 inp=inputs,
                 out=outputs,
@@ -128,7 +133,7 @@ class Translate(Rule):
                 beam=self.beam,
                 alpha=self.alpha,
                 beta=self.beta,
-                len_smooth=self.len_smooth,
+                penalty_type=self.penalty_type,
                 argstr=self.argstr))
 
 
