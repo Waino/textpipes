@@ -298,7 +298,7 @@ class Rule(object):
     The object is initialized with RecipeFiles defining
     input and output paths.
     """
-    def __init__(self, inputs, outputs, resource_class='default'):
+    def __init__(self, inputs, outputs, resource_class='default', chain_schedule=1):
         if isinstance(inputs, RecipeFile):
             self.inputs = (inputs,)
         else:
@@ -312,6 +312,7 @@ class Rule(object):
             assert isinstance(rf, RecipeFile)
         for rf in self.outputs:
             assert isinstance(rf, RecipeFile)
+        self.chain_schedule = max(chain_schedule, 1)
 
     def make(self, conf, cli_args=None):
         raise NotImplementedError()
