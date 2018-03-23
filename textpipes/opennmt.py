@@ -39,34 +39,34 @@ class Train(Rule):
     def __init__(self,
                  data_dir,
                  pipe_file,
-                 model_seckey,
+                 prev_model,
+                 model,
                  model_base,
-                 loop_indices,
                  argstr='',
                  opennmt_dir='.',
-                 timeout=3.75,
+                 epochs_per_job=1,
                  **kwargs):
-        self.models = WildcardLoopRecipeFile.loop_output(
-            model_seckey[0], model_seckey[1], loop_indices)
+        self.prev_model = prev_model
+        self.model = model
         self.model_base = model_base
         self.data_dir = data_dir
         self.pipe_file = pipe_file
         self.argstr = argstr
         self.opennmt_dir = opennmt_dir
-        self.timeout = timeout
+        self.epochs_per_job = epochs_per_job
 
         inputs = [data_dir]
-        outputs = self.models
+        if prev_model is not None:
+            inputs.append(prev_model)
+        outputs = [self.model]
         super().__init__(inputs, outputs, **kwargs)
 
     def make(self, conf, cli_args):
         # a lot of stuff is appended to model path
-        assert self.models[0](conf, cli_args).startswith(self.model_base)
-        resume_str = self.resume()
+        assert self.model(conf, cli_args).startswith(self.model_base)
+        resume_str = self.resume(self.epochs_per_job)
         if resume_str != '':
             print('Resuming with: {}'.format(resume_str))
-        if self.timeout is not None
-            timeout_str = '-training_time {}'.format(self.timeout)
         run('{opennmt_dir}/train.py'
             ' -data {data_dir}/sharded'
             ' -save_model {model_base}'
@@ -74,7 +74,6 @@ class Train(Rule):
             ' -gpuid 0 '
             ' -encoder_type brnn '
             ' -share_decoder_embeddings'
-            ' {timeout}'
             ' {argstr}'
             ' >> {pipe_file} 2>&1'.format(
                 opennmt_dir=self.opennmt_dir,
@@ -82,32 +81,20 @@ class Train(Rule):
                 resume=resume_str,
                 data_dir=self.data_dir(conf, cli_args),
                 argstr=self.argstr,
-                timeout=timeout_str,
                 pipe_file=self.pipe_file(conf, cli_args)))
 
-    def resume(self):
+    def resume(self, epochs_per_job=1):
         # also includes values outside chosen loop indices
-        fidx, full_ep = find_highest_file(self.model_base + r'.*e([0-9]+)\.pt')
-        tidx, timeout = find_highest_file(self.model_base + r'.*e([0-9]+)\.timeout.pt')
-        if fidx is not None and (tidx is None or fidx > tidx):
-            # full_ep is higher
-            return '-train_from {}'.format(full_ep)
-        # otherwise prefer the timeout
-        if tidx is not None:
-            return '-train_from {}'.format(timeout)
+        idx, model = find_highest_file(self.model_base + r'.*e([0-9]+)\.pt')
+        if idx is not None:
+            return '-train_from {model} -start_epoch {beg} -epochs {end}'.format(
+                model=model, beg=idx + 1, end = idx + epochs_per_job)
         # nothing to resume
-        return ''
+        return '-epochs {}'.format(epochs_per_job)
 
     def is_atomic(self, output):
         # all loop outputs are atomic
         return isinstance(output, WildcardLoopRecipeFile)
-
-    def monitor(self, platform, conf, cli_args=None):
-        highest = WildcardLoopRecipeFile.highest_written(
-            self.models, conf, cli_args)
-        if highest is None:
-            return 'no output'
-        return highest(conf, cli_args)
 
 
 class Translate(Rule):

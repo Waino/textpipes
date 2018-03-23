@@ -4,6 +4,7 @@ import gzip
 import itertools
 import logging
 import os
+import re
 import subprocess
 from multiprocessing import Pool
 
@@ -134,9 +135,9 @@ def find_highest_file(path_template):
         m = re_filename_template.match(candidate)
         if not m:
             continue
-        idx = m.group(1)
-        matches.append((idx, candidate)
+        idx = int(m.group(1))
+        matches.append((idx, candidate))
     if len(matches) == 0:
         return None, None
     idx, highest = max(matches)
-    return idx, highest
+    return idx, os.path.join(directory, highest)
