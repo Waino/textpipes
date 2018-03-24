@@ -13,7 +13,9 @@ RE_NUMPUNC = re.compile(r'^[0-9,\.-]+$')
 
 class MonoFilter(MonoPipeComponent):
     def __init__(self, filtr, logfile=None):
-        super().__init__(side_outputs=[logfile])
+        side_inputs = filtr.side_inputs
+        side_outputs = [logfile] + filtr.side_outputs
+        super().__init__(side_inputs=side_inputs, side_outputs=side_outputs)
         self.filtr = filtr
         self.logfile = logfile
 
@@ -33,7 +35,16 @@ class MonoFilter(MonoPipeComponent):
 
 class ParallelFilter(ParallelPipeComponent):
     def __init__(self, filters, logfile=None):
-        super().__init__(side_outputs=[logfile])
+        side_inputs = []
+        side_outputs = [logfile]
+        if isinstance(filters, Filter):
+            side_inputs.extend(filters.side_inputs)
+            side_outputs.extend(filters.side_outputs)
+        else:
+            for filtr in filters:
+                side_inputs.extend(filtr.side_inputs)
+                side_outputs.extend(filtr.side_outputs)
+        super().__init__(side_inputs=side_inputs, side_outputs=side_outputs)
         self.filters = filters
         self.logfile = logfile
 
@@ -58,6 +69,10 @@ class ParallelFilter(ParallelPipeComponent):
 
 
 class Filter(object):
+    def __init__(self, side_inputs=None, side_outputs=None):
+        self.side_inputs = side_inputs if side_inputs is not None else []
+        self.side_outputs = side_outputs if side_outputs is not None else []
+
     """Base class for filter implementations"""
     def __call__(self, line, side_fobjs=None):
         """Returns True if the line should be filtered out"""
@@ -208,24 +223,23 @@ class FilterLongUntranslated(ParallelPipeComponent):
             yield tpl
 
 
-# a Component, not a Filter! uses a synchronous side input
-class FilterUsingLmScore(MonoPipeComponent):
+# uses a synchronous side input
+class FilterUsingLmScore(Filter):
     def __init__(self, scores, threshold=2.5, logfile=None):
         super().__init__(side_inputs=[scores], side_outputs=[logfile])
         self.scores = scores
         self.logfile = logfile
         self.threshold = threshold
 
-    def __call__(self, stream, side_fobjs=None,
-                 config=None, cli_args=None):
+    def __call__(self, line, side_fobjs=None):
         scores = side_fobjs[self.scores]
         logfile = side_fobjs.get(self.logfile, None)
-        for (line, score) in safe_zip(stream, scores):
-            if score > self.threshold:
-                if logfile is not None:
-                    logfile.write('{}\t{}'.format(score, line))
-                continue
-            yield line
+        score = float(next(scores))
+        if score > self.threshold:
+            if logfile is not None:
+                logfile.write('{}\t{}\n'.format(score, line))
+            return True
+        return False
 
 
 class OnlyNames(Filter):
@@ -254,6 +268,7 @@ class FilterBureaucratic(Filter):
                         ':': (3, 4, 6),
                         '-': (4, 6, 10),
                         ',': (4, 6, 10),}):
+        super().__init__()
         self.threshold = threshold
         self.numeric = numeric
         self.chars = chars
@@ -280,6 +295,7 @@ class FilterRepetitions(Filter):
     def __init__(self,
                  min_anywhere=15,
                  min_consequent=5):
+        super().__init__()
         self.min_anywhere = min_anywhere
         self.min_consequent = min_consequent
 
