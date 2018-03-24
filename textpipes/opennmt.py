@@ -35,7 +35,72 @@ class PrepareData(Rule):
                 max_shard_size=self.max_shard_size,
                 argstr=self.argstr))
 
+
 class Train(Rule):
+    def __init__(self,
+                 data_dir,
+                 pipe_file,
+                 model_seckey,
+                 loop_indices,
+                 model_base,
+                 argstr='',
+                 opennmt_dir='.',
+                 **kwargs):
+        self.models = WildcardLoopRecipeFile.loop_output(
+            model_seckey[0], model_seckey[1], loop_indices)
+        self.data_dir = data_dir
+        self.pipe_file = pipe_file
+        self.model_base = model_base
+        self.argstr = argstr
+        self.opennmt_dir = opennmt_dir
+
+        inputs = [data_dir]
+        outputs = self.models
+        super().__init__(inputs, outputs, **kwargs)
+
+    def make(self, conf, cli_args):
+        # a lot of stuff is appended to model path
+        assert self.model(conf, cli_args).startswith(self.model_base)
+        resume_str = self.resume()
+        run('{opennmt_dir}/train.py'
+            ' -data {data_dir}/sharded'
+            ' -save_model {model_base}'
+            ' {resume}'
+            ' -gpuid 0 '
+            ' -encoder_type brnn '
+            ' -share_decoder_embeddings'
+            ' {argstr}'
+            ' >> {pipe_file} 2>&1'.format(
+                opennmt_dir=self.opennmt_dir,
+                model_base=self.model_base,
+                resume=resume_str,
+                data_dir=self.data_dir(conf, cli_args),
+                argstr=self.argstr,
+                pipe_file=self.pipe_file(conf, cli_args)))
+
+    def resume(self):
+        # also includes values outside chosen loop indices
+        idx, model = find_highest_file(self.model_base + r'.*e([0-9]+)\.pt')
+        if idx is not None:
+            return '-train_from {model} -start_epoch {beg}'.format(
+                model=model, beg=idx + 1)
+        # nothing to resume
+        return ''
+
+    def is_atomic(self, output):
+        # all loop outputs are atomic
+        return isinstance(output, WildcardLoopRecipeFile)
+
+    def monitor(self, platform, conf, cli_args=None):
+        highest = WildcardLoopRecipeFile.highest_written(
+            self.models, conf, cli_args)
+        if highest is None:
+            return 'no output'
+        return highest(conf, cli_args)
+
+
+# train a single ep at a time using a chain of short jobs
+class TrainShort(Rule):
     def __init__(self,
                  data_dir,
                  pipe_file,
