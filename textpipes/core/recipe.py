@@ -1,4 +1,5 @@
 import collections
+import glob
 import logging
 import os
 
@@ -297,7 +298,7 @@ class Rule(object):
     The object is initialized with RecipeFiles defining
     input and output paths.
     """
-    def __init__(self, inputs, outputs, resource_class='default'):
+    def __init__(self, inputs, outputs, resource_class='default', chain_schedule=1):
         if isinstance(inputs, RecipeFile):
             self.inputs = (inputs,)
         else:
@@ -311,6 +312,7 @@ class Rule(object):
             assert isinstance(rf, RecipeFile)
         for rf in self.outputs:
             assert isinstance(rf, RecipeFile)
+        self.chain_schedule = max(chain_schedule, 1)
 
     def make(self, conf, cli_args=None):
         raise NotImplementedError()
@@ -471,3 +473,29 @@ class LoopRecipeFile(RecipeFile):
         if len(existing) == 0:
             return None
         return max(existing, key=lambda x: x.loop_index)
+
+
+class WildcardLoopRecipeFile(LoopRecipeFile):
+    """ Use special formatting {_loop_index} to include the loop index,
+    and * to include random unpredictable garbage,
+    in the file path template."""
+
+    def __call__(self, conf, cli_args=None):
+        super_path = super().__call__(conf, cli_args=cli_args)
+        matches = glob.glob(super_path)
+        if len(matches) == 0:
+            # not present
+            return super_path
+        elif len(matches) == 1:
+            return matches[0]
+        raise Exception('{} matched multiple files'.format(self))
+
+    def open(self, conf, cli_args=None, mode='rb', strip_newlines=True):
+        assert 'w' not in mode, 'Cannot write into WildcardLoopRecipeFile'
+        return super().open(conf, cli_args=cli_args, mode=mode, strip_newlines=strip_newlines)
+
+    @staticmethod
+    def loop_output(section, key, loop_indices):
+        """Create a sequence of LoopRecipeFiles with the given indices"""
+        return [WildcardLoopRecipeFile(section, key, loop_index)
+                for loop_index in loop_indices]

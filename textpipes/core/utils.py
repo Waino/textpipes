@@ -4,6 +4,7 @@ import gzip
 import itertools
 import logging
 import os
+import re
 import subprocess
 from multiprocessing import Pool
 
@@ -124,3 +125,19 @@ def read_lang_file(fname, lang):
             continue
         result.append(line)
     return result
+
+
+def find_highest_file(path_template):
+    directory, filename_template = os.path.split(path_template)
+    matches = []
+    re_filename_template = re.compile(filename_template)
+    for candidate in os.listdir(directory):
+        m = re_filename_template.match(candidate)
+        if not m:
+            continue
+        idx = int(m.group(1))
+        matches.append((idx, candidate))
+    if len(matches) == 0:
+        return None, None
+    idx, highest = max(matches)
+    return idx, os.path.join(directory, highest)
