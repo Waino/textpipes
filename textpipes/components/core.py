@@ -34,10 +34,10 @@ class Pipe(Rule):
         # Open side inputs and outputs
         side_fobjs = {}
         for inp in self.side_inputs:
-            side_fobjs[inp] = inp.open(conf, cli_args, mode='rb')
+            side_fobjs[inp] = inp.open(conf, cli_args, mode='r')
         for out in self.side_outputs:
             assert out not in side_fobjs
-            side_fobjs[out] = out.open(conf, cli_args, mode='wb')
+            side_fobjs[out] = out.open(conf, cli_args, mode='w')
 
         for component in self.components:
             component.pre_make(side_fobjs)
@@ -78,13 +78,13 @@ class MonoPipe(Pipe):
             raise Exception('MonoPipe must have exactly 1 main output. '
                 'Received: {}'.format(self.main_outputs))
         # Make a generator that reads from main_input
-        main_in_fobj = self.main_inputs[0].open(conf, cli_args, mode='rb')
+        main_in_fobj = self.main_inputs[0].open(conf, cli_args, mode='r')
         stream = main_in_fobj
 
         stream, side_fobjs = self._make_helper(stream, conf, cli_args)
 
         # Drain pipeline into main_output
-        with self.main_outputs[0].open(conf, cli_args, mode='wb') as fobj:
+        with self.main_outputs[0].open(conf, cli_args, mode='w') as fobj:
             for line in stream:
                 fobj.write(line)
                 fobj.write('\n')
@@ -113,7 +113,7 @@ class ParallelPipe(Pipe):
 
     def make(self, conf, cli_args=None):
         # Make a tuple of generators that reads from main_inputs
-        readers = [inp.open(conf, cli_args, mode='rb')
+        readers = [inp.open(conf, cli_args, mode='r')
                    for inp in self.main_inputs]
         # read one line from each and yield it as a tuple
         stream = safe_zip(*readers)
@@ -121,7 +121,7 @@ class ParallelPipe(Pipe):
         stream, side_fobjs = self._make_helper(stream, conf, cli_args)
 
         # Round-robin drain pipeline into main_outputs
-        writers = [out.open(conf, cli_args, mode='wb')
+        writers = [out.open(conf, cli_args, mode='w')
                    for out in self.main_outputs]
         for (i, tpl) in enumerate(stream):
             if len(tpl) != len(writers):
@@ -157,7 +157,7 @@ class DeadEndPipe(MonoPipe):
             raise Exception('DeadEndPipe cannot have a main output. '
                 'Received: {}'.format(self.main_outputs))
         # Make a tuple of generators that reads from main_inputs
-        readers = [inp.open(conf, cli_args, mode='rb')
+        readers = [inp.open(conf, cli_args, mode='r')
                    for inp in self.main_inputs]
         stream = itertools.chain(*readers)
 

@@ -8,8 +8,8 @@ class SplitColumns(Rule):
         self.delimiter = delimiter
 
     def make(self, conf, cli_args=None):
-        stream = self.inputs[0].open(conf, cli_args, mode='rb')
-        writers = [out.open(conf, cli_args, mode='wb')
+        stream = self.inputs[0].open(conf, cli_args, mode='r')
+        writers = [out.open(conf, cli_args, mode='w')
                    for out in self.outputs]
         stream = progress(stream, self, conf, '(multi)')
         for (i, line) in enumerate(stream):
@@ -31,12 +31,12 @@ class PasteColumns(Rule):
 
     def make(self, conf, cli_args=None):
         # Make a tuple of generators that reads from main_inputs
-        readers = [inp.open(conf, cli_args, mode='rb')
+        readers = [inp.open(conf, cli_args, mode='r')
                    for inp in self.inputs]
         # read one line from each and yield it as a tuple
         stream = safe_zip(*readers)
 
-        fobj = self.outputs[0].open(conf, cli_args, mode='wb')
+        fobj = self.outputs[0].open(conf, cli_args, mode='w')
         stream = progress(stream, self, conf, '(multi)')
         for (i, tpl) in enumerate(stream):
             line = self.delimiter.join(tpl)

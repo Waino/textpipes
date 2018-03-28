@@ -22,7 +22,7 @@ from .core import SingleCellComponent, RegexSubstitution, MonoPipeComponent
 
 class Clean(SingleCellComponent):
     """Uses ftfy to perform a number of normalizations """
-    def __init__(self, **kwargs):
+    def __init__(self, maintain_alignment=True, **kwargs):
         super().__init__(mp=False)  # not paralellizable
         self.params = {
             'fix_entities': True,     # ftfy default is 'auto'
@@ -38,9 +38,14 @@ class Clean(SingleCellComponent):
             'normalization': 'NFKC',   # ftfy default is 'NFC'
             'max_decode_length': 1000000}
         self.params.update(kwargs)
+        self.maintain_alignment = maintain_alignment
 
     def single_cell(self, line):
-        return ftfy.fix_text(line, **self.params)
+        line = ftfy.fix_text(line, **self.params)
+        if self.maintain_alignment:
+            # remove intoduced extra newlines
+            line = line.replace('\n', ' ')
+        return line
 
 
 class NormalizePunctuation(RegexSubstitution):
@@ -93,7 +98,7 @@ class MapChars(SingleCellComponent):
     """Character mangling based on unicode character category,
     with individual overrides.
     """
-    def __init__(self, policies={}, overrides={}):
+    def __init__(self, policies={}, overrides={}, maintain_alignment=True):
         super().__init__(mp=False)  # not paralellizable
         self._cache = dict()
         self.policies = {
@@ -163,6 +168,7 @@ class MapChars(SingleCellComponent):
             ' ': ' ',       # Zs
         }
         self.overrides.update(overrides)
+        self.maintain_alignment = maintain_alignment
 
     def single_cell(self, line):
         result = []
@@ -170,7 +176,11 @@ class MapChars(SingleCellComponent):
             if char not in self._cache:
                 self._cache[char] = self._decide(char)
             result.append(self._cache[char])
-        return ''.join(result)
+        result = ''.join(result)
+        if self.maintain_alignment:
+            # remove intoduced extra newlines
+            result = result.replace('\n', ' ')
+        return result
 
     def _decide(self, char):
         if char in self.overrides:

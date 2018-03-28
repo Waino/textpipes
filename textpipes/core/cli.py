@@ -443,7 +443,7 @@ class ExperimentLog(object):
 
     def _parse_log(self, logfile):
         try:
-            for line in open_text_file(logfile, mode='rb'):
+            for line in open_text_file(logfile, mode='r'):
                 line = line.strip()
                 # git lines are ignored
                 m = LOG_RE.match(line)
@@ -613,6 +613,6 @@ class ExperimentLog(object):
     def _append(self, msg, logfile=None):
         os.makedirs('logs', exist_ok=True)
         logfile = logfile if logfile is not None else self.logfile
-        with open_text_file(logfile, mode='ab') as fobj:
+        with open_text_file(logfile, mode='a') as fobj:
             fobj.write(msg)
             fobj.write('\n')

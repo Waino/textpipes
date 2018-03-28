@@ -24,21 +24,27 @@ def safe_zip(*iterables):
         yield tpl
 
 
-def open_text_file(file_path, mode='rb', encoding='utf-8'):
+# opening a gzip as binary and then using a codecs reader on it
+# can result in nasty newline bugs
+def open_text_file(file_path, mode='r', encoding='utf-8'):
     """Open a file for i/o with the appropriate decompression/decoding
     """
-    if 'b' not in mode:
-        mode += 'b'
+    mode = mode.replace('b', '')    # FIXME: hack
     if file_path.endswith('.gz'):
+        if 't' not in mode:
+            mode += 't'
         file_obj = gzip.open(file_path, mode)
     elif file_path.endswith('.bz2'):
         file_obj = bz2.BZ2File(file_path, mode)
     else:
         file_obj = open(file_path, mode)
-    if 'w' in mode or 'a' in mode:
-        return codecs.getwriter(encoding)(file_obj)
-    else:
-        return codecs.getreader(encoding)(file_obj)
+    if encoding != 'utf-8':
+        raise Exception('Re-encode your data')
+    return file_obj
+    #if 'w' in mode or 'a' in mode:
+    #    return codecs.getwriter(encoding)(file_obj)
+    #else:
+    #    return codecs.getreader(encoding)(file_obj)
 
 
 def external_linecount(file_path):

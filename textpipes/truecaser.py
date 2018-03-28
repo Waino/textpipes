@@ -166,3 +166,8 @@ class DeTrueCase(SingleCellComponent):
     def _uc_first(self, token):
         # can't use capitalize(), don't want to lower rest
         return token[0].upper() + token[1:]
+
+
+class LowerCase(SingleCellComponent):
+    def single_cell(self, sentence):
+        return sentence.lower()

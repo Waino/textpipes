@@ -318,7 +318,14 @@ class FilterRepetitions(Filter):
                     consequent = 0
         return False
 
+
 class FilterSingleUrl(FilterRegex):
     """Filters out lines with only a single url"""
     def __init__(self):
         super().__init__((r'^https?://[^ ]*$',), ignore_case=True)
+
+
+class FilterEllipsis(FilterRegex):
+    """Filters out lines with ..."""
+    def __init__(self):
+        super().__init__((r'\.\.\.',))

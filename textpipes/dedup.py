@@ -29,7 +29,7 @@ class Deduplicate(Rule):
     def make(self, conf, cli_args):
         estimated_lines = 1.2 * conf.conf['exp'].getint('n_lines', 500000000)
         # first pass: collect collisions
-        pipes = [inp.open(conf, cli_args, mode='rb')
+        pipes = [inp.open(conf, cli_args, mode='r')
                  for inp in self.inputs]
         filters = [DedupFilter(pipe,
                                estimated_lines=estimated_lines,
@@ -45,6 +45,7 @@ class Deduplicate(Rule):
 
 class DedupFilter(Filter):
     def __init__(self, lines, estimated_lines, dup_proportion, truncate):
+        super().__init__()
         estimated_dups = estimated_lines * dup_proportion
         self.truncate = truncate
         self.potential = BloomFilter(capacity=estimated_dups,

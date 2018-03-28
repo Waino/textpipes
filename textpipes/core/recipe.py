@@ -2,6 +2,7 @@ import collections
 import glob
 import logging
 import os
+import sys
 
 from .utils import *
 
@@ -395,13 +396,13 @@ class RecipeFile(object):
     def exists(self, conf, cli_args=None):
         return os.path.exists(self(conf, cli_args))
 
-    def open(self, conf, cli_args=None, mode='rb', strip_newlines=True):
+    def open(self, conf, cli_args=None, mode='r', strip_newlines=True):
         filepath = self(conf, cli_args)
         if 'w' in mode:
             subdir, _ = os.path.split(filepath)
             os.makedirs(subdir, exist_ok=True)
         lines = open_text_file(filepath, mode)
-        if strip_newlines and not 'w' in mode:
+        if strip_newlines and 'r' in mode:
             lines = (line.rstrip('\n') for line in lines)
         return lines
 
@@ -490,7 +491,7 @@ class WildcardLoopRecipeFile(LoopRecipeFile):
             return matches[0]
         raise Exception('{} matched multiple files'.format(self))
 
-    def open(self, conf, cli_args=None, mode='rb', strip_newlines=True):
+    def open(self, conf, cli_args=None, mode='r', strip_newlines=True):
         assert 'w' not in mode, 'Cannot write into WildcardLoopRecipeFile'
         return super().open(conf, cli_args=cli_args, mode=mode, strip_newlines=strip_newlines)
 

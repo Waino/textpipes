@@ -29,13 +29,13 @@ class TriangulateParallel(Rule):
             [out_a, out_b])
 
     def make(self, conf, cli_args=None):
-        pivot_a = self.pivot_a.open(conf, cli_args, mode='rb')
-        inp_a = self.inp_a.open(conf, cli_args, mode='rb')
-        pivot_b = self.pivot_b.open(conf, cli_args, mode='rb')
-        inp_b = self.inp_b.open(conf, cli_args, mode='rb')
+        pivot_a = self.pivot_a.open(conf, cli_args, mode='r')
+        inp_a = self.inp_a.open(conf, cli_args, mode='r')
+        pivot_b = self.pivot_b.open(conf, cli_args, mode='r')
+        inp_b = self.inp_b.open(conf, cli_args, mode='r')
 
-        out_a = self.out_a.open(conf, cli_args, mode='wb')
-        out_b = self.out_b.open(conf, cli_args, mode='wb')
+        out_a = self.out_a.open(conf, cli_args, mode='w')
+        out_b = self.out_b.open(conf, cli_args, mode='w')
 
         map_a = {}
         for (pivot, a) in safe_zip(pivot_a, inp_a):
@@ -96,7 +96,7 @@ class WordPairs(Rule):
 
     def make(self, conf, cli_args):
         # Make a tuple of generators that reads from main_inputs
-        readers = [inp.open(conf, cli_args, mode='rb')
+        readers = [inp.open(conf, cli_args, mode='r')
                    for inp in self.inputs]
         # read one line from each and yield it as a tuple
         stream = safe_zip(*readers)
@@ -112,7 +112,7 @@ class WordPairs(Rule):
             for src_i, trg_i in aligns:
                 counts[(src[src_i], trg[trg_i])] += 1
 
-        fobj = self.outputs[0].open(conf, cli_args, mode='wb')
+        fobj = self.outputs[0].open(conf, cli_args, mode='w')
         stream = progress(stream, self, conf, '(multi)')
         for (pair, count) in counts.most_common():
             if count < self.min_freq:

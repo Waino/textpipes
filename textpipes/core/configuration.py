@@ -20,7 +20,8 @@ class Config(object):
         try:
             return self.conf['paths.{}'.format(section)][key]
         except KeyError:
-            raise Exception('Undefined path {}:{}'.format(section, key))
+            # --check expects KeyError
+            raise KeyError('Undefined path {}:{}'.format(section, key))
 
     def platform_config(self, args):
         try:

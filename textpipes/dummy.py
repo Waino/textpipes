@@ -12,9 +12,9 @@ class DummyTrainLoop(Rule):
 
     def make(self, conf, cli_args):
         print('in DummyTrainLoop')
-        in_fobj = self.inputs[0].open(conf, cli_args, mode='rb')
+        in_fobj = self.inputs[0].open(conf, cli_args, mode='r')
         # for debug reasons, only outputs first two
-        out_fobjs = [out.open(conf, cli_args, mode='wb')
+        out_fobjs = [out.open(conf, cli_args, mode='w')
                      for out in self.outputs[:2]]
         for line in in_fobj:
             for (i, out_fobj) in enumerate(out_fobjs):
