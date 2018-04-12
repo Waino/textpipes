@@ -1,7 +1,7 @@
 import collections
 import re
 
-from .core import MonoPipeComponent, ParallelPipeComponent
+from .core import MonoPipeComponent, ParallelPipeComponent, PipeComponent
 from .preprocessing import Clean
 from ..core.utils import safe_zip
 
@@ -223,23 +223,43 @@ class FilterLongUntranslated(ParallelPipeComponent):
             yield tpl
 
 
-# uses a synchronous side input
-class FilterUsingLmScore(Filter):
-    def __init__(self, scores, threshold=2.5, logfile=None):
+# a Component, not a Filter! uses a synchronous side input used multiple times
+# can be used as both Mono and Parallel PipeComponent
+class FilterUsingLmScore(PipeComponent):
+    def __init__(self, scores, threshold=None, keep=None, logfile=None):
         super().__init__(side_inputs=[scores], side_outputs=[logfile])
-        self.scores = scores
+        assert sum(x is None for x in (threshold, keep)) == 1
+        self.scores_file = scores
         self.logfile = logfile
+        self.keep = keep
         self.threshold = threshold
+        self.scores = None
+        # does not care what the data is
+        self._is_mono_pipe_component = True
+        self._is_parallel_pipe_component = True
 
-    def __call__(self, line, side_fobjs=None):
-        scores = side_fobjs[self.scores]
+    def pre_make(self, side_fobjs):
+        if self.keep is None and self.threshold is not None:
+            self.scores = (float(x) for x in side_fobjs[self.scores_file])
+        elif self.threshold is None and self.keep is not None:
+            # need to cache the whole list of scores
+            self.scores = [float(x) for x in side_fobjs[self.scores_file]]
+            sorted_scores = sorted(self.scores)
+            self.threshold = sorted_scores[self.keep]
+
+    def __call__(self, stream, side_fobjs=None, 
+                 config=None, cli_args=None):
         logfile = side_fobjs.get(self.logfile, None)
-        score = float(next(scores))
-        if score > self.threshold:
-            if logfile is not None:
-                logfile.write('{}\t{}\n'.format(score, line))
-            return True
-        return False
+        kept = 0
+        for (line, score) in safe_zip(stream, self.scores):
+            if score > self.threshold:
+                if logfile is not None:
+                    logfile.write('{}\t{}\n'.format(score, line))
+                continue
+            kept += 1
+            yield line
+            if self.keep is not None and kept == self.keep:
+                break
 
 
 class OnlyNames(Filter):

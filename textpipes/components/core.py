@@ -65,7 +65,7 @@ class Pipe(Rule):
 class MonoPipe(Pipe):
     def __init__(self, components, *args, **kwargs):
         for component in components:
-            if not isinstance(component, MonoPipeComponent):
+            if not hasattr(component, '_is_mono_pipe_component'):
                 raise Exception('MonoPipe expected MonoPipeComponent, '
                     'received {}'.format(component))
         super().__init__(components, *args, **kwargs)
@@ -105,7 +105,7 @@ class ParallelPipe(Pipe):
                 # SingleCellComponent automatically wrapped in ForEach,
                 # which applies it to all 
                 component = ForEach(component)
-            if not isinstance(component, ParallelPipeComponent):
+            if not hasattr(component, '_is_parallel_pipe_component'):
                 raise Exception('ParallelPipe expected ParallelPipeComponent, '
                     'received {}'.format(component))
             wrapped.append(component)
@@ -147,7 +147,7 @@ class DeadEndPipe(MonoPipe):
     """
     def __init__(self, components, *args, **kwargs):
         for component in components:
-            if not isinstance(component, MonoPipeComponent):
+            if not hasattr(component, '_is_mono_pipe_component'):
                 raise Exception('DeadEndPipe expected MonoPipeComponent, '
                     'received {}'.format(component))
         super().__init__(components, *args, main_outputs=[], **kwargs)
@@ -177,8 +177,8 @@ class DeadEndPipe(MonoPipe):
 #
 class PipeComponent(object):
     def __init__(self, side_inputs=None, side_outputs=None):
-        self.side_inputs = side_inputs if side_inputs is not None else ()
-        self.side_outputs = side_outputs if side_outputs is not None else ()
+        self._side_inputs = side_inputs if side_inputs is not None else ()
+        self._side_outputs = side_outputs if side_outputs is not None else ()
 
     def pre_make(self, side_fobjs):
         """Called before __call__ (or all the single_cell calls)"""
@@ -188,13 +188,25 @@ class PipeComponent(object):
         """Called after __call__ (or all the single_cell calls)"""
         pass
 
+    @property
+    def side_inputs(self):
+        return self._side_inputs
+
+    @property
+    def side_outputs(self):
+        return self._side_outputs
+
 
 class MonoPipeComponent(PipeComponent):
-    pass
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._is_mono_pipe_component = True
 
 
 class ParallelPipeComponent(PipeComponent):
-    pass
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._is_parallel_pipe_component = True
 
 
 class Tee(MonoPipeComponent):
@@ -251,7 +263,8 @@ class ForEach(ParallelPipeComponent):
     The operation will be applied to each parallel stream.
     The operation MUST NOT filter out any lines.
     """
-    def __init__(self, mono_component):
+    def __init__(self, mono_component, **kwargs):
+        self._is_parallel_pipe_component = True
         self.mono_component = mono_component
 
     def __call__(self, stream, side_fobjs=None,
@@ -280,7 +293,8 @@ class ForEach(ParallelPipeComponent):
 class PerColumn(ParallelPipeComponent):
     """Wraps multiple SingleCellComponents for use in a ParallelPipe,
     such that each column of the parallel pipe gets a different component."""
-    def __init__(self, components):
+    def __init__(self, components, **kwargs):
+        super().__init__(**kwargs)
         self.components = [component if component is not None
                            else IdentityComponent()
                            for component in components]
