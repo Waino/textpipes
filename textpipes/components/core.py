@@ -13,6 +13,8 @@ class Pipe(Rule):
     def __init__(self, components,
                  main_inputs, main_outputs,
                  estimated_lines='conf',
+                 extra_side_inputs=None,
+                 extra_side_outputs=None,
                  **kwargs):
         side_inputs = tuple(set(inp for component in components
                                 for inp in component.side_inputs
@@ -20,6 +22,10 @@ class Pipe(Rule):
         side_outputs = tuple(set(out for component in components
                                  for out in component.side_outputs
                                  if out is not None))
+        if extra_side_inputs is not None:
+            side_inputs = side_inputs + tuple(extra_side_inputs)
+        if extra_side_outputs is not None:
+            side_outputs = side_outputs + tuple(extra_side_outputs)
         inputs = tuple(main_inputs) + tuple(side_inputs)
         outputs = tuple(main_outputs) + tuple(side_outputs)
         super().__init__(inputs, outputs, **kwargs)

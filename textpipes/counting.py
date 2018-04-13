@@ -71,10 +71,9 @@ class ScaleCounts(MonoPipe):
 
 class CombineCounts(MonoPipe):
     def __init__(self, inputs, output, reverse=False, words_only=None, balance=False, **kwargs):
-        super().__init__([], inputs, [output], **kwargs)
+        extra_side_outputs = (words_only,) if words_only else ()
+        super().__init__([], inputs, [output], extra_side_outputs=extra_side_outputs, **kwargs)
         self.output = output
-        if words_only:
-            self.side_outputs = self.side_outputs + (words_only,)
         self.count_file = output
         self.words_file = words_only
         # BPE wants word first, followed by count
