@@ -98,9 +98,9 @@ class CombineCounts(MonoPipe):
         # balancing
         max_sum = max(sums)
         scales = [max_sum / x for x in sums]
-        for counter, scale in zip(unscaled_counts, scales):
+        for counts, scale in zip(unscaled_counts, scales):
             if not self.balance or scale == 1:
-                combined_counts.update(counter)
+                combined_counts.update(counts)
             else:
                 for wtype, count in counts.items():
                     combined_counts[wtype] += int(count * scale)

@@ -305,16 +305,23 @@ class ApplyMapping(MonoPipeComponent):
 # apply a segmentation
 # FIXME: there are two different apply components (the other in segmentation.py)
 class ApplySegmentation(ApplyMapping):
-    def __init__(self, map_file, bnd_marker='@@', **kwargs):
+    def __init__(self, map_file, bnd_marker='@@ ', pre_marked=False, no_space_ok=False, **kwargs):
         super().__init__(map_file, **kwargs)
-        self.bnd_marker = bnd_marker.strip()
+        self.bnd_marker = bnd_marker
+        self.pre_marked = pre_marked
+        assert no_space_ok or ' ' in self.bnd_marker
 
     def pre_make(self, side_fobjs):
+        nonspace_marker = self.bnd_marker.replace(' ', '')
         for line in side_fobjs[self.map_file]:
             # only the segmented form is given
             parts = line.split()
-            # bnd_marker not part of actual surface form
-            src = ''.join(parts).replace(self.bnd_marker, '')
+            if self.pre_marked:
+                # bnd_marker contains chars not part of actual surface form
+                src = ''.join(parts).replace(nonspace_marker, '')
+            else:
+                src = ''.join(parts)
+                line = self.bnd_marker.join(parts)
             self.mapping[src] = line
 
 
