@@ -235,11 +235,13 @@ class Recipe(object):
 
         border = set(outputs)
         mtimes = {}
+        nonexistent = set()
         while len(border) > 0:
             cursor = border.pop()
             if cursor in mtimes:
                 continue
             if not cursor.exists(self.conf, cli_args):
+                nonexistent.add(cursor)
                 continue
             mtime = os.path.getmtime(cursor(self.conf, cli_args))
             mtimes[cursor] = mtime
@@ -254,8 +256,10 @@ class Recipe(object):
                 continue
             for inp in rule.inputs:
                 if mtimes.get(inp, 0) > mtimes[cursor]:
-                    inversions.append((cursor, inp))
+                    inversions.append((cursor, inp, 'inversion'))
                     continue
+                elif inp in nonexistent and cursor in mtimes:
+                    inversions.append((cursor, inp, 'orphan'))
         return inversions
 
     def make_output(self, output, cli_args=None):

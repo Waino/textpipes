@@ -249,9 +249,10 @@ class CLI(object):
         if len(inversions) == 0:
             print('Everything in order')
         else:
-            for cursor, inp in inversions:
-                print('{}    is newer than {}'.format(
+            for cursor, inp, invtype in inversions:
+                print('{}\t\t\t{} {}'.format(
                     cursor(self.conf, self.cli_args),
+                    'is newer than' if invtype == 'inversion' else 'orphan of',
                     inp(self.conf, self.cli_args)))
 
     def schedule(self, nextsteps):
