@@ -99,7 +99,7 @@ class ApplyBPE(Rule):
         assert not codes.endswith('.gz')
         assert not outfile.endswith('.gz')
         run('{prog} --input {infile} --codes {codes} --output {outfile}'
-            ' --separator {sep}'.format(
+            ' --separator "{sep}"'.format(
                 prog=os.path.join(WRAPPER_DIR, 'apply_bpe.py'),
                 infile=infile,
                 codes=codes,
