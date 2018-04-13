@@ -330,3 +330,13 @@ class SplitNumbers(RegexSubstitution):
     # FIXME: also split long numbers into shorter chunks?
     def __init__(self, **kwargs):
         super().__init__([(r'(\d)([.,/-])(\d)', r'\1@@ \2@@ \3')], **kwargs)
+
+
+class Prefix(SingleCellComponent):
+    def __init__(self, prefix='', suffix='', **kwargs):
+        super().__init__(**kwargs)
+        self.prefix = prefix
+        self.suffix = suffix
+
+    def single_cell(self, line):
+        return ''.join((self.prefix, line, self.suffix))

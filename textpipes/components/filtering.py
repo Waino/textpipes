@@ -234,7 +234,7 @@ class FilterUsingLmScore(PipeComponent):
         self.keep = keep
         self.threshold = threshold
         self.scores = None
-        # does not care what the data is
+        # does not care if the data is mono or parallel
         self._is_mono_pipe_component = True
         self._is_parallel_pipe_component = True
 
