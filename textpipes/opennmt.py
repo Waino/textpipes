@@ -26,7 +26,6 @@ class PrepareData(Rule):
             ' -max_shard_size {max_shard_size}'
             ' {argstr}'.format(
                 opennmt_dir=self.opennmt_dir,
-                corpus=self.corpus,
                 src_corpus_file=src_corpus_file,
                 trg_corpus_file=trg_corpus_file,
                 src_dev_file=src_dev_file,
@@ -60,7 +59,7 @@ class Train(Rule):
 
     def make(self, conf, cli_args):
         # a lot of stuff is appended to model path
-        assert self.model(conf, cli_args).startswith(self.model_base)
+        assert self.models[0](conf, cli_args).startswith(self.model_base)
         resume_str = self.resume()
         run('{opennmt_dir}/train.py'
             ' -data {data_dir}/sharded'
