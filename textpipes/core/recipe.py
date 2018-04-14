@@ -58,24 +58,31 @@ class Recipe(object):
         self.conf = self.cli.conf
         self.log = self.cli.log
 
-    def add_input(self, section, key, loop_index=None, **kwargs):
+    @classmethod
+    def _make_rf(cls, section, key, loop_index=None, **kwargs):
         if loop_index is None:
-            rf = RecipeFile(section, key, **kwargs)
+            return RecipeFile(section, key, **kwargs)
         else:
-            rf = LoopRecipeFile(section, key, loop_index, **kwargs)
+            return LoopRecipeFile(section, key, loop_index, **kwargs)
+
+    def add_input(self, section, key, loop_index=None, **kwargs):
+        rf = self._make_rf(section, key, loop_index=loop_index, **kwargs)
         if rf not in self.files:
             self.files[rf] = None
         return rf
 
     def add_output(self, section, key, loop_index=None, main=False, **kwargs):
-        if loop_index is None:
-            rf = RecipeFile(section, key, **kwargs)
-        else:
-            rf = LoopRecipeFile(section, key, loop_index, **kwargs)
+        rf = self._make_rf(section, key, loop_index=loop_index, **kwargs)
         if rf in self.files:
             raise Exception('There is already a rule for {}'.format(rf))
         if main:
             self._main_out.add(rf)
+        return rf
+
+    def use_output(self, section, key, loop_index=None, **kwargs):
+        rf = self._make_rf(section, key, loop_index=loop_index, **kwargs)
+        if rf not in self.files:
+            raise Exception('No rule for {}'.format(rf))
         return rf
 
     def add_rule(self, rule):

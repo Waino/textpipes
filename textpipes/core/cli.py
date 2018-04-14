@@ -182,14 +182,15 @@ class CLI(object):
             else:
                 print('********** WARNING! No paths.dirs defined')
         # check that output paths are in config
-        warn = False
+        warn = []
         for rf in self.recipe.files:
             try:
                 fname = rf(self.conf, self.cli_args)
             except KeyError:
-                print('config is missing path: {}'.format(rf))
-                warn = True
+                warn.append(rf)
         if warn:
+            for rf in sorted(warn):
+                print('config is missing path: {}'.format(rf))
             print('********** WARNING! Some paths are missing **********')
         for (dep, msg) in OPT_DEPS:
             try:
