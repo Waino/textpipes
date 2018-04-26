@@ -57,22 +57,21 @@ class DeRoundRobin(Rule):
         super().__init__(inputs, [output])
 
     def make(self, conf, cli_args=None):
-        # Make a tuple of generators that reads from main_inputs
+        # Make a tuple of generators that reads from inputs
         readers = [inp.open(conf, cli_args, mode='r')
-                   for inp in self.main_inputs]
+                   for inp in self.inputs]
 
-        # Round-robin read from each, and drain pipeline into main_output
-        writer = self.main_outputs[0].open(conf, cli_args, mode='w')
-        while True:
-            for reader in readers:
+        # Round-robin read from each, and drain pipeline into output
+        writer = self.outputs[0].open(conf, cli_args, mode='w')
+        while len(readers) > 0:
+            for (i, reader) in enumerate(readers):
                 try:
                     writer.write(next(reader))
                     writer.write('\n')
                 except StopIteration:
-                    pass
-        # close all file objects
-        for fobj in readers + [writer]:
-            fobj.close()
+                    reader.close()
+                    readers = readers[:i] + readers[i+1:]
+        writer.close()
 
 
 class Shuffle(PipeComponent):

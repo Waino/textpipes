@@ -157,7 +157,10 @@ class Recipe(object):
             if cursor in visited:
                 continue
             visited.add(cursor)
-            rule = self.files[cursor]
+            try:
+                rule = self.files[cursor]
+            except KeyError:
+                raise Exception('No rule to build requested output {}'.format(cursor))
             # FIXME: pass self.conf and cli_args so that flexible rules can adjust?
             # check log for waiting/running jobs
             status, job_fields = self.log.get_status_of_output(

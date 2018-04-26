@@ -70,7 +70,7 @@ class ScaleCounts(MonoPipe):
 
 
 class CombineCounts(MonoPipe):
-    def __init__(self, inputs, output, reverse=False, words_only=None, balance=False, **kwargs):
+    def __init__(self, inputs, output, reverse=False, words_only=None, balance=False, threshold=0, **kwargs):
         extra_side_outputs = (words_only,) if words_only else ()
         super().__init__([], inputs, [output], extra_side_outputs=extra_side_outputs, **kwargs)
         self.output = output
@@ -80,6 +80,8 @@ class CombineCounts(MonoPipe):
         self.reverse = reverse
         # scale counts to balance contribution of different inputs
         self.balance = balance
+        # minimum unscaled count to include in output
+        self.threshold = threshold
 
     def make(self, conf, cli_args=None):
         combined_counts = collections.Counter()
@@ -88,13 +90,17 @@ class CombineCounts(MonoPipe):
         # counting
         for inp in self.main_inputs:
             counts = collections.Counter()
+            count_sum = 0
             in_fobj = inp.open(conf, cli_args, mode='r')
             for line in in_fobj:
                 count, wtype = line.split('\t')
-                counts[wtype] += int(count)
+                count = int(count)
+                count_sum += count
+                if count >= self.threshold:
+                    counts[wtype] += count
             in_fobj.close()
             unscaled_counts.append(counts)
-            sums.append(sum(counts.values()))
+            sums.append(count_sum)
         # balancing
         max_sum = max(sums)
         scales = [max_sum / x for x in sums]
