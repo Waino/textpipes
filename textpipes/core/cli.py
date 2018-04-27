@@ -47,6 +47,8 @@ def get_parser(recipe):
                         help='Look for outputs that are older than their inputs')
     parser.add_argument('--quiet', default=False, action='store_true',
                         help='Less verbose output, by hiding some info')
+    parser.add_argument('--verbose', default=False, action='store_true',
+                        help='More verbose output, e.g. print inputs')
     parser.add_argument('--dryrun', default=False, action='store_true',
                         help='Show what would be done, but dont do it')
     parser.add_argument('-r', '--recursive', default=False, action='store_true',
@@ -122,6 +124,7 @@ class CLI(object):
             # show before running locally
             self.show_next_steps(nextsteps,
                                  dryrun=self.args.dryrun,
+                                 verbose=self.args.verbose,
                                  immediate=self.platform.make_immediately)
         if not self.args.dryrun:
             self.schedule(nextsteps)
@@ -129,6 +132,7 @@ class CLI(object):
             # show after schduling on cluster
             self.show_next_steps(nextsteps,
                                  dryrun=self.args.dryrun,
+                                 verbose=self.args.verbose,
                                  immediate=self.platform.make_immediately)
 
     def check_validity(self):
@@ -315,7 +319,7 @@ class CLI(object):
         self.recipe.make_output(output=output, cli_args=self.cli_args)
         self.log.finished_running(next_step, job_id, rule.name)
 
-    def show_next_steps(self, nextsteps, dryrun=False, immediate=False):
+    def show_next_steps(self, nextsteps, dryrun=False, immediate=False, verbose=False):
         # FIXME: don't filter out redundant scheduled?
         nextsteps = self._remove_redundant(nextsteps, dryrun=dryrun)
         albl = 'scheduled:'
@@ -336,6 +340,11 @@ class CLI(object):
             outfile = step.outputs[0](self.conf, self.cli_args)
             tpls.append((
                 albl, step.job_id, step.sec_key, step.rule.name, outfile))
+            if verbose:
+                # step.inputs only has unsatisfied
+                for inp in step.rule.inputs:
+                    tpls.append((
+                        '   ^input:', '', inp.sec_key(), '', inp(self.conf, self.cli_args)))
         for step in nextsteps.delayed:
             lbl = 'delayed:'
             outfile = step.outputs[0](self.conf, self.cli_args)
