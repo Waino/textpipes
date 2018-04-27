@@ -1,3 +1,4 @@
+import collections
 import logging
 import unicodedata
 import re
@@ -280,10 +281,13 @@ class NormalizeContractions(RegexSubstitution):
 
 
 class ApplyMapping(MonoPipeComponent):
-    def __init__(self, map_file, **kwargs):
-        super().__init__(side_inputs=[map_file], **kwargs)
+    def __init__(self, map_file, log=None, **kwargs):
+        side_outputs = [log] if log is not None else []
+        super().__init__(side_inputs=[map_file], side_outputs=side_outputs, **kwargs)
         self.map_file = map_file
         self.mapping = {}
+        self.log = log
+        self.missing = collections.Counter()
 
     def pre_make(self, side_fobjs):
         for line in side_fobjs[self.map_file]:
@@ -297,9 +301,19 @@ class ApplyMapping(MonoPipeComponent):
         for line in stream:
             result = []
             for token in line.split():
-                token = self.mapping.get(token, token)
-                result.append(token)
+                mapped = self.mapping.get(token, None)
+                if mapped is None:
+                    mapped = token
+                    if self.log is not None:
+                        self.missing[token] += 1
+                result.append(mapped)
             yield ' '.join(result)
+
+    def post_make(self, side_fobjs):
+        if self.log is not None:
+            fobj = side_fobjs[self.log]
+            for word, count in self.missing.most_common():
+                fobj.write('{}\t{}\n'.format(count, word))
 
 
 # apply a segmentation

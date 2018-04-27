@@ -53,13 +53,25 @@ class RoundRobin(PipeComponent):
 
 
 class DeRoundRobin(Rule):
-    def __init__(self, inputs, output):
+    def __init__(self, inputs, output, multipliers=None):
         super().__init__(inputs, [output])
+        self.multipliers = multipliers
+        if multipliers is not None:
+            assert len(multipliers) == len(inputs)
 
     def make(self, conf, cli_args=None):
         # Make a tuple of generators that reads from inputs
         readers = [inp.open(conf, cli_args, mode='r')
                    for inp in self.inputs]
+
+        if self.multipliers is not None:
+            # multipliers allow reading several lines 
+            # at a time from particular files,
+            # if line counts are unbalanced
+            repeated = []
+            for mult, reader in zip(self.multipliers, readers):
+                repeated.extend(mult * [reader])
+            readers = repeated
 
         # Round-robin read from each, and drain pipeline into output
         writer = self.outputs[0].open(conf, cli_args, mode='w')
