@@ -341,6 +341,10 @@ class CLI(object):
             tpls.append((
                 albl, step.job_id, step.sec_key, step.rule.name, outfile))
             if verbose:
+                # also show other outputs
+                for out in step.outputs[1:]:
+                    tpls.append((
+                        '     +out:', '', out.sec_key(), '+', out(self.conf, self.cli_args)))
                 # step.inputs only has unsatisfied
                 for inp in step.rule.inputs:
                     tpls.append((
