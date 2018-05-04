@@ -66,8 +66,6 @@ class Train(Rule):
             ' -save_model {model_base}'
             ' {resume}'
             ' -gpuid 0 '
-            ' -encoder_type brnn '
-            ' -share_decoder_embeddings'
             ' {argstr}'
             ' >> {pipe_file} 2>&1'.format(
                 opennmt_dir=self.opennmt_dir,

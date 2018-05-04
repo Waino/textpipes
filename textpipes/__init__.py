@@ -27,6 +27,7 @@ from . import translation_analysis
 
 # Most common rules for easy access
 from .dedup import Deduplicate
+from .dummy import Manual
 from .counting import CountTokens
 from .external import Concatenate
 from .tabular import SplitColumns

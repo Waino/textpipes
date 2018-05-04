@@ -3,7 +3,7 @@ import logging
 import math
 
 from .core.recipe import Rule
-from .components.core import SingleCellComponent, DeadEndPipe, MonoPipe
+from .components.core import SingleCellComponent, DeadEndPipe, MonoPipe, MonoPipeComponent
 from .components.filtering import Filter
 
 logger = logging.getLogger('textpipes')
@@ -122,6 +122,19 @@ class CombineCounts(MonoPipe):
         out_fobj.close()
         if self.words_file:
             wo_fobj.close()
+
+class CombineWordlistsComponent(MonoPipeComponent):
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        words = set()
+        for word in stream:
+            words.add(word)
+        for word in sorted(words):
+            yield word
+
+class CombineWordlists(MonoPipe):
+    def __init__(self, inp, output, **kwargs):
+        super().__init__([CombineWordlistsComponent()], [inp], [output], **kwargs)
 
 
 class FilterCounts(Filter):

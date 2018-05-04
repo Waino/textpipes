@@ -60,3 +60,13 @@ class DummyParamPrint(MonoPipe):
         super().__init__(
             [DummyParamPrintComponent(**kwargs)],
             [inp], [out])
+
+
+class Manual(Rule):
+    """A hack for including manual processing steps.
+    Will throw exception if actually run."""
+    def __init__(self, inputs, outputs):
+        super().__init__(inputs, outputs)
+
+    def make(self, conf, cli_args):
+        raise Exception('Manual should be run manually')

@@ -102,3 +102,27 @@ class Shuffle(PipeComponent):
         random.shuffle(stream)
         for line in stream:
             yield line
+
+
+class ChunkSplit(Rule):
+    def __init__(self, inp, outputs, lines_per_chunk):
+        super().__init__([inp], outputs)
+        self.lines_per_chunk = lines_per_chunk
+        # does not care if the data is mono or parallel
+        self._is_mono_pipe_component = True
+        self._is_parallel_pipe_component = True
+
+    def make(self, conf, cli_args=None):
+        outputs = list(self.outputs)
+        writer = None
+        stream = self.inputs[0].open(conf, cli_args, mode='r')
+        for (i, line) in enumerate(stream):
+            if i % self.lines_per_chunk == 0:
+                if writer is not None:
+                    writer.close()
+                writer = outputs.pop(0).open(conf, cli_args, mode='w')
+            writer.write(line)
+            writer.write('\n')
+        if writer is not None:
+            writer.close()
+        stream.close()

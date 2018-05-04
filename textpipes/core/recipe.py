@@ -74,7 +74,10 @@ class Recipe(object):
     def add_output(self, section, key, loop_index=None, main=False, **kwargs):
         rf = self._make_rf(section, key, loop_index=loop_index, **kwargs)
         if rf in self.files:
-            raise Exception('There is already a rule for {}'.format(rf))
+            if self.files[rf] is None:
+                raise Exception('{} already defined as input. Not adding output.'.format(rf))
+            else:
+                raise Exception('There is already a rule for {}'.format(rf))
         if main:
             self._main_out.add(rf)
         return rf
@@ -88,9 +91,14 @@ class Recipe(object):
     def add_rule(self, rule):
         for rf in rule.outputs:
             if rf in self.files:
-                raise Exception(
-                    'Not adding rule {}. '
-                    'There is already a rule for {}'.format(rule, rf))
+                if self.files[rf] is None:
+                    raise Exception(
+                        'Not adding rule {}. '
+                        '{} already defined as input.'.format(rule, rf))
+                else:
+                    raise Exception(
+                        'Not adding rule {}. '
+                        'There is already a rule for {}'.format(rule, rf))
             self.files[rf] = rule
         # FIXME: do we need to make index of rules?
         # FIXME: inconvenient to return all outputs. Only do main
