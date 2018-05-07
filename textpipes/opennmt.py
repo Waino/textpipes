@@ -1,8 +1,10 @@
+# -*- coding: utf-8 -*-
 import os
 
 from .core.recipe import Rule, WildcardLoopRecipeFile
 from .core.platform import run
 from .core.utils import find_highest_file
+from .components.core import SingleCellComponent
 
 class PrepareData(Rule):
     def __init__(self, *args, opennmt_dir='.', max_shard_size=262144, argstr='', **kwargs):
@@ -215,3 +217,28 @@ class Translate(Rule):
 
 
 # can reuse anmt Evaluate
+
+
+class AddLookupFeature(SingleCellComponent):
+    """Adds a feature to each token, based on a mapping file"""
+    def __init__(self, feature_map, sep='￨', fallback='unk', **kwargs):
+        super().__init__(side_inputs=[feature_map], **kwargs)
+        self.feature_map_file = feature_map
+        self.sep = sep
+        assert fallback in ('unk', 'copy')
+        self.fallback = fallback
+        self.mapping = {}
+
+    def pre_make(self, side_fobjs):
+        for line in side_fobjs[self.feature_map_file]:
+            src, trg = line.split('\t')
+            self.mapping[src] = trg
+
+    def single_cell(self, line):
+        result = []
+        for token in line.split():
+            # FIXME: extract first feature, to enable adding multiple?
+            default = '<UNK>' if self.fallback == 'unk' else token
+            mapped = self.mapping.get(token, fallback)
+            result.append('{}{}{}'.format(token, self.sep, mapped)
+        return ' '.join(result)
