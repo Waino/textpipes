@@ -153,3 +153,34 @@ class RemoveCounts(SingleCellComponent):
     def single_cell(self, line):
         count, wtype = line.strip().split()
         return wtype
+
+
+class SegmentCountsFile(SingleCellComponent):
+    def __init__(self, segmenter, output, words_only=None, **kwargs):
+        assert isinstance(segmenter, SingleCellComponent)
+        self.segmenter = segmenter
+        side_outputs = [output]
+        if words_only:
+            side_outputs.append(words_only)
+        # must disable multiprocessing
+        super().__init__(side_outputs=side_outputs, mp=False, **kwargs)
+        self.count_file = output
+        self.words_file = words_only
+        self.counts = collections.Counter()
+
+    def single_cell(self, line):
+        for count, word in line.split(None, 1):
+            parts = self.segmenter.single_cell(word).split()
+            count = int(count)
+            for part in parts:
+                self.counts[part] += count
+
+    def post_make(self, side_fobjs):
+        fobj = side_fobjs[self.count_file]
+        if self.words_file:
+            wo_fobj = side_fobjs[self.words_file]
+        for (wtype, count) in self.counts.most_common():
+            fobj.write('{}\t{}\n'.format(count, wtype))
+            if self.words_file:
+                wo_fobj.write('{}\n'.format(wtype))
+        del self.counts

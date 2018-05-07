@@ -25,6 +25,17 @@ class StrictSplitHyphens(RegexSubstitution):
         super().__init__([(r'(?<=[a-z]{4})-(?=[a-z]{4})', repl)], ignore_case=True, **kwargs)
 
 
+class SplitDecimal(RegexSubstitution):
+    def __init__(self, before=' ', after=' ', **kwargs):
+        """Splits hyphens by inserting a boundary string before and
+        after the hyphen. The strings can be empty, or more than one character,
+        so e.g. before='', after=' @' results in
+        'foo-bar' -> 'foo- @bar'.
+        """
+        repl = r'\1{}\2{}\3'.format(before, after)
+        super().__init__([(r'([0-9])([,\.])([0-9])', repl)], **kwargs)
+
+
 class ApplySegmentationLexicon(ApplyLexicon):
     """Substitutes words with a segmentation defined in a lexicon of the format
     WORD_COUNT <tab> MORPH_1 <space> MORPH_2 <space> ... MORPH_N
