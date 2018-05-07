@@ -156,9 +156,9 @@ class RemoveCounts(SingleCellComponent):
 
 
 class SegmentCountsFile(SingleCellComponent):
-    def __init__(self, segmenter, output, words_only=None, **kwargs):
-        assert isinstance(segmenter, SingleCellComponent)
-        self.segmenter = segmenter
+    def __init__(self, segmenters, output, words_only=None, **kwargs):
+        assert all(isinstance(segmenter, SingleCellComponent) for segmenter in segmenters)
+        self.segmenters = segmenters
         side_outputs = [output]
         if words_only:
             side_outputs.append(words_only)
@@ -169,11 +169,14 @@ class SegmentCountsFile(SingleCellComponent):
         self.counts = collections.Counter()
 
     def single_cell(self, line):
-        for count, word in line.split(None, 1):
-            parts = self.segmenter.single_cell(word).split()
-            count = int(count)
-            for part in parts:
-                self.counts[part] += count
+        count, word = line.split(None, 1)
+        modified = word
+        for segmenter in self.segmenters:
+            modified = segmenter.single_cell(modified)
+        parts = modified.split()
+        count = int(count)
+        for part in parts:
+            self.counts[part] += count
 
     def post_make(self, side_fobjs):
         fobj = side_fobjs[self.count_file]
