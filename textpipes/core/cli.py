@@ -155,7 +155,7 @@ class CLI(object):
                                  dryrun=self.args.dryrun,
                                  immediate=self.platform.make_immediately,
                                  verbose=self.args.verbose,
-                                 show_all=args.show_all)
+                                 show_all=self.args.show_all)
 
     def check_validity(self):
         # check that script is correctly named

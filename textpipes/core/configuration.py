@@ -77,9 +77,16 @@ class GridConfig(object):
 
     def get_overrides(self, main_conf):
         params = self.conf['grid']['optimize'].split()
+        if 'override' in self.conf['grid']:
+            center_overrides = self.conf['grid']['override'].split()
+            params += [x for x in center_overrides if x not in params]
+        else:
+            center_overrides = []
         sec_keys = [self.conf['grid.keys'][param]
                     for param in params]
-        ranges = [self._get_range(param, main_conf)
+        ranges = [self._get_range(param,
+                                  main_conf,
+                                  override_center=param in center_overrides)
                   for param in params]
         result = []
         for point in itertools.product(*ranges):
@@ -88,9 +95,12 @@ class GridConfig(object):
                            in zip(sec_keys, point)})
         return result
 
-    def _get_range(self, param, main_conf):
+    def _get_range(self, param, main_conf, override_center=False):
         (sec, key) = self.conf['grid.keys'][param].split(':')
-        center_value = main_conf.conf[sec][key]
+        if override_center:
+            center_value = self.conf['grid.overrides'][param]
+        else:
+            center_value = main_conf.conf[sec][key]
         whole_range = self.conf['grid.values'][param].split()
         radius = self.conf['grid.radius'].getint(param)
         # FIXME: raise when not found
