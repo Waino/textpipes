@@ -338,9 +338,9 @@ class CLI(object):
             else:
                 raise Exception('No scheduled job id for {}'.format(
                     next_step.concrete[0]))
-        self._make_helper(output, next_step, job_id)
+        self._make_helper(output, next_step, job_id, overrides=overrides)
 
-    def _make_helper(self, output, next_step, job_id):
+    def _make_helper(self, output, next_step, job_id, overrides=None):
         rule = self.recipe.files.get(next_step.outputs[0], None)
         self.log.started_running(next_step, job_id, rule.name)
         if overrides:
