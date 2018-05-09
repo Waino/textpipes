@@ -1,3 +1,4 @@
+import collections
 import logging
 import unicodedata
 import re
@@ -22,7 +23,7 @@ from .core import SingleCellComponent, RegexSubstitution, MonoPipeComponent
 
 class Clean(SingleCellComponent):
     """Uses ftfy to perform a number of normalizations """
-    def __init__(self, **kwargs):
+    def __init__(self, maintain_alignment=True, **kwargs):
         super().__init__(mp=False)  # not paralellizable
         self.params = {
             'fix_entities': True,     # ftfy default is 'auto'
@@ -38,9 +39,14 @@ class Clean(SingleCellComponent):
             'normalization': 'NFKC',   # ftfy default is 'NFC'
             'max_decode_length': 1000000}
         self.params.update(kwargs)
+        self.maintain_alignment = maintain_alignment
 
     def single_cell(self, line):
-        return ftfy.fix_text(line, **self.params)
+        line = ftfy.fix_text(line, **self.params)
+        if self.maintain_alignment:
+            # remove intoduced extra newlines
+            line = line.replace('\n', ' ')
+        return line
 
 
 class NormalizePunctuation(RegexSubstitution):
@@ -93,7 +99,7 @@ class MapChars(SingleCellComponent):
     """Character mangling based on unicode character category,
     with individual overrides.
     """
-    def __init__(self, policies={}, overrides={}):
+    def __init__(self, policies={}, overrides={}, maintain_alignment=True):
         super().__init__(mp=False)  # not paralellizable
         self._cache = dict()
         self.policies = {
@@ -163,6 +169,7 @@ class MapChars(SingleCellComponent):
             ' ': ' ',       # Zs
         }
         self.overrides.update(overrides)
+        self.maintain_alignment = maintain_alignment
 
     def single_cell(self, line):
         result = []
@@ -170,7 +177,11 @@ class MapChars(SingleCellComponent):
             if char not in self._cache:
                 self._cache[char] = self._decide(char)
             result.append(self._cache[char])
-        return ''.join(result)
+        result = ''.join(result)
+        if self.maintain_alignment:
+            # remove intoduced extra newlines
+            result = result.replace('\n', ' ')
+        return result
 
     def _decide(self, char):
         if char in self.overrides:
@@ -270,10 +281,13 @@ class NormalizeContractions(RegexSubstitution):
 
 
 class ApplyMapping(MonoPipeComponent):
-    def __init__(self, map_file, **kwargs):
-        super().__init__(side_inputs=[map_file], **kwargs)
+    def __init__(self, map_file, log=None, **kwargs):
+        side_outputs = [log] if log is not None else []
+        super().__init__(side_inputs=[map_file], side_outputs=side_outputs, **kwargs)
         self.map_file = map_file
         self.mapping = {}
+        self.log = log
+        self.missing = collections.Counter()
 
     def pre_make(self, side_fobjs):
         for line in side_fobjs[self.map_file]:
@@ -287,25 +301,44 @@ class ApplyMapping(MonoPipeComponent):
         for line in stream:
             result = []
             for token in line.split():
-                token = self.mapping.get(token, token)
-                result.append(token)
+                mapped = self.mapping.get(token, None)
+                if mapped is None:
+                    mapped = token
+                    if self.log is not None:
+                        self.missing[token] += 1
+                result.append(mapped)
             yield ' '.join(result)
+
+    def post_make(self, side_fobjs):
+        if self.log is not None:
+            fobj = side_fobjs[self.log]
+            for word, count in self.missing.most_common():
+                fobj.write('{}\t{}\n'.format(count, word))
 
 
 # apply a segmentation
 # FIXME: there are two different apply components (the other in segmentation.py)
 class ApplySegmentation(ApplyMapping):
-    def __init__(self, map_file, bnd_marker='@@', **kwargs):
+    def __init__(self, map_file, bnd_marker='@@ ', pre_marked=False, no_space_ok=False, **kwargs):
         super().__init__(map_file, **kwargs)
         self.bnd_marker = bnd_marker
+        self.pre_marked = pre_marked
+        assert no_space_ok or ' ' in self.bnd_marker
 
     def pre_make(self, side_fobjs):
+        nonspace_marker = self.bnd_marker.replace(' ', '')
         for line in side_fobjs[self.map_file]:
+            # don't create empty parts
+            line = line.strip(' ')
             # only the segmented form is given
             parts = line.split()
-            # bnd_marker not part of actual surface form
-            src = ''.join(parts).replace(self.bnd_marker, '')
-            self.mapping[src] = target
+            if self.pre_marked:
+                # bnd_marker contains chars not part of actual surface form
+                src = ''.join(parts).replace(nonspace_marker, '')
+            else:
+                src = ''.join(parts)
+                line = self.bnd_marker.join(parts)
+            self.mapping[src] = line
 
 
 class SplitNumbers(RegexSubstitution):
@@ -313,3 +346,13 @@ class SplitNumbers(RegexSubstitution):
     # FIXME: also split long numbers into shorter chunks?
     def __init__(self, **kwargs):
         super().__init__([(r'(\d)([.,/-])(\d)', r'\1@@ \2@@ \3')], **kwargs)
+
+
+class Prefix(SingleCellComponent):
+    def __init__(self, prefix='', suffix='', **kwargs):
+        super().__init__(**kwargs)
+        self.prefix = prefix
+        self.suffix = suffix
+
+    def single_cell(self, line):
+        return ''.join((self.prefix, line, self.suffix))

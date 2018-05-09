@@ -28,6 +28,7 @@ OPT_BINS = (
     ('word2vec', 'Word2VecCluster'),
     ('anmt', 'anmt'),
     ('morfessor-segment', 'ApplyMorfessor'),
+    ('fast_align', 'FastAlign'),
     )
 
 def get_parser(recipe):
@@ -46,6 +47,8 @@ def get_parser(recipe):
                         help='Look for outputs that are older than their inputs')
     parser.add_argument('--quiet', default=False, action='store_true',
                         help='Less verbose output, by hiding some info')
+    parser.add_argument('--verbose', default=False, action='store_true',
+                        help='More verbose output, e.g. print inputs')
     parser.add_argument('--show-all', default=False, action='store_true',
                         help='More verbose output, by showing all grid points')
     parser.add_argument('--dryrun', default=False, action='store_true',
@@ -142,6 +145,7 @@ class CLI(object):
             self.show_next_steps(nextsteps,
                                  dryrun=self.args.dryrun,
                                  immediate=self.platform.make_immediately,
+                                 verbose=self.args.verbose,
                                  show_all=self.args.show_all)
         if not self.args.dryrun:
             self.schedule(nextsteps)
@@ -150,6 +154,7 @@ class CLI(object):
             self.show_next_steps(nextsteps,
                                  dryrun=self.args.dryrun,
                                  immediate=self.platform.make_immediately,
+                                 verbose=self.args.verbose,
                                  show_all=args.show_all)
 
     def check_validity(self):
@@ -203,14 +208,15 @@ class CLI(object):
             else:
                 print('********** WARNING! No paths.dirs defined')
         # check that output paths are in config
-        warn = False
+        warn = []
         for rf in self.recipe.files:
             try:
                 fname = rf(self.conf, self.cli_args)
             except KeyError:
-                print('config is missing path: {}'.format(rf))
-                warn = True
+                warn.append(rf)
         if warn:
+            for rf in sorted(warn):
+                print('config is missing path: {}'.format(rf))
             print('********** WARNING! Some paths are missing **********')
         for (dep, msg) in OPT_DEPS:
             try:
@@ -270,9 +276,10 @@ class CLI(object):
         if len(inversions) == 0:
             print('Everything in order')
         else:
-            for cursor, inp in inversions:
-                print('{}    is newer than {}'.format(
+            for cursor, inp, invtype in inversions:
+                print('{}\t\t\t{} {}'.format(
                     cursor(self.conf, self.cli_args),
+                    'is newer than' if invtype == 'inversion' else 'orphan of',
                     inp(self.conf, self.cli_args)))
 
     def schedule(self, nextsteps):
@@ -331,6 +338,9 @@ class CLI(object):
             else:
                 raise Exception('No scheduled job id for {}'.format(
                     next_step.concrete[0]))
+        self._make_helper(output, next_step, job_id)
+
+    def _make_helper(self, output, next_step, job_id):
         rule = self.recipe.files.get(next_step.outputs[0], None)
         self.log.started_running(next_step, job_id, rule.name)
         if overrides:
@@ -340,7 +350,7 @@ class CLI(object):
         self.recipe.make_output(output=output, conf=conf, cli_args=self.cli_args)
         self.log.finished_running(next_step, job_id, rule.name)
 
-    def show_next_steps(self, nextsteps, dryrun=False, immediate=False, show_all=False):
+    def show_next_steps(self, nextsteps, dryrun=False, immediate=False, verbose=False, show_all=False):
         # FIXME: don't filter out redundant scheduled?
         if not show_all:
             nextsteps = self._remove_redundant(nextsteps, dryrun=dryrun)
@@ -362,6 +372,15 @@ class CLI(object):
             outfile = step.concrete[0]
             tpls.append((
                 albl, step.job_id, step.sec_key, step.rule.name, outfile))
+            if verbose:
+                # also show other outputs
+                for out in step.outputs[1:]:
+                    tpls.append((
+                        '     +out:', '', out.sec_key(), '+', out(self.conf, self.cli_args)))
+                # step.inputs only has unsatisfied
+                for inp in step.rule.inputs:
+                    tpls.append((
+                        '   ^input:', '', inp.sec_key(), '', inp(self.conf, self.cli_args)))
         for step in nextsteps.delayed:
             lbl = 'delayed:'
             outfile = step.concrete[0]
@@ -471,7 +490,7 @@ class ExperimentLog(object):
 
     def _parse_log(self, logfile):
         try:
-            for line in open_text_file(logfile, mode='rb'):
+            for line in open_text_file(logfile, mode='r'):
                 line = line.strip()
                 # git lines are ignored
                 m = LOG_RE.match(line)
@@ -641,6 +660,6 @@ class ExperimentLog(object):
     def _append(self, msg, logfile=None):
         os.makedirs('logs', exist_ok=True)
         logfile = logfile if logfile is not None else self.logfile
-        with open_text_file(logfile, mode='ab') as fobj:
+        with open_text_file(logfile, mode='a') as fobj:
             fobj.write(msg)
             fobj.write('\n')

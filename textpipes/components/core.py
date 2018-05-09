@@ -13,6 +13,8 @@ class Pipe(Rule):
     def __init__(self, components,
                  main_inputs, main_outputs,
                  estimated_lines='conf',
+                 extra_side_inputs=None,
+                 extra_side_outputs=None,
                  **kwargs):
         side_inputs = tuple(set(inp for component in components
                                 for inp in component.side_inputs
@@ -20,6 +22,10 @@ class Pipe(Rule):
         side_outputs = tuple(set(out for component in components
                                  for out in component.side_outputs
                                  if out is not None))
+        if extra_side_inputs is not None:
+            side_inputs = side_inputs + tuple(extra_side_inputs)
+        if extra_side_outputs is not None:
+            side_outputs = side_outputs + tuple(extra_side_outputs)
         inputs = tuple(main_inputs) + tuple(side_inputs)
         outputs = tuple(main_outputs) + tuple(side_outputs)
         super().__init__(inputs, outputs, **kwargs)
@@ -34,10 +40,10 @@ class Pipe(Rule):
         # Open side inputs and outputs
         side_fobjs = {}
         for inp in self.side_inputs:
-            side_fobjs[inp] = inp.open(conf, cli_args, mode='rb')
+            side_fobjs[inp] = inp.open(conf, cli_args, mode='r')
         for out in self.side_outputs:
             assert out not in side_fobjs
-            side_fobjs[out] = out.open(conf, cli_args, mode='wb')
+            side_fobjs[out] = out.open(conf, cli_args, mode='w')
 
         for component in self.components:
             component.pre_make(side_fobjs)
@@ -65,7 +71,7 @@ class Pipe(Rule):
 class MonoPipe(Pipe):
     def __init__(self, components, *args, **kwargs):
         for component in components:
-            if not isinstance(component, MonoPipeComponent):
+            if not hasattr(component, '_is_mono_pipe_component'):
                 raise Exception('MonoPipe expected MonoPipeComponent, '
                     'received {}'.format(component))
         super().__init__(components, *args, **kwargs)
@@ -78,13 +84,13 @@ class MonoPipe(Pipe):
             raise Exception('MonoPipe must have exactly 1 main output. '
                 'Received: {}'.format(self.main_outputs))
         # Make a generator that reads from main_input
-        main_in_fobj = self.main_inputs[0].open(conf, cli_args, mode='rb')
+        main_in_fobj = self.main_inputs[0].open(conf, cli_args, mode='r')
         stream = main_in_fobj
 
         stream, side_fobjs = self._make_helper(stream, conf, cli_args)
 
         # Drain pipeline into main_output
-        with self.main_outputs[0].open(conf, cli_args, mode='wb') as fobj:
+        with self.main_outputs[0].open(conf, cli_args, mode='w') as fobj:
             for line in stream:
                 fobj.write(line)
                 fobj.write('\n')
@@ -105,7 +111,7 @@ class ParallelPipe(Pipe):
                 # SingleCellComponent automatically wrapped in ForEach,
                 # which applies it to all 
                 component = ForEach(component)
-            if not isinstance(component, ParallelPipeComponent):
+            if not hasattr(component, '_is_parallel_pipe_component'):
                 raise Exception('ParallelPipe expected ParallelPipeComponent, '
                     'received {}'.format(component))
             wrapped.append(component)
@@ -113,7 +119,7 @@ class ParallelPipe(Pipe):
 
     def make(self, conf, cli_args=None):
         # Make a tuple of generators that reads from main_inputs
-        readers = [inp.open(conf, cli_args, mode='rb')
+        readers = [inp.open(conf, cli_args, mode='r')
                    for inp in self.main_inputs]
         # read one line from each and yield it as a tuple
         stream = safe_zip(*readers)
@@ -121,7 +127,7 @@ class ParallelPipe(Pipe):
         stream, side_fobjs = self._make_helper(stream, conf, cli_args)
 
         # Round-robin drain pipeline into main_outputs
-        writers = [out.open(conf, cli_args, mode='wb')
+        writers = [out.open(conf, cli_args, mode='w')
                    for out in self.main_outputs]
         for (i, tpl) in enumerate(stream):
             if len(tpl) != len(writers):
@@ -147,7 +153,7 @@ class DeadEndPipe(MonoPipe):
     """
     def __init__(self, components, *args, **kwargs):
         for component in components:
-            if not isinstance(component, MonoPipeComponent):
+            if not hasattr(component, '_is_mono_pipe_component'):
                 raise Exception('DeadEndPipe expected MonoPipeComponent, '
                     'received {}'.format(component))
         super().__init__(components, *args, main_outputs=[], **kwargs)
@@ -157,7 +163,7 @@ class DeadEndPipe(MonoPipe):
             raise Exception('DeadEndPipe cannot have a main output. '
                 'Received: {}'.format(self.main_outputs))
         # Make a tuple of generators that reads from main_inputs
-        readers = [inp.open(conf, cli_args, mode='rb')
+        readers = [inp.open(conf, cli_args, mode='r')
                    for inp in self.main_inputs]
         stream = itertools.chain(*readers)
 
@@ -177,8 +183,8 @@ class DeadEndPipe(MonoPipe):
 #
 class PipeComponent(object):
     def __init__(self, side_inputs=None, side_outputs=None):
-        self.side_inputs = side_inputs if side_inputs is not None else ()
-        self.side_outputs = side_outputs if side_outputs is not None else ()
+        self._side_inputs = side_inputs if side_inputs is not None else ()
+        self._side_outputs = side_outputs if side_outputs is not None else ()
 
     def pre_make(self, side_fobjs):
         """Called before __call__ (or all the single_cell calls)"""
@@ -188,13 +194,25 @@ class PipeComponent(object):
         """Called after __call__ (or all the single_cell calls)"""
         pass
 
+    @property
+    def side_inputs(self):
+        return self._side_inputs
+
+    @property
+    def side_outputs(self):
+        return self._side_outputs
+
 
 class MonoPipeComponent(PipeComponent):
-    pass
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._is_mono_pipe_component = True
 
 
 class ParallelPipeComponent(PipeComponent):
-    pass
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._is_parallel_pipe_component = True
 
 
 class Tee(MonoPipeComponent):
@@ -251,7 +269,8 @@ class ForEach(ParallelPipeComponent):
     The operation will be applied to each parallel stream.
     The operation MUST NOT filter out any lines.
     """
-    def __init__(self, mono_component):
+    def __init__(self, mono_component, **kwargs):
+        self._is_parallel_pipe_component = True
         self.mono_component = mono_component
 
     def __call__(self, stream, side_fobjs=None,
@@ -280,7 +299,8 @@ class ForEach(ParallelPipeComponent):
 class PerColumn(ParallelPipeComponent):
     """Wraps multiple SingleCellComponents for use in a ParallelPipe,
     such that each column of the parallel pipe gets a different component."""
-    def __init__(self, components):
+    def __init__(self, components, **kwargs):
+        super().__init__(**kwargs)
         self.components = [component if component is not None
                            else IdentityComponent()
                            for component in components]

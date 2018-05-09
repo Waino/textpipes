@@ -33,7 +33,7 @@ class Tokenize(SingleCellComponent):
             # urls. stops at first original space (note: not rawstring)
             'https? : / / [^\u001F]*',
             # certain domains even if not urls
-            r'(?:www \. )?[A-Za-z]* \. (?:com|cz|de|fi|org|ru|tr)',
+            r'(?:www \. )?[A-Za-z]* \. (?:com|org|cz|de|fi|ee|ru|tr)',
             # emails. stops at first original space
             r'[a-z\. ]* @ [a-z\. ]*',
             ]
@@ -52,13 +52,13 @@ class Tokenize(SingleCellComponent):
                  (r'(?<=\w) \'\s+(ll|re|ve) ', r" '\1 "), # longer clitics: 'll 're 've
                  (r'(?<=\d) \'\s+s ', r" 's "),           # special case: 1990's
                 ))
-        elif self.lang == 'fi':
+        elif self.lang in ('fi', 'et'):
             protected_re.extend(
                 (r'\d \. ',  # ordinals
                 ))
             # not trying to correct if split in input
             map_re.extend(
-                ((r'(?<=\w) : ([a-zåäö]{1,3}) ', r" :\1 "),    # finnish abbrevation suffixes
+                ((r'(?<=\w) : ([a-zåäöõü]{1,3}) ', r" :\1 "),  # finnish abbrevation suffixes
                  (r'(?<=\w) : (nneksi|ista) ', r" :\1 "),      # longer suffixes
                 ))
         if self.lang not in ('en',):
@@ -140,10 +140,10 @@ class DeTokenize(SingleCellComponent):
                 (r' (\'[a-z]) ', r'\1 '),
                 (r' (\'(ll|re|ve)) ', r'\1 '),
                 ])
-        elif self.lang == 'fi':
+        elif self.lang in ('fi', 'et'):
             # finnish abbrevation suffixes
             expressions.extend([
-                (r' (:[a-zåäö]{1,3}) ', r"\1 "),
+                (r' (:[a-zåäöõü]{1,3}) ', r"\1 "),
                 (r' (:(nneksi|ista)) ', r"\1 "),
                 (r' \' (an|in|ista|hun|lla|lle|sin|sta|ssa|ta) ', r"'\1 "),
                 (r'([Tt]ark) \' ', r"\1'"),

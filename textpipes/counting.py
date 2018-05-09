@@ -3,7 +3,7 @@ import logging
 import math
 
 from .core.recipe import Rule
-from .components.core import SingleCellComponent, DeadEndPipe, MonoPipe
+from .components.core import SingleCellComponent, DeadEndPipe, MonoPipe, MonoPipeComponent
 from .components.filtering import Filter
 
 logger = logging.getLogger('textpipes')
@@ -69,41 +69,72 @@ class ScaleCounts(MonoPipe):
         super().__init__([component], [inp], [output], **kwargs)
 
 
-# concatenate countfiles before using this (has single input)
-# FIXME: DRY with CountTokensComponent
-class CombineCountsComponent(SingleCellComponent):
-    def __init__(self, output, reverse=False, words_only=None, **kwargs):
-        side_outputs = [output]
-        if words_only:
-            side_outputs.append(words_only)
-        # must disable multiprocessing
-        super().__init__(side_outputs=side_outputs, mp=False, **kwargs)
+class CombineCounts(MonoPipe):
+    def __init__(self, inputs, output, reverse=False, words_only=None, balance=False, threshold=0, **kwargs):
+        extra_side_outputs = (words_only,) if words_only else ()
+        super().__init__([], inputs, [output], extra_side_outputs=extra_side_outputs, **kwargs)
+        self.output = output
         self.count_file = output
         self.words_file = words_only
-        self.counts = collections.Counter()
         # BPE wants word first, followed by count
         self.reverse = reverse
+        # scale counts to balance contribution of different inputs
+        self.balance = balance
+        # minimum unscaled count to include in output
+        self.threshold = threshold
 
-    def single_cell(self, line):
-        count, wtype = line.strip().split()
-        self.counts[wtype] += int(count)
-
-    def post_make(self, side_fobjs):
-        fobj = side_fobjs[self.count_file]
+    def make(self, conf, cli_args=None):
+        combined_counts = collections.Counter()
+        unscaled_counts = []
+        sums = []
+        # counting
+        for inp in self.main_inputs:
+            counts = collections.Counter()
+            count_sum = 0
+            in_fobj = inp.open(conf, cli_args, mode='r')
+            for line in in_fobj:
+                count, wtype = line.split('\t')
+                count = int(count)
+                count_sum += count
+                if count >= self.threshold:
+                    counts[wtype] += count
+            in_fobj.close()
+            unscaled_counts.append(counts)
+            sums.append(count_sum)
+        # balancing
+        max_sum = max(sums)
+        scales = [max_sum / x for x in sums]
+        for counts, scale in zip(unscaled_counts, scales):
+            if not self.balance or scale == 1:
+                combined_counts.update(counts)
+            else:
+                for wtype, count in counts.items():
+                    combined_counts[wtype] += int(count * scale)
+        # writing
+        out_fobj = self.count_file.open(conf, cli_args, mode='w')
         if self.words_file:
-            wo_fobj = side_fobjs[self.words_file]
-        for (wtype, count) in self.counts.most_common():
+            wo_fobj = self.words_file.open(conf, cli_args, mode='w')
+        for (wtype, count) in combined_counts.most_common():
             pair = (wtype, count) if self.reverse else (count, wtype)
-            fobj.write('{}\t{}\n'.format(*pair))
+            out_fobj.write('{}\t{}\n'.format(*pair))
             if self.words_file:
                 wo_fobj.write('{}\n'.format(wtype))
-        del self.counts
+        out_fobj.close()
+        if self.words_file:
+            wo_fobj.close()
 
-class CombineCounts(DeadEndPipe):
-    def __init__(self, inp, output, reverse=False, words_only=None, **kwargs):
-        component = CombineCountsComponent(
-            output, reverse=reverse, words_only=words_only)
-        super().__init__([component], [inp], **kwargs)
+class CombineWordlistsComponent(MonoPipeComponent):
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        words = set()
+        for word in stream:
+            words.add(word)
+        for word in sorted(words):
+            yield word
+
+class CombineWordlists(MonoPipe):
+    def __init__(self, inp, output, **kwargs):
+        super().__init__([CombineWordlistsComponent()], [inp], [output], **kwargs)
 
 
 class FilterCounts(Filter):
@@ -122,3 +153,37 @@ class RemoveCounts(SingleCellComponent):
     def single_cell(self, line):
         count, wtype = line.strip().split()
         return wtype
+
+
+class SegmentCountsFile(SingleCellComponent):
+    def __init__(self, segmenters, output, words_only=None, **kwargs):
+        assert all(isinstance(segmenter, SingleCellComponent) for segmenter in segmenters)
+        self.segmenters = segmenters
+        side_outputs = [output]
+        if words_only:
+            side_outputs.append(words_only)
+        # must disable multiprocessing
+        super().__init__(side_outputs=side_outputs, mp=False, **kwargs)
+        self.count_file = output
+        self.words_file = words_only
+        self.counts = collections.Counter()
+
+    def single_cell(self, line):
+        count, word = line.split(None, 1)
+        modified = word
+        for segmenter in self.segmenters:
+            modified = segmenter.single_cell(modified)
+        parts = modified.split()
+        count = int(count)
+        for part in parts:
+            self.counts[part] += count
+
+    def post_make(self, side_fobjs):
+        fobj = side_fobjs[self.count_file]
+        if self.words_file:
+            wo_fobj = side_fobjs[self.words_file]
+        for (wtype, count) in self.counts.most_common():
+            fobj.write('{}\t{}\n'.format(count, wtype))
+            if self.words_file:
+                wo_fobj.write('{}\n'.format(wtype))
+        del self.counts

@@ -112,18 +112,21 @@ class Slurm(Platform):
             recipe=recipe.name, conf=conf.name,
             sec_key=sec_key, overrides=override_str)
         job_name = '{}:{}'.format(conf.name, sec_key)
-        if deps:
-            dep_args = ' --dependency=afterok:' + ':'.join(
-                str(dep) for dep in deps)
-        else:
-            dep_args = ''
-        sbatch = 'sbatch --job-name {name} {rc_args}{dep_args} --wrap="{cmd}"'.format(
-            name=job_name, cmd=cmd, rc_args=rc_args, dep_args=dep_args)
-        r = run(sbatch)
-        try:
-            job_id = str(int(RE_SLURM_SUBMITTED_ID.match(r.std_out).group(1)))
-        except Exception:
-            raise Exception('Unexpected output from slurm: ' + r.describe())
+        for i in range(rule.chain_schedule):
+            if deps:
+                dep_args = ' --dependency=afterok:' + ':'.join(
+                    str(dep) for dep in deps)
+            else:
+                dep_args = ''
+                deps = []
+            sbatch = 'sbatch --job-name {name} {rc_args}{dep_args} --wrap="{cmd}"'.format(
+                name=job_name, cmd=cmd, rc_args=rc_args, dep_args=dep_args)
+            r = run(sbatch)
+            try:
+                job_id = str(int(RE_SLURM_SUBMITTED_ID.match(r.std_out).group(1)))
+            except Exception:
+                raise Exception('Unexpected output from slurm: ' + r.describe())
+            deps.append(job_id)
         return job_id
 
     def check_job(self, job_id):
@@ -238,13 +241,14 @@ class Command(object):
                 stderr=subprocess.PIPE,
                 bufsize=0,
             )
-            #self.out, self.err = self.process.communicate(None)
-            with self.process.stderr as lines:
-                for line in lines:
-                    sys.stderr.write(line)
-                    sys.stderr.flush()
-            self.process.wait()
-            self.out = self.process.stdout.read()
+            self.out, self.err = self.process.communicate(None)
+            # FIXME: this causes deadlocked sleep
+            #with self.process.stderr as lines:
+            #    for line in lines:
+            #        sys.stderr.write(line)
+            #        sys.stderr.flush()
+            #self.process.wait()
+            #self.out = self.process.stdout.read()
 
         thread = threading.Thread(target=target)
         thread.start()

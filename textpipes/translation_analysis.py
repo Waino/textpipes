@@ -38,8 +38,8 @@ class EvaluateChrF(Rule):
         self.betas = betas
 
     def make(self, conf, cli_args=None):
-        hyp = self.hyp.open(conf, cli_args, mode='rb')
-        refs = [ref.open(conf, cli_args, mode='rb')
+        hyp = self.hyp.open(conf, cli_args, mode='r')
+        refs = [ref.open(conf, cli_args, mode='r')
                 for ref in self.refs]
         ref_tuples = list(zip(*refs))
         max_n = 6
@@ -53,7 +53,7 @@ class EvaluateChrF(Rule):
         for ref in refs:
             ref.close()
         for (out, beta) in zip(self.outputs, self.betas):
-            out = out.open(conf, cli_args, mode='wb')
+            out = out.open(conf, cli_args, mode='w')
             tot_pre, tot_rec, tot_f = stats.ngram_prf(beta ** 2)
             pre, rec, f = chrF.measure.apply_ngram_weights(
                 tot_pre, tot_rec, tot_f, ngram_weights)
@@ -115,7 +115,7 @@ class AnalyzeTranslations(ParallelPipe):
 
     def make(self, conf, cli_args=None):
         # Make a tuple of generators that reads from main_inputs
-        readers = [inp.open(conf, cli_args, mode='rb')
+        readers = [inp.open(conf, cli_args, mode='r')
                    for inp in self.main_inputs]
 
         # FIXME: fully read in each input into dicts
@@ -186,7 +186,7 @@ class AnalyzeTranslations(ParallelPipe):
         for (field, output) in self.sorted_outputs:
             if output is None:
                 continue
-            with output.open(conf, cli_args, mode='wb') as outfobj:
+            with output.open(conf, cli_args, mode='w') as outfobj:
                 sorted_df = df.sort_values(field)
                 for tpl in sorted_df[['docid', 'segid', field]].itertuples():
                     key = (tpl.docid, tpl.segid)

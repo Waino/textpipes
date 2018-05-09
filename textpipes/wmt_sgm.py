@@ -116,11 +116,11 @@ class MergeXmlRefs(Rule):
         for (i, inp) in enumerate(self.inputs):
             if i == 0:
                 continue
-            for seg in read_sgm(inp.open(conf, cli_args, mode='rb')):
+            for seg in read_sgm(inp.open(conf, cli_args, mode='r')):
                 alt_refs[(i, seg.docid)][seg.segid] = seg.text
         # loop over main ref, output each doc in turn
-        lines = self.inputs[0].open(conf, cli_args, mode='rb')
-        with self.outputs[0].open(conf, cli_args, mode='wb') as outfobj:
+        lines = self.inputs[0].open(conf, cli_args, mode='r')
+        with self.outputs[0].open(conf, cli_args, mode='w') as outfobj:
             lines = progress(lines, self, conf,
                              self.outputs[0](conf, cli_args),
                              total=None)

@@ -1,6 +1,8 @@
 import collections
+import glob
 import logging
 import os
+import sys
 
 from .utils import *
 from .configuration import GridConfig
@@ -62,32 +64,47 @@ class Recipe(object):
         self.conf = self.cli.conf
         self.log = self.cli.log
 
-    def add_input(self, section, key, loop_index=None, **kwargs):
+    @classmethod
+    def _make_rf(cls, section, key, loop_index=None, **kwargs):
         if loop_index is None:
-            rf = RecipeFile(section, key, **kwargs)
+            return RecipeFile(section, key, **kwargs)
         else:
-            rf = LoopRecipeFile(section, key, loop_index, **kwargs)
+            return LoopRecipeFile(section, key, loop_index, **kwargs)
+
+    def add_input(self, section, key, loop_index=None, **kwargs):
+        rf = self._make_rf(section, key, loop_index=loop_index, **kwargs)
         if rf not in self.files:
             self.files[rf] = None
         return rf
 
     def add_output(self, section, key, loop_index=None, main=False, **kwargs):
-        if loop_index is None:
-            rf = RecipeFile(section, key, **kwargs)
-        else:
-            rf = LoopRecipeFile(section, key, loop_index, **kwargs)
+        rf = self._make_rf(section, key, loop_index=loop_index, **kwargs)
         if rf in self.files:
-            raise Exception('There is already a rule for {}'.format(rf))
+            if self.files[rf] is None:
+                raise Exception('{} already defined as input. Not adding output.'.format(rf))
+            else:
+                raise Exception('There is already a rule for {}'.format(rf))
         if main:
             self._main_out.add(rf)
+        return rf
+
+    def use_output(self, section, key, loop_index=None, **kwargs):
+        rf = self._make_rf(section, key, loop_index=loop_index, **kwargs)
+        if rf not in self.files:
+            raise Exception('No rule for {}'.format(rf))
         return rf
 
     def add_rule(self, rule):
         for rf in rule.outputs:
             if rf in self.files:
-                raise Exception(
-                    'Not adding rule {}. '
-                    'There is already a rule for {}'.format(rule, rf))
+                if self.files[rf] is None:
+                    raise Exception(
+                        'Not adding rule {}. '
+                        '{} already defined as input.'.format(rule, rf))
+                else:
+                    raise Exception(
+                        'Not adding rule {}. '
+                        'There is already a rule for {}'.format(rule, rf))
             self.files[rf] = rule
         # FIXME: do we need to make index of rules?
         # FIXME: inconvenient to return all outputs. Only do main
@@ -183,7 +200,10 @@ class Recipe(object):
             if cursor in visited:
                 continue
             visited.add(cursor)
-            rule = self.files[cursor]
+            try:
+                rule = self.files[cursor]
+            except KeyError:
+                raise Exception('No rule to build requested output {}'.format(cursor))
             # FIXME: pass conf and cli_args so that flexible rules can adjust?
             # check log for waiting/running jobs
             if rule is not None:
@@ -288,11 +308,13 @@ class Recipe(object):
 
         border = set(outputs)
         mtimes = {}
+        nonexistent = set()
         while len(border) > 0:
             cursor = border.pop()
             if cursor in mtimes:
                 continue
             if not cursor.exists(conf, cli_args):
+                nonexistent.add(cursor)
                 continue
             mtime = os.path.getmtime(cursor(conf, cli_args))
             mtimes[cursor] = mtime
@@ -307,8 +329,10 @@ class Recipe(object):
                 continue
             for inp in rule.inputs:
                 if mtimes.get(inp, 0) > mtimes[cursor]:
-                    inversions.append((cursor, inp))
+                    inversions.append((cursor, inp, 'inversion'))
                     continue
+                elif inp in nonexistent and cursor in mtimes:
+                    inversions.append((cursor, inp, 'orphan'))
         return inversions
 
     def make_output(self, output, conf=None, cli_args=None):
@@ -354,7 +378,7 @@ class Rule(object):
     The object is initialized with RecipeFiles defining
     input and output paths.
     """
-    def __init__(self, inputs, outputs, resource_class='default'):
+    def __init__(self, inputs, outputs, resource_class='default', chain_schedule=1):
         if isinstance(inputs, RecipeFile):
             self.inputs = (inputs,)
         else:
@@ -364,6 +388,11 @@ class Rule(object):
         else:
             self.outputs = tuple(out for out in outputs if out is not None)
         self.resource_class = resource_class
+        for rf in self.inputs:
+            assert isinstance(rf, RecipeFile)
+        for rf in self.outputs:
+            assert isinstance(rf, RecipeFile)
+        self.chain_schedule = max(chain_schedule, 1)
 
     def make(self, conf, cli_args=None):
         raise NotImplementedError()
@@ -446,13 +475,13 @@ class RecipeFile(object):
     def exists(self, conf, cli_args=None):
         return os.path.exists(self(conf, cli_args))
 
-    def open(self, conf, cli_args=None, mode='rb', strip_newlines=True):
+    def open(self, conf, cli_args=None, mode='r', strip_newlines=True):
         filepath = self(conf, cli_args)
         if 'w' in mode:
             subdir, _ = os.path.split(filepath)
             os.makedirs(subdir, exist_ok=True)
         lines = open_text_file(filepath, mode)
-        if strip_newlines and not 'w' in mode:
+        if strip_newlines and 'r' in mode:
             lines = (line.rstrip('\n') for line in lines)
         return lines
 
@@ -524,3 +553,29 @@ class LoopRecipeFile(RecipeFile):
         if len(existing) == 0:
             return None
         return max(existing, key=lambda x: x.loop_index)
+
+
+class WildcardLoopRecipeFile(LoopRecipeFile):
+    """ Use special formatting {_loop_index} to include the loop index,
+    and * to include random unpredictable garbage,
+    in the file path template."""
+
+    def __call__(self, conf, cli_args=None):
+        super_path = super().__call__(conf, cli_args=cli_args)
+        matches = glob.glob(super_path)
+        if len(matches) == 0:
+            # not present
+            return super_path
+        elif len(matches) == 1:
+            return matches[0]
+        raise Exception('{} matched multiple files'.format(self))
+
+    def open(self, conf, cli_args=None, mode='r', strip_newlines=True):
+        assert 'w' not in mode, 'Cannot write into WildcardLoopRecipeFile'
+        return super().open(conf, cli_args=cli_args, mode=mode, strip_newlines=strip_newlines)
+
+    @staticmethod
+    def loop_output(section, key, loop_indices):
+        """Create a sequence of LoopRecipeFiles with the given indices"""
+        return [WildcardLoopRecipeFile(section, key, loop_index)
+                for loop_index in loop_indices]

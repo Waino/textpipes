@@ -318,7 +318,7 @@ def summarize_files(file_paths, columns=DEFAULT_COLUMNS):
         # process the lines
         ext_lc = False
         for (i, line) in enumerate(open_text_file(file_path,
-                                                  mode='rb',
+                                                  mode='r',
                                                   encoding='utf-8')):
             if i < CHECK_FIRST:
                 for column in columns:

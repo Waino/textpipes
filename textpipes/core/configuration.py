@@ -23,7 +23,11 @@ class Config(object):
                 self.conf.read_file(open(subconf, 'r'))
 
     def get_path(self, section, key):
-        return self.conf['paths.{}'.format(section)][key]
+        try:
+            return self.conf['paths.{}'.format(section)][key]
+        except KeyError:
+            # --check expects KeyError
+            raise KeyError('Undefined path {}:{}'.format(section, key))
 
     def platform_config(self, args):
         try:

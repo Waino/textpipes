@@ -302,3 +302,31 @@ class Evaluate(Rule):
                     inp_sgm=inp_sgm,
                     hyp_sgm=hyp_sgm,
                     out=out))
+
+class EvaluateMultiBleu(Rule):
+    def __init__(self,
+                 hyp,
+                 ref,
+                 out_bleu,
+                 resource_class='make_immediately',
+                 **kwargs):
+        self.hyp = hyp
+        self.ref = ref
+        self.out_bleu = out_bleu
+
+        inputs = [hyp, ref]
+        outputs = [out_bleu]
+        super().__init__(inputs, outputs,
+                         resource_class=resource_class, **kwargs)
+
+    def make(self, conf, cli_args):
+        hyp = self.hyp(conf, cli_args)
+        ref = self.ref(conf, cli_args)
+
+        # evaluate
+        out = self.out_bleu(conf, cli_args)
+        run('multi-bleu.perl'
+            ' {ref} < {hyp} > {out}'.format(
+                ref=ref,
+                hyp=hyp,
+                out=out))

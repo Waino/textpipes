@@ -45,6 +45,25 @@ class Concatenate(Rule):
             )
 
 
+class MosesTokenize(Rule):
+    def __init__(self, *args, lang, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.lang = lang
+
+    def make(self, conf, cli_args):
+        catcmd, infile = maybe_gz_in(self.inputs[0](conf, cli_args))
+        zipcmd, outfile = maybe_gz_out(self.outputs[0](conf, cli_args))
+        run('{catcmd} {infile}'
+            ' | {moses_dir}/tokenizer.perl -l {lang} -threads 2'
+            ' | {zipcmd} > {outfile}'.format(
+                catcmd=catcmd,
+                infile=infile,
+                moses_dir=conf.platform.conf['paths']['moses_dir'],
+                lang=self.lang,
+                zipcmd=zipcmd,
+                outfile=outfile))
+
+
 class LearnBPE(Rule):
     def __init__(self, *args, vocabulary=10000, wordcounts=True, **kwargs):
         super().__init__(*args, **kwargs)
@@ -80,7 +99,7 @@ class ApplyBPE(Rule):
         assert not codes.endswith('.gz')
         assert not outfile.endswith('.gz')
         run('{prog} --input {infile} --codes {codes} --output {outfile}'
-            ' --separator {sep}'.format(
+            ' --separator "{sep}"'.format(
                 prog=os.path.join(WRAPPER_DIR, 'apply_bpe.py'),
                 infile=infile,
                 codes=codes,
