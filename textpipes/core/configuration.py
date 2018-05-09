@@ -1,5 +1,6 @@
 import configparser
 import io
+import itertools
 import os
 
 from . import platform
@@ -70,12 +71,33 @@ class Config(object):
 
 class GridConfig(object):
     def __init__(self, grid_conf_file, args):
-        pass    # FIXME
+        self.conf = configparser.ConfigParser(
+            interpolation=configparser.ExtendedInterpolation())
+        self.conf.read_file(open(grid_conf_file, 'r'))
 
-    def get_overrides(self):
-        # FIXME dummy
-        return [{'grid:param1': 1, 'grid:param2': 2},
-                {'grid:param1': 2, 'grid:param2': 3}]
+    def get_overrides(self, main_conf):
+        params = self.conf['grid']['optimize'].split()
+        sec_keys = [self.conf['grid.keys'][param]
+                    for param in params]
+        ranges = [self._get_range(param, main_conf)
+                  for param in params]
+        result = []
+        for point in itertools.product(*ranges):
+            result.append({key: val
+                           for (key, val)
+                           in zip(sec_keys, point)})
+        return result
+
+    def _get_range(self, param, main_conf):
+        (sec, key) = self.conf['grid.keys'][param].split(':')
+        center_value = main_conf.conf[sec][key]
+        whole_range = self.conf['grid.values'][param].split()
+        radius = self.conf['grid.radius'].getint(param)
+        # FIXME: raise when not found
+        center = whole_range.index(center_value)
+        low = max(0, center - radius)
+        high = min(len(whole_range) - 1, center + radius)
+        return whole_range[low:(high + 1)]
 
     @staticmethod
     def apply_override(base_conf, overrides):

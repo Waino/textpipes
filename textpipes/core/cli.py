@@ -130,7 +130,7 @@ class CLI(object):
                 recursive=self.args.recursive)
         else:
             nextsteps = self.recipe.grid_next_steps(
-                grid=self.grid_conf.get_overrides(),
+                grid=self.grid_conf.get_overrides(self.conf),
                 outputs=self.args.output,
                 cli_args=self.cli_args,
                 recursive=self.args.recursive)
