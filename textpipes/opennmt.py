@@ -221,12 +221,13 @@ class Translate(Rule):
 
 class AddLookupFeature(SingleCellComponent):
     """Adds a feature to each token, based on a mapping file"""
-    def __init__(self, feature_map, sep='￨', fallback='unk', **kwargs):
+    def __init__(self, feature_map, sep='￨', fallback='unk', boundary_marker='@@', **kwargs):
         super().__init__(side_inputs=[feature_map], **kwargs)
         self.feature_map_file = feature_map
         self.sep = sep
         assert fallback in ('unk', 'copy')
         self.fallback = fallback
+        self.boundary_marker = boundary_marker
         self.mapping = {}
 
     def pre_make(self, side_fobjs):
@@ -237,8 +238,9 @@ class AddLookupFeature(SingleCellComponent):
     def single_cell(self, line):
         result = []
         for token in line.split():
-            # FIXME: extract first feature, to enable adding multiple?
-            default = '<UNK>' if self.fallback == 'unk' else token
-            mapped = self.mapping.get(token, fallback)
-            result.append('{}{}{}'.format(token, self.sep, mapped)
+            # FIXME: extract first feature from input, to enable adding multiple?
+            no_bnd = token.replace(self.boundary_marker, '')
+            fallback = '<UNK>' if self.fallback == 'unk' else no_bnd
+            mapped = self.mapping.get(no_bnd, fallback)
+            result.append('{}{}{}'.format(token, self.sep, mapped))
         return ' '.join(result)

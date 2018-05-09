@@ -77,9 +77,9 @@ class MissingSegmentations(MonoPipeComponent):
 
     def pre_make(self, side_fobjs):
         for line in side_fobjs[self.map_file]:
-            # mapping contains both source and target form
-            # separated by tab
-            src, tgt = line.split('\t')
+            # mapping contains only target form
+            morphs = line.split()
+            src = ''.join(morphs)
             self.in_map.add(src)
 
     def __call__(self, stream, side_fobjs=None,

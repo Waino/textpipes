@@ -328,6 +328,8 @@ class ApplySegmentation(ApplyMapping):
     def pre_make(self, side_fobjs):
         nonspace_marker = self.bnd_marker.replace(' ', '')
         for line in side_fobjs[self.map_file]:
+            # don't create empty parts
+            line = line.strip(' ')
             # only the segmented form is given
             parts = line.split()
             if self.pre_marked:
