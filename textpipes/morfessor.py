@@ -5,6 +5,21 @@ from .core.recipe import Rule
 from .core.platform import run
 from .components.core import MonoPipeComponent, MonoPipe
 
+class TrainMorfessor(Rule):
+    def __init__(self, infile, model, argstr='', **kwargs):
+        super().__init__([infile], [model], **kwargs)
+        self.argstr = argstr
+
+    def make(self, conf, cli_args):
+        infile = self.inputs[0](conf, cli_args)
+        model = self.outputs[0](conf, cli_args)
+        run('{prog} {infile} --save-segmentation {model} {argstr}'.format(
+                prog='morfessor-train',
+                infile=infile,
+                model=model,
+                argstr=self.argstr))
+
+
 class ApplyMorfessor(Rule):
     def __init__(self, *args,
                  sep='@@ ', fmt='{analysis}',
