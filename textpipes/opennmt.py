@@ -244,8 +244,8 @@ class TranslateEnsemble(Rule):
         super().__init__(all_inputs, outputs, **kwargs)
 
     def make(self, conf, cli_args):
-        models_str = ['-model {}'.format(model(conf, cli_args)
-                      for model in self.models]
+        models_str = ' '.join(['-model {}'.format(model(conf, cli_args))
+                               for model in self.models])
         # no support for translating multiple
         inputs = self.translation_inputs[0](conf, cli_args)
         outputs = self.outputs[0](conf, cli_args)
