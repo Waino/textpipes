@@ -203,7 +203,7 @@ class Translate(Rule):
             ' -beta {beta}'
             ' -coverage_penalty {penalty_type}'
             ' -length_penalty {penalty_type}'
-            ' -gpuid 0 '
+            ' -gpu 0 '
             ' {argstr}'.format(
                 opennmt_dir=self.opennmt_dir,
                 model=model,
@@ -260,7 +260,7 @@ class TranslateEnsemble(Rule):
             ' -beta {beta}'
             ' -coverage_penalty {penalty_type}'
             ' -length_penalty {penalty_type}'
-            ' -gpuid 0 '
+            ' -gpu 0 '
             ' {argstr}'.format(
                 opennmt_dir=self.opennmt_dir,
                 models=models_str,
