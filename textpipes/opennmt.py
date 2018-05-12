@@ -192,7 +192,7 @@ class Translate(Rule):
         # no support for translating multiple
         inputs = self.translation_inputs[0](conf, cli_args)
         outputs = self.outputs[0](conf, cli_args)
-                  
+
         run('{opennmt_dir}/translate.py'
             ' -model {model}'
             ' -src {inp}'
@@ -203,9 +203,67 @@ class Translate(Rule):
             ' -beta {beta}'
             ' -coverage_penalty {penalty_type}'
             ' -length_penalty {penalty_type}'
+            ' -gpuid 0 '
             ' {argstr}'.format(
                 opennmt_dir=self.opennmt_dir,
                 model=model,
+                inp=inputs,
+                out=outputs,
+                nbest=self.nbest,
+                beam=self.beam,
+                alpha=self.alpha,
+                beta=self.beta,
+                penalty_type=self.penalty_type,
+                argstr=self.argstr))
+
+
+class TranslateEnsemble(Rule):
+    def __init__(self,
+                 models,
+                 inputs, outputs,
+                 nbest=0,
+                 beam=8,
+                 alpha=0.01,
+                 beta=0.4,
+                 penalty_type='none',
+                 argstr='',
+                 opennmt_dir='.',
+                 **kwargs):
+        self.models = models
+        self.translation_inputs = inputs
+        self.outputs = outputs
+        self.nbest = nbest
+        self.beam = beam
+        self.alpha = alpha
+        self.beta = beta
+        self.penalty_type = penalty_type
+        self.argstr = argstr
+        self.opennmt_dir = opennmt_dir
+
+        all_inputs = models + inputs
+        super().__init__(all_inputs, outputs, **kwargs)
+
+    def make(self, conf, cli_args):
+        models_str = ['-model {}'.format(model(conf, cli_args)
+                      for model in self.models]
+        # no support for translating multiple
+        inputs = self.translation_inputs[0](conf, cli_args)
+        outputs = self.outputs[0](conf, cli_args)
+
+        run('{opennmt_dir}/ensemble_translate.py'
+            ' {models}'
+            ' -src {inp}'
+            ' -output {out}'
+            ' -n_best {nbest}'
+            ' -beam_size {beam}'
+            ' -alpha {alpha}'
+            ' -beta {beta}'
+            ' -coverage_penalty {penalty_type}'
+            ' -length_penalty {penalty_type}'
+            ' -gpuid 0 '
+            ' {argstr}'.format(
+                opennmt_dir=self.opennmt_dir,
+                models=models_str,
                 inp=inputs,
                 out=outputs,
                 nbest=self.nbest,
