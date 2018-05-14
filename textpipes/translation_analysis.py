@@ -4,11 +4,6 @@ import re
 
 logger = logging.getLogger('textpipes')
 try:
-    import pandas as pd
-except ImportError:
-    # warnings emitted by check in cli
-    pass
-try:
     import chrF
 except ImportError:
     # warnings emitted by check in cli
@@ -114,6 +109,11 @@ class AnalyzeTranslations(ParallelPipe):
              by_delta_prod_output,))
 
     def make(self, conf, cli_args=None):
+        try:
+            import pandas as pd
+        except ImportError:
+            # warnings emitted by check in cli
+            pass
         # Make a tuple of generators that reads from main_inputs
         readers = [inp.open(conf, cli_args, mode='r')
                    for inp in self.main_inputs]
