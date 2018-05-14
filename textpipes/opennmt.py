@@ -19,6 +19,7 @@ class PrepareData(Rule):
         src_dev_file = self.inputs[2](conf, cli_args)
         trg_dev_file = self.inputs[3](conf, cli_args)
         out_dir = self.outputs[0](conf, cli_args)
+        pipe_file = self.outputs[1](conf, cli_args)
         run('{opennmt_dir}/preprocess.py'
             ' -train_src {src_corpus_file}' \
             ' -train_tgt {trg_corpus_file}' \
@@ -26,13 +27,15 @@ class PrepareData(Rule):
             ' -valid_tgt {trg_dev_file}' \
             ' -save {out_dir}/sharded' \
             ' -max_shard_size {max_shard_size}'
-            ' {argstr}'.format(
+            ' {argstr}'
+            ' >> {pipe_file} 2>&1'.format(
                 opennmt_dir=self.opennmt_dir,
                 src_corpus_file=src_corpus_file,
                 trg_corpus_file=trg_corpus_file,
                 src_dev_file=src_dev_file,
                 trg_dev_file=trg_dev_file,
                 out_dir=out_dir,
+                pipe_file=pipe_file,
                 max_shard_size=self.max_shard_size,
                 argstr=self.argstr))
 

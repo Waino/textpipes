@@ -4,7 +4,7 @@ import re
 
 from .components.core import MonoPipeComponent, RegexSubstitution
 from .core.recipe import Rule
-from .core.utils import progress
+from .core.utils import progress, safe_zip
 
 RE_SET = re.compile(r'<([a-z]*)set .*setid="([^"]*)" ?([^>]*)>', flags=re.IGNORECASE)
 RE_DOC = re.compile(r'<doc sysid="([^"]*)" docid="([^"]*)" ([^>]*)>', flags=re.IGNORECASE)
@@ -163,7 +163,7 @@ class WrapInXml(MonoPipeComponent):
                 src=self.srclang,
                 trg=self.trglang)).rstrip()
         current_doc = None
-        for line, tmpl in zip(stream, self.template):
+        for line, tmpl in safe_zip(stream, self.template):
             if tmpl.docid != current_doc:
                 if current_doc is not None:
                     yield '</p>'
