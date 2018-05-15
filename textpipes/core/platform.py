@@ -120,7 +120,7 @@ class Slurm(Platform):
                 dep_args = ''
                 deps = []
             sbatch = 'sbatch --job-name {name} {rc_args}{dep_args} --wrap="{cmd}"'.format(
-                name=job_name, cmd=cmd, rc_args=rc_args, dep_args=dep_args)
+                name=job_name, cmd=cmd.replace('"', r'\"'), rc_args=rc_args, dep_args=dep_args)
             r = run(sbatch)
             try:
                 job_id = str(int(RE_SLURM_SUBMITTED_ID.match(r.std_out).group(1)))
