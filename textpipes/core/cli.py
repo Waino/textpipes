@@ -86,6 +86,12 @@ class CLI(object):
             self.grid_conf = GridConfig(self.args.grid, self.args)
         else:
             self.grid_conf = None
+            if self.args.make is not None and self.args.overrides is not None:
+                # when in making mode,
+                # apply overrides before constructing recipe
+                # to enable e.g. conf-based control flow
+                overrides = parse_override_string(self.args.overrides)
+                self.conf = GridConfig.apply_override(self.conf, overrides)
         # the recipe-altering cli args
         self.cli_args = None # FIXME
         self.platform = self.conf.platform

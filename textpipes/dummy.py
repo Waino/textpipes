@@ -36,10 +36,11 @@ class DummyTrainLoop(Rule):
 
 
 class DummyParamPrintComponent(MonoPipeComponent):
-    def __init__(self, name='Dummy', params=[], **kwargs):
+    def __init__(self, name='Dummy', params=[], extra=[], **kwargs):
         super().__init__(**kwargs)
         self.name = name
         self.params = params
+        self.extra = extra
 
     def __call__(self, stream, side_fobjs=None,
                  config=None, cli_args=None):
@@ -52,6 +53,9 @@ class DummyParamPrintComponent(MonoPipeComponent):
             sec, key = param.split(':')
             yield '{} param {}: {}'.format(
                 self.name, param, config[sec][key])
+            time.sleep(1)
+        for ext in self.extra:
+            yield '{} extra: {}'.format(self.name, ext)
             time.sleep(1)
 
 
