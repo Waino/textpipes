@@ -25,9 +25,10 @@ def make_override_string(overrides):
 
 def parse_override_string(override_str):
     overrides = {}
-    for pair in override_str.split(';'):
-        sec_key, val = pair.split('=')
-        overrides[sec_key] = val
+    if override_str is not None:
+        for pair in override_str.split(';'):
+            sec_key, val = pair.split('=')
+            overrides[sec_key] = val
     return overrides
 
 class Platform(object):
