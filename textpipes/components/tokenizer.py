@@ -5,18 +5,62 @@ import logging
 
 logger = logging.getLogger('textpipes')
 
-from ..core.utils import read_lang_file
+from ..core.utils import read_lang_file, FIVEDOT
 from .core import SingleCellComponent
+
+SIMP_TOK_PUNC_RE = re.compile(r'([-\.,!?:;/@%\(\)\'"+£\$€])')
+
+# ### Simple tokenizer
+class SimpleTokenize(SingleCellComponent):
+    """Simple tokenizer relying on there being a subword segmentation
+    step later on in the preprocessing, and detokenizing by joining
+    these subwords.
+
+    The reasons for applying this tokenizer
+    before the actual segmentation are:
+    1) Truecasing and other token-based preprocessing steps
+    2) Reduce the noise burden of the subword segmentation
+    """
+    def __init__(self,
+                 punc_re=SIMP_TOK_PUNC_RE,
+                 bnd_marker=FIVEDOT + ' ',
+                 no_space_ok=False,
+                 **kwargs):
+        super().__init__(**kwargs)
+        self.punc_re = punc_re
+        self.bnd_marker = bnd_marker
+        assert no_space_ok or ' ' in self.bnd_marker
+
+    def single_cell(self, sentence):
+        # relies on capturing group to include the actual punc
+        parts = self.punc_re.split(sentence)
+        return ''.join(self._add_boundaries(parts))
+
+    def _add_boundaries(self, parts):
+        for i, part in enumerate(parts):
+            if i > 0 and len(part) > 0 and part[0] != ' ':
+                yield self.bnd_marker
+            yield part
+
+    
+# ### Complicated tokenizer
 
 MULTISPACE_RE = re.compile(r' +')
 END_PERIOD_RE = re.compile(r'\.\s*$')
+
 # punctuation that should be tokenized separately
 TOK_PUNC_RE = re.compile(r'([\.,!?:;/@%\(\)\'"+£\$€])')
+
 
 # Tokenization must be mostly reversible for use on target lang:
 # not good to split hyphens here
 # r'- \d',           # negative numbers (protected)
 class Tokenize(SingleCellComponent):
+    """
+    Complicated tokenizer that tries to leave certain patterns whole.
+    Might be useful for systems that benefit from not splitting too much:
+    e.g. SMT and copy-mechanisms.
+    """
     def __init__(self, lang, **kwargs):
         super().__init__(**kwargs)
         self.lang = lang
