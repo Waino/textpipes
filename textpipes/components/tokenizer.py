@@ -6,7 +6,7 @@ import logging
 logger = logging.getLogger('textpipes')
 
 from ..core.utils import read_lang_file, FIVEDOT
-from .core import SingleCellComponent
+from .core import SingleCellComponent, RegexSubstitution
 
 
 # ### Simple tokenizer
@@ -54,7 +54,14 @@ class SimpleTokenize(SingleCellComponent):
             suffix = self.bnd_marker + ' '
         return prefix + char + suffix
 
-    
+
+class SimpleDeTokenize(RegexSubstitution):
+    def __init__(self, bnd_marker=FIVEDOT):
+        super().__init__([(bnd_marker + ' ', ''),
+                          (' ' + bnd_marker, ''),
+                          (bnd_marker, '')])
+
+
 # ### Complicated tokenizer
 
 MULTISPACE_RE = re.compile(r' +')
