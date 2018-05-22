@@ -133,7 +133,7 @@ class FilterByLength(Filter):
         self.max_chars_per_token = max_chars_per_token
 
     def __call__(self, line, side_fobjs=None):
-        if self.min_chars and len(line) < self.min_chars:
+        if self.min_chars and len(line.strip()) < self.min_chars:
             return True
         if self.max_chars and len(line) > self.max_chars:
             return True
