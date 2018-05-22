@@ -8,7 +8,6 @@ logger = logging.getLogger('textpipes')
 from ..core.utils import read_lang_file, FIVEDOT
 from .core import SingleCellComponent
 
-SIMP_TOK_PUNC_RE = re.compile(r'([-\.,!?:;/@%\(\)\'"+£\$€])')
 
 # ### Simple tokenizer
 class SimpleTokenize(SingleCellComponent):
@@ -22,25 +21,38 @@ class SimpleTokenize(SingleCellComponent):
     2) Reduce the noise burden of the subword segmentation
     """
     def __init__(self,
-                 punc_re=SIMP_TOK_PUNC_RE,
-                 bnd_marker=FIVEDOT + ' ',
-                 no_space_ok=False,
+                 punc='-.,!?:;/\\@%()\'"+£$€¥',
+                 bnd_marker=FIVEDOT,
                  **kwargs):
         super().__init__(**kwargs)
-        self.punc_re = punc_re
+        self.punc = set(punc)
         self.bnd_marker = bnd_marker
-        assert no_space_ok or ' ' in self.bnd_marker
+        assert ' ' not in self.bnd_marker
 
     def single_cell(self, sentence):
-        # relies on capturing group to include the actual punc
-        parts = self.punc_re.split(sentence)
-        return ''.join(self._add_boundaries(parts))
+        result = []
+        chars = [None] + list(sentence) + [None]
+        for prev, char, nxt in zip(chars, chars[1:], chars[2:]):
+            result.append(self._char(prev, char, nxt))
+        return ''.join(result)
 
-    def _add_boundaries(self, parts):
-        for i, part in enumerate(parts):
-            if i > 0 and len(part) > 0 and part[0] != ' ':
-                yield self.bnd_marker
-            yield part
+    def _char(self, prev, char, nxt):
+        if char not in self.punc:
+            # if it isn't punctuation, don't do anything
+            return char
+        # IMPLICIT: current char is punctuation
+        if char == prev:
+            # don't split a repeating punc sequence
+            return char
+        if prev is None or prev == ' ':
+            prefix = '' 
+        else:
+            prefix = ' ' + self.bnd_marker
+        if nxt is None or nxt == ' ' or nxt in self.punc:
+            suffix = '' 
+        else:
+            suffix = self.bnd_marker + ' '
+        return prefix + char + suffix
 
     
 # ### Complicated tokenizer
