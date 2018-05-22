@@ -46,9 +46,18 @@ NextSteps = collections.namedtuple('NextSteps',
 
 class Recipe(object):
     """Main class for building experiment recipes"""
-    def __init__(self, name, argv=None):
+    def __init__(self, name=None, argv=None):
         from . import cli
-        self.name = name
+        try:
+            import __main__
+            self.name, _ = os.path.splitext(__main__.__file__)
+            if name is not None and name != self.name:
+                raise Exception('If Recipe name ({}) is given, '
+                                'it must match file name ({})'
+                    .format(name, __main__.__file__))
+        except AttributeError:
+            self.name = name
+            assert name is not None
         # RecipeFile -> Rule or None
         self.files = {}
         # Main outputs, for easy CLI access
