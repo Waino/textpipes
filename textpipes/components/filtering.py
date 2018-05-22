@@ -341,6 +341,7 @@ class FilterRepetitions(Filter):
 
 class FilterSingleUrl(FilterRegex):
     """Filters out lines with only a single url"""
+    # note that if you use SimpleTokenize, this should precede it
     def __init__(self):
         super().__init__((r'^https?://[^ ]*$',), ignore_case=True)
 
