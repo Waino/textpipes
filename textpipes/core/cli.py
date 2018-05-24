@@ -45,12 +45,12 @@ def get_parser(recipe):
                         help='Status of ongoing experiments')
     parser.add_argument('--mtimes', default=False, action='store_true',
                         help='Look for outputs that are older than their inputs')
-    parser.add_argument('--quiet', default=False, action='store_true',
+    parser.add_argument('-q', '--quiet', default=False, action='store_true',
                         help='Less verbose output, by hiding some info')
-    parser.add_argument('--verbose', default=False, action='store_true',
+    parser.add_argument('-v', '--verbose', default=False, action='store_true',
                         help='More verbose output, e.g. print inputs')
-    parser.add_argument('--dryrun', default=False, action='store_true',
-                        help='Show what would be done, but dont do it')
+    parser.add_argument('-n', '--dryrun', default=False, action='store_true',
+                        help='Show what would be done, but do not do it')
     parser.add_argument('-r', '--recursive', default=False, action='store_true',
                         help='Schedule the whole DAG recursively. '
                         'Default is to only schedule jobs that are ready to run.')
@@ -60,6 +60,9 @@ def get_parser(recipe):
                         help='Only schedule jobs with one of these resource classes. '
                         'Comma separated list of strings. '
                         'Cannot be used with --recursive.')
+    parser.add_argument('--blame', default=None, type=str,
+                        help='When given a concrete filename, '
+                        'shows which rule built it, and its inputs.')
 
     parser.add_argument('--make', default=None, type=str, metavar='OUTPUT',
                         help='Output to make, in section:key format. '
@@ -105,6 +108,9 @@ class CLI(object):
             return  # don't do anything more
         if self.args.mtimes:
             self.mtimes()
+            return  # don't do anything more
+        if self.args.blame is not None:
+            self.blame(self.args.blame)
             return  # don't do anything more
         if self.args.make is not None:
             self.make(self.args.make)
@@ -259,6 +265,21 @@ class CLI(object):
                     cursor(self.conf, self.cli_args),
                     'is newer than' if invtype == 'inversion' else 'orphan of',
                     inp(self.conf, self.cli_args)))
+
+    def blame(self, concrete_output):
+        concrete_output = os.path.abspath(concrete_output)
+        for rf in self.recipe.files:
+            if os.path.abspath(rf(self.conf, self.cli_args)) == concrete_output:
+                sec_key = rf.sec_key()
+                rule = self.recipe.get_rule(sec_key)
+                print('Rule:   \t{sec_key}\t{rule}\t{path}'.format(
+                    sec_key=sec_key,
+                    rule=rule.name,
+                    path=concrete_output))
+                for inp in rule.inputs:
+                    print(' ^input:\t{sec_key}\t{path}'.format(
+                        sec_key=inp.sec_key(),
+                        path=inp(self.conf, self.cli_args)))
 
     def schedule(self, nextsteps):
         # output -> job_id of job that builds it
