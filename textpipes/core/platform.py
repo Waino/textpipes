@@ -24,11 +24,11 @@ class Platform(object):
     def read_log(self, log):
         pass
 
-    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, log):
+    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, log, deps=None):
         # -> job id (or None if not scheduled)
         raise NotImplementedError()
 
-    def post_schedule(self, job_id, recipe, conf, rule, sec_key, output_files, cli_args, log):
+    def post_schedule(self, job_id, recipe, conf, rule, sec_key, output_files, cli_args, log, deps=None):
         pass
 
     def check_job(self, job_id):
