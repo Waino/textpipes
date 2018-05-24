@@ -28,6 +28,9 @@ class Platform(object):
         # -> job id (or None if not scheduled)
         raise NotImplementedError()
 
+    def post_schedule(self, job_id, recipe, conf, rule, sec_key, output_files, cli_args, log):
+        pass
+
     def check_job(self, job_id):
         raise NotImplementedError()
 
@@ -50,17 +53,19 @@ class Local(Platform):
     def read_log(self, log):
         self.job_id = max([0] + list(int(x) for x in log.jobs.keys()))
 
-    """Run immediately, instead of scheduling"""
     def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
-        cmd = 'python {recipe}.py {conf}.ini --make {sec_key}'.format(
-            recipe=recipe.name, conf=conf.name, sec_key=sec_key)
-        r = run(cmd)
         # dummy incremental job_id
         self.job_id += 1
         return str(self.job_id)
 
+    def post_schedule(self, job_id, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
+        """Run immediately, instead of scheduling"""
+        cmd = 'python {recipe}.py {conf}.ini --make {sec_key}'.format(
+            recipe=recipe.name, conf=conf.name, sec_key=sec_key)
+        r = run(cmd)
+
     def check_job(self, job_id):
-        return 'unknown'
+        return 'local'
 
 # --gres=gpu:1 -p gpushort --mem=5000 --time=0-04:00:00
 # --time=5-00:00:00 --mem=23500

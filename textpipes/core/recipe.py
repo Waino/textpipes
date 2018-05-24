@@ -76,6 +76,7 @@ class Recipe(object):
 
     def add_input(self, section, key, loop_index=None, **kwargs):
         rf = self._make_rf(section, key, loop_index=loop_index, **kwargs)
+        rf.atomic = True
         if rf not in self.files:
             self.files[rf] = None
         return rf
@@ -162,7 +163,7 @@ class Recipe(object):
         delayed = []
 
         for rf in outputs:
-            if rf.exists(self.conf, cli_args):
+            if self.log.is_done(rf, self.conf, cli_args):
                 done.append(JobStatus('done', [rf]))
                 seen_done.add(rf)
             else:
@@ -182,9 +183,8 @@ class Recipe(object):
             # check log for waiting/running jobs
             status, job_fields = self.log.get_status_of_output(
                 cursor(self.conf, cli_args))
-            is_atomic = rule.is_atomic(cursor) if rule is not None else False
             if status == 'running':
-                if not (is_atomic and cursor.exists(self.conf, cli_args)):
+                if not self.log.is_done(cursor, self.conf, cli_args):
                     # must wait for non-atomic files until job stops running
                     # also wait for an atomic file that doesn't yet exist
                     running.append(JobStatus('running', [cursor], job_id=job_fields.job_id))
@@ -192,9 +192,9 @@ class Recipe(object):
                     continue
             if cursor.exists(self.conf, cli_args):
                 known.add(cursor)
-                if cursor.not_done(self.conf, cli_args, is_atomic=is_atomic):
-                    logger.warning('"{}" exists, but is neither running nor done'.format(
-                        cursor(self.conf, cli_args)))
+                if not self.log.is_done(cursor, self.conf, cli_args):
+                    logger.warning('"{}" exists, but is neither running nor done ({})'.format(
+                        cursor(self.conf, cli_args), status))
                 else:
                     seen_done.add(cursor)
                 continue
@@ -238,7 +238,7 @@ class Recipe(object):
                     continue
                 # implicit else: ready for scheduling
                 not_done_outputs = [out for out in rule.outputs
-                                    if not out.exists(self.conf, cli_args)]
+                                    if not self.log.is_done(out, self.conf, cli_args)]
                 if len(not_done_outputs) == 0:
                     raise Exception('tried to schedule job '
                         'even though all outputs exist: {}'.format(rule))
@@ -344,6 +344,7 @@ class Rule(object):
             assert isinstance(rf, RecipeFile)
         for rf in self.outputs:
             assert isinstance(rf, RecipeFile)
+            rf.atomic = self.is_atomic(rf)
         self.chain_schedule = max(chain_schedule, 1)
 
     def make(self, conf, cli_args=None):
@@ -400,6 +401,7 @@ class RecipeFile(object):
         self.key = key
         # set if exact expected linecount is known
         self.exact_linecount = exact_linecount
+        self.atomic = False
 
     def __call__(self, conf, cli_args=None):
         path = conf.get_path(self.section, self.key)
@@ -407,22 +409,34 @@ class RecipeFile(object):
             path = path.format(**cli_args)
         return path
 
-    def not_done(self, conf, cli_args=None, is_atomic=False):
+    def status(self, conf, cli_args=None):
+        path = self(conf, cli_args)
         if not self.exists(conf, cli_args):
             # if it doesn't exist, it can't be done
-            return True
+            return 'not done'
         if self.exact_linecount is not None:
-            lc = external_linecount(self(conf, cli_args))
-            if lc != self.exact_linecount:
+            lc = external_linecount(path)
+            if lc == self.exact_linecount:
+                return 'done'
+            else:
                 # linecount doesn't match expected, so not done
                 if lc > self.exact_linecount:
                     # shouldn't be longer than expected
                     logger.warning(
                         'File "{}" is {} lines, longer than expected {}'.format(
-                            self(conf, cli_args),
-                            lc, self.exact_linecount))
-                return True
-        return False
+                            path, lc, self.exact_linecount))
+                return 'unknown'
+        # check for emptiness
+        if os.path.isdir(path):
+            if dir_is_empty(path):
+                return 'not done'
+        else:
+            if os.stat(path).st_size == 0:
+                return 'not done'
+        if self.atomic:
+            # aready checked that it exists
+            return 'done'
+        return 'unknown'
 
     def exists(self, conf, cli_args=None):
         return os.path.exists(self(conf, cli_args))

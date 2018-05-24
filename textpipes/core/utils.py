@@ -149,3 +149,7 @@ def find_highest_file(path_template):
         return None, None
     idx, highest = max(matches)
     return idx, os.path.join(directory, highest)
+
+
+def dir_is_empty(path):
+    return all(f.startswith('.') for f in os.listdir(path))

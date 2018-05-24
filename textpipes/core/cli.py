@@ -293,6 +293,9 @@ class CLI(object):
             if step.job_id is not None and step.job_id != '-':
                 for output in step.outputs:
                     wait_ids[output] = step.job_id
+            self.platform.post_schedule(
+                job_id, self.recipe, self.conf, step.rule, step.sec_key,
+                output_files, self.cli_args, deps=wait_for_jobs)
 
     def make(self, output):
         next_steps = self.recipe.get_next_steps_for(
@@ -306,11 +309,8 @@ class CLI(object):
         job_id = self.log.outputs.get(
             next_step.outputs[0](self.conf, self.cli_args), None)
         if job_id is None:
-            if self.platform.make_immediately:
-                job_id = '-'
-            else:
-                raise Exception('No scheduled job id for {}'.format(
-                    next_step.outputs[0](self.conf, self.cli_args)))
+            raise Exception('No scheduled job id for {}'.format(
+                next_step.outputs[0](self.conf, self.cli_args)))
         self._make_helper(output, next_step, job_id)
 
     def _make_helper(self, output, next_step, job_id):
@@ -445,12 +445,23 @@ class ExperimentLog(object):
         # outfile: a concrete file path
         # status: a string from STATUSES
         # fields: a LogItem
+        assert not isinstance(outfile, RecipeFile)
         job_id = self.outputs.get(outfile, None)
         if job_id is None:
             return 'not scheduled', None
         status = self.job_statuses.get(job_id, None)
         fields = self.jobs.get(job_id, None)
         return status, fields
+
+    def is_done(self, rf, conf, cli_args=None):
+        rf_status = rf.status(conf, cli_args)
+        if rf_status == 'not done':
+            return False
+        elif rf_status == 'done':
+            return True
+        # don't know based on just the file
+        job_status, _ = self.get_status_of_output(rf(conf, cli_args))
+        return job_status == 'finished'
 
     def get_summary(self):
         """Status summary from parsing log"""
@@ -492,6 +503,8 @@ class ExperimentLog(object):
 
     def _parse_combined_log(self):
         self._parse_log(self.logfile)
+        self._parse_log(os.path.join('logs', 'job.{}.local.log'.format(
+                self.recipe.name)))
 
         waiting = self.get_jobs_with_status('scheduled')
         running = self.get_jobs_with_status('running')
@@ -501,7 +514,10 @@ class ExperimentLog(object):
                 self.recipe.name, job_id))
             self._parse_log(job_logfile)
             status = self.platform.check_job(job_id)
-            if status == 'finished':
+            if status == 'local':
+                if self.job_statuses.get(job_id, None) == 'finished':
+                    self.consolidate_finished(job_id)
+            elif status == 'finished':
                 self.consolidate_finished(job_id)
                 self.job_statuses[job_id] = 'finished'
             elif status == 'failed':
