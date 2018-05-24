@@ -267,19 +267,18 @@ class CLI(object):
                     inp(self.conf, self.cli_args)))
 
     def blame(self, concrete_output):
-        concrete_output = os.path.abspath(concrete_output)
+        abs_output = os.path.abspath(concrete_output)
         for rf in self.recipe.files:
-            if os.path.abspath(rf(self.conf, self.cli_args)) == concrete_output:
+            if os.path.abspath(rf(self.conf, self.cli_args)) == abs_output:
+                tpls = []
                 sec_key = rf.sec_key()
                 rule = self.recipe.get_rule(sec_key)
-                print('Rule:   \t{sec_key}\t{rule}\t{path}'.format(
-                    sec_key=sec_key,
-                    rule=rule.name,
-                    path=concrete_output))
+                tpls.append(('Rule:', sec_key, rule.name, concrete_output))
                 for inp in rule.inputs:
-                    print(' ^input:\t{sec_key}\t{path}'.format(
-                        sec_key=inp.sec_key(),
-                        path=inp(self.conf, self.cli_args)))
+                    tpls.append((' ^input:', inp.sec_key(), '', inp(self.conf, self.cli_args)))
+                table_print(tpls)
+                return
+        print('No rule to make {}'.format(concrete_output))
 
     def schedule(self, nextsteps):
         # output -> job_id of job that builds it
@@ -359,22 +358,23 @@ class CLI(object):
         tpls = []
         for step in nextsteps.available:
             outfile = step.outputs[0](self.conf, self.cli_args)
+            rclass = step.rule.resource_class
             tpls.append((
-                albl, step.job_id, step.sec_key, step.rule.name, outfile))
+                albl, step.job_id, step.sec_key, step.rule.name, rclass, outfile))
             if verbose:
                 # also show other outputs
                 for out in step.outputs[1:]:
                     tpls.append((
-                        '     +out:', '', out.sec_key(), '+', out(self.conf, self.cli_args)))
+                        '     +out:', '', out.sec_key(), '+', rclass, out(self.conf, self.cli_args)))
                 # step.inputs only has unsatisfied
                 for inp in step.rule.inputs:
                     tpls.append((
-                        '   ^input:', '', inp.sec_key(), '', inp(self.conf, self.cli_args)))
+                        '   ^input:', '', inp.sec_key(), '', rclass, inp(self.conf, self.cli_args)))
         for step in nextsteps.delayed:
             lbl = 'delayed:'
             outfile = step.outputs[0](self.conf, self.cli_args)
             tpls.append((
-                lbl, step.job_id, step.sec_key, step.rule.name, outfile))
+                lbl, step.job_id, step.sec_key, step.rule.name, rclass, outfile))
         table_print(tpls, line_before='-')
 
     def _remove_redundant(self, nextsteps, dryrun=False):
