@@ -1,0 +1,13 @@
+This is an example project directory template
+
+You should do at least the following:
+1) Modify the current_platform if you use a different platform
+2) Set the paths in platform_local.ini
+
+For each recipe:
+1) Add the experiment parameters into a copy of config.ini.
+   File paths should go under sections starting with paths
+   [paths.SECTION]
+   KEY = PATH
+   where SECTION and KEY are what you refer to from the recipe.
+2) Write your recipe into a copy of recipe.py

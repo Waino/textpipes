@@ -11,7 +11,9 @@ from multiprocessing import Pool
 logger = logging.getLogger('textpipes')
 
 UNICODE_UNIT_SEP = '\u001F'
-FIVEDOT = '\u2059' # 5-dot punctuation
+THREEDOT = '\u2056' # 3-dot punctuation
+FOURDOT  = '\u2058' # 4-dot punctuation
+FIVEDOT  = '\u2059' # 5-dot punctuation. Default subword-boundary marker.
 
 def safe_zip(*iterables):
     iters = [iter(x) for x in iterables]
@@ -147,3 +149,7 @@ def find_highest_file(path_template):
         return None, None
     idx, highest = max(matches)
     return idx, os.path.join(directory, highest)
+
+
+def dir_is_empty(path):
+    return all(f.startswith('.') for f in os.listdir(path))

@@ -5,18 +5,81 @@ import logging
 
 logger = logging.getLogger('textpipes')
 
-from ..core.utils import read_lang_file
-from .core import SingleCellComponent
+from ..core.utils import read_lang_file, FIVEDOT
+from .core import SingleCellComponent, RegexSubstitution
+
+
+# ### Simple tokenizer
+class SimpleTokenize(SingleCellComponent):
+    """Simple tokenizer relying on there being a subword segmentation
+    step later on in the preprocessing, and detokenizing by joining
+    these subwords.
+
+    The reasons for applying this tokenizer
+    before the actual segmentation are:
+    1) Truecasing and other token-based preprocessing steps
+    2) Reduce the noise burden of the subword segmentation
+    """
+    def __init__(self,
+                 punc='-.,!?:;/\\@%()\'"+£$€¥',
+                 bnd_marker=FIVEDOT,
+                 **kwargs):
+        super().__init__(**kwargs)
+        self.punc = set(punc)
+        self.bnd_marker = bnd_marker
+        assert ' ' not in self.bnd_marker
+
+    def single_cell(self, sentence):
+        result = []
+        chars = [None] + list(sentence) + [None]
+        for prev, char, nxt in zip(chars, chars[1:], chars[2:]):
+            result.append(self._char(prev, char, nxt))
+        return ''.join(result)
+
+    def _char(self, prev, char, nxt):
+        if char not in self.punc:
+            # if it isn't punctuation, don't do anything
+            return char
+        # IMPLICIT: current char is punctuation
+        if char == prev:
+            # don't split a repeating punc sequence
+            return char
+        if prev is None or prev == ' ':
+            prefix = '' 
+        else:
+            prefix = ' ' + self.bnd_marker
+        if nxt is None or nxt == ' ' or nxt in self.punc:
+            suffix = '' 
+        else:
+            suffix = self.bnd_marker + ' '
+        return prefix + char + suffix
+
+
+class SimpleDeTokenize(RegexSubstitution):
+    def __init__(self, bnd_marker=FIVEDOT):
+        super().__init__([(bnd_marker + ' ', ''),
+                          (' ' + bnd_marker, ''),
+                          (bnd_marker, '')])
+
+
+# ### Complicated tokenizer
 
 MULTISPACE_RE = re.compile(r' +')
 END_PERIOD_RE = re.compile(r'\.\s*$')
+
 # punctuation that should be tokenized separately
 TOK_PUNC_RE = re.compile(r'([\.,!?:;/@%\(\)\'"+£\$€])')
+
 
 # Tokenization must be mostly reversible for use on target lang:
 # not good to split hyphens here
 # r'- \d',           # negative numbers (protected)
 class Tokenize(SingleCellComponent):
+    """
+    Complicated tokenizer that tries to leave certain patterns whole.
+    Might be useful for systems that benefit from not splitting too much:
+    e.g. SMT and copy-mechanisms.
+    """
     def __init__(self, lang, **kwargs):
         super().__init__(**kwargs)
         self.lang = lang
