@@ -597,7 +597,7 @@ class ExperimentLog(object):
         for gitkey in  self.platform.conf['git']:
             gitdir = self.platform.conf['git'][gitkey]
             commit = run('git --git-dir={} rev-parse HEAD'.format(gitdir)).std_out.strip()
-            branch = run('git --git-dir={} symbolic-ref --short HEAD'.format(gitdir)).std_out.strip()
+            branch = "FIXME DISABLED" #run('git --git-dir={} symbolic-ref --short HEAD'.format(gitdir)).std_out.strip()
             timestamp = datetime.now().strftime(TIMESTAMP)
             self._append(GIT_FMT.format(
                 key=gitkey,
