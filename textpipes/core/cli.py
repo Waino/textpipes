@@ -5,7 +5,7 @@ import itertools
 import logging
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from .configuration import Config
 from .platform import run
@@ -433,6 +433,7 @@ class CLI(object):
 LogItem = collections.namedtuple('LogItem',
     ['last_time', 'recipe', 'exp', 'status', 'job_id', 'sec_key', 'rule'])
 
+LOG_HISTORY = '%Y.%m.%d'
 TIMESTAMP = '%d.%m.%Y %H:%M:%S'
 GIT_FMT = '{time} {recipe} {exp} : {key} git commit {commit} branch {branch}'
 LOG_FMT = '{time} {recipe} {exp} : status {status} {job} {sec_key} {rule}'
@@ -446,11 +447,15 @@ END_RE = re.compile(r'([0-9\.]+ [0-9:]+) ([^ ]+) ([^ ]+) : experiment ended')
 STATUSES = ('scheduled', 'running', 'finished', 'failed')
 
 class ExperimentLog(object):
-    def __init__(self, recipe, conf, platform):
+    def __init__(self, recipe, conf, platform, history_days=15):
         self.recipe = recipe
         self.conf = conf
         self.platform = platform
-        self.logfile = os.path.join('logs', 'experiment.{}.log'.format(self.recipe.name))
+        self.now = datetime.now()
+        self.logfile = os.path.join('logs', 'experiment.{name}.{date}.log'.format(
+            name=self.recipe.name, date=self.now.strftime(LOG_HISTORY)))
+        self.history_days = history_days
+        self.log_horizon = self.now - timedelta(days=history_days)
         self.jobs = {}
         self.job_statuses = {}
         self.outputs = {}
@@ -479,6 +484,11 @@ class ExperimentLog(object):
         if rf_status == 'not done':
             return False
         elif rf_status == 'done':
+            return True
+        mtime = os.path.getmtime(rf(conf, cli_args))
+        mdatetime = datetime.fromtimestamp(mtime)
+        if mdatetime < self.log_horizon:
+            # assume that old files are done
             return True
         # don't know based on just the file
         job_status, _ = self.get_status_of_output(rf(conf, cli_args))
@@ -524,8 +534,14 @@ class ExperimentLog(object):
 
     def _parse_combined_log(self):
         self._parse_log(self.logfile)
-        self._parse_log(os.path.join('logs', 'job.{}.local.log'.format(
-                self.recipe.name)))
+        date_cursor = self.now
+        for _ in range(self.history_days):
+            date_cursor -= timedelta(days=1)
+            logfile = os.path.join('logs', 'experiment.{name}.{date}.log'.format(
+                name=self.recipe.name, date=date_cursor.strftime(LOG_HISTORY)))
+            self._parse_log(logfile)
+        #self._parse_log(os.path.join('logs', 'job.{}.local.log'.format(
+        #        self.recipe.name)))
 
         waiting = self.get_jobs_with_status('scheduled')
         running = self.get_jobs_with_status('running')
