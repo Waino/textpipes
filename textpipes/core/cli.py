@@ -369,7 +369,7 @@ class CLI(object):
                 # step.inputs only has unsatisfied
                 for inp in step.rule.inputs:
                     tpls.append((
-                        '   ^input:', '', inp.sec_key(), '', rclass, inp(self.conf, self.cli_args)))
+                        '   ^input:', '', inp.sec_key(), '', '', inp(self.conf, self.cli_args)))
         for step in nextsteps.delayed:
             lbl = 'delayed:'
             outfile = step.outputs[0](self.conf, self.cli_args)
