@@ -60,6 +60,10 @@ def get_parser(recipe):
                         help='Only schedule jobs with one of these resource classes. '
                         'Comma separated list of strings. '
                         'Cannot be used with --recursive.')
+    parser.add_argument('--platform', default=None, type=str,
+                        help='Temporarily override the platform. '
+                        'Generally not recommended. '
+                        'Use the file current_platform instead.')
 
     parser.add_argument('--make', default=None, type=str, metavar='OUTPUT',
                         help='Output to make, in section:key format. '

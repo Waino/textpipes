@@ -163,7 +163,8 @@ class WrapInXml(MonoPipeComponent):
                 src=self.srclang,
                 trg=self.trglang)).rstrip()
         current_doc = None
-        for line, tmpl in safe_zip(stream, self.template):
+        # FIXME can't use safe_zip with running numbers
+        for line, tmpl in zip(stream, self.template):
             if tmpl.docid != current_doc:
                 if current_doc is not None:
                     yield '</p>'

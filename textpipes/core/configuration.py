@@ -24,15 +24,18 @@ class Config(object):
             raise KeyError('Undefined path {}:{}'.format(section, key))
 
     def platform_config(self, args):
-        try:
-            with open('current_platform', 'r') as fobj:
-                platform_name = fobj.readline().strip()
-        except FileNotFoundError:
-            raise Exception(
-                'Expecting to find a file named "current_platform" '
-                'in the working directory. It should contain a string, '
-                'which when plugged into platform_{}.ini points to a '
-                'valid platform config.')
+        if args.platform is not None:
+            platform_name = args.platform
+        else:
+            try:
+                with open('current_platform', 'r') as fobj:
+                    platform_name = fobj.readline().strip()
+            except FileNotFoundError:
+                raise Exception(
+                    'Expecting to find a file named "current_platform" '
+                    'in the working directory. It should contain a string, '
+                    'which when plugged into platform_{}.ini points to a '
+                    'valid platform config.')
         conf = configparser.ConfigParser(
             interpolation=configparser.ExtendedInterpolation())
         conf.read_file(open('platform_{}.ini'.format(platform_name), 'r'))
