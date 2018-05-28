@@ -9,12 +9,29 @@ from ..core.recipe import Rule
 from ..core.utils import safe_zip, progress
 
 
+def apply_component(component, para=False):
+    """Convenience function for applying a single PipeComponent"""
+    if para:
+        class WrappedComponent(ParallelPipe):
+            def __init__(self):
+                super().__init__([component], inp, out,
+                                name=component.__class__.__name__)
+    else:
+        assert component._is_mono_pipe_component
+        class WrappedComponent(MonoPipe):
+            def __init__(self, inp, out):
+                super().__init__([component], [inp], [out],
+                                name=component.__class__.__name__)
+    return WrappedComponent
+
+
 class Pipe(Rule):
     def __init__(self, components,
                  main_inputs, main_outputs,
                  estimated_lines='conf',
                  extra_side_inputs=None,
                  extra_side_outputs=None,
+                 name=None,
                  **kwargs):
         side_inputs = tuple(set(inp for component in components
                                 for inp in component.side_inputs
@@ -35,6 +52,7 @@ class Pipe(Rule):
         self.side_inputs = side_inputs
         self.side_outputs = side_outputs
         self.estimated_lines = estimated_lines
+        self._name = name if name is not None else self.__class__.__name__
 
     def _make_helper(self, stream, conf, cli_args):
         # Open side inputs and outputs
@@ -66,7 +84,11 @@ class Pipe(Rule):
     def _post_make(self, side_fobjs):
         for component in self.components:
             component.post_make(side_fobjs)
-        
+
+    @property
+    def name(self):
+        return self._name
+
 
 class MonoPipe(Pipe):
     def __init__(self, components, *args, **kwargs):

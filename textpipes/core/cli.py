@@ -5,7 +5,7 @@ import itertools
 import logging
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from .configuration import Config
 from .platform import run
@@ -45,12 +45,12 @@ def get_parser(recipe):
                         help='Status of ongoing experiments')
     parser.add_argument('--mtimes', default=False, action='store_true',
                         help='Look for outputs that are older than their inputs')
-    parser.add_argument('--quiet', default=False, action='store_true',
+    parser.add_argument('-q', '--quiet', default=False, action='store_true',
                         help='Less verbose output, by hiding some info')
-    parser.add_argument('--verbose', default=False, action='store_true',
+    parser.add_argument('-v', '--verbose', default=False, action='store_true',
                         help='More verbose output, e.g. print inputs')
-    parser.add_argument('--dryrun', default=False, action='store_true',
-                        help='Show what would be done, but dont do it')
+    parser.add_argument('-n', '--dryrun', default=False, action='store_true',
+                        help='Show what would be done, but do not do it')
     parser.add_argument('-r', '--recursive', default=False, action='store_true',
                         help='Schedule the whole DAG recursively. '
                         'Default is to only schedule jobs that are ready to run.')
@@ -60,6 +60,9 @@ def get_parser(recipe):
                         help='Only schedule jobs with one of these resource classes. '
                         'Comma separated list of strings. '
                         'Cannot be used with --recursive.')
+    parser.add_argument('--blame', default=None, type=str,
+                        help='When given a concrete filename, '
+                        'shows which rule built it, and its inputs.')
     parser.add_argument('--platform', default=None, type=str,
                         help='Temporarily override the platform. '
                         'Generally not recommended. '
@@ -109,6 +112,9 @@ class CLI(object):
             return  # don't do anything more
         if self.args.mtimes:
             self.mtimes()
+            return  # don't do anything more
+        if self.args.blame is not None:
+            self.blame(self.args.blame)
             return  # don't do anything more
         if self.args.make is not None:
             self.make(self.args.make)
@@ -264,6 +270,20 @@ class CLI(object):
                     'is newer than' if invtype == 'inversion' else 'orphan of',
                     inp(self.conf, self.cli_args)))
 
+    def blame(self, concrete_output):
+        abs_output = os.path.abspath(concrete_output)
+        for rf in self.recipe.files:
+            if os.path.abspath(rf(self.conf, self.cli_args)) == abs_output:
+                tpls = []
+                sec_key = rf.sec_key()
+                rule = self.recipe.get_rule(sec_key)
+                tpls.append(('Rule:', sec_key, rule.name, concrete_output))
+                for inp in rule.inputs:
+                    tpls.append((' ^input:', inp.sec_key(), '', inp(self.conf, self.cli_args)))
+                table_print(tpls)
+                return
+        print('No rule to make {}'.format(concrete_output))
+
     def schedule(self, nextsteps):
         # output -> job_id of job that builds it
         wait_ids = {}
@@ -297,6 +317,9 @@ class CLI(object):
             if step.job_id is not None and step.job_id != '-':
                 for output in step.outputs:
                     wait_ids[output] = step.job_id
+            self.platform.post_schedule(
+                job_id, self.recipe, self.conf, step.rule, step.sec_key,
+                output_files, self.cli_args, deps=wait_for_jobs)
 
     def make(self, output):
         next_steps = self.recipe.get_next_steps_for(
@@ -310,11 +333,8 @@ class CLI(object):
         job_id = self.log.outputs.get(
             next_step.outputs[0](self.conf, self.cli_args), None)
         if job_id is None:
-            if self.platform.make_immediately:
-                job_id = '-'
-            else:
-                raise Exception('No scheduled job id for {}'.format(
-                    next_step.outputs[0](self.conf, self.cli_args)))
+            raise Exception('No scheduled job id for {}'.format(
+                next_step.outputs[0](self.conf, self.cli_args)))
         self._make_helper(output, next_step, job_id)
 
     def _make_helper(self, output, next_step, job_id):
@@ -342,22 +362,23 @@ class CLI(object):
         tpls = []
         for step in nextsteps.available:
             outfile = step.outputs[0](self.conf, self.cli_args)
+            rclass = step.rule.resource_class
             tpls.append((
-                albl, step.job_id, step.sec_key, step.rule.name, outfile))
+                albl, step.job_id, step.sec_key, step.rule.name, rclass, outfile))
             if verbose:
                 # also show other outputs
                 for out in step.outputs[1:]:
                     tpls.append((
-                        '     +out:', '', out.sec_key(), '+', out(self.conf, self.cli_args)))
+                        '     +out:', '', out.sec_key(), '+', rclass, out(self.conf, self.cli_args)))
                 # step.inputs only has unsatisfied
                 for inp in step.rule.inputs:
                     tpls.append((
-                        '   ^input:', '', inp.sec_key(), '', inp(self.conf, self.cli_args)))
+                        '   ^input:', '', inp.sec_key(), '', '', inp(self.conf, self.cli_args)))
         for step in nextsteps.delayed:
             lbl = 'delayed:'
             outfile = step.outputs[0](self.conf, self.cli_args)
             tpls.append((
-                lbl, step.job_id, step.sec_key, step.rule.name, outfile))
+                lbl, step.job_id, step.sec_key, step.rule.name, rclass, outfile))
         table_print(tpls, line_before='-')
 
     def _remove_redundant(self, nextsteps, dryrun=False):
@@ -416,6 +437,7 @@ class CLI(object):
 LogItem = collections.namedtuple('LogItem',
     ['last_time', 'recipe', 'exp', 'status', 'job_id', 'sec_key', 'rule'])
 
+LOG_HISTORY = '%Y.%m.%d'
 TIMESTAMP = '%d.%m.%Y %H:%M:%S'
 GIT_FMT = '{time} {recipe} {exp} : {key} git commit {commit} branch {branch}'
 LOG_FMT = '{time} {recipe} {exp} : status {status} {job} {sec_key} {rule}'
@@ -429,11 +451,15 @@ END_RE = re.compile(r'([0-9\.]+ [0-9:]+) ([^ ]+) ([^ ]+) : experiment ended')
 STATUSES = ('scheduled', 'running', 'finished', 'failed')
 
 class ExperimentLog(object):
-    def __init__(self, recipe, conf, platform):
+    def __init__(self, recipe, conf, platform, history_days=15):
         self.recipe = recipe
         self.conf = conf
         self.platform = platform
-        self.logfile = os.path.join('logs', 'experiment.{}.log'.format(self.recipe.name))
+        self.now = datetime.now()
+        self.logfile = os.path.join('logs', 'experiment.{name}.{date}.log'.format(
+            name=self.recipe.name, date=self.now.strftime(LOG_HISTORY)))
+        self.history_days = history_days
+        self.log_horizon = self.now - timedelta(days=history_days)
         self.jobs = {}
         self.job_statuses = {}
         self.outputs = {}
@@ -449,12 +475,28 @@ class ExperimentLog(object):
         # outfile: a concrete file path
         # status: a string from STATUSES
         # fields: a LogItem
+        assert not isinstance(outfile, RecipeFile)
         job_id = self.outputs.get(outfile, None)
         if job_id is None:
             return 'not scheduled', None
         status = self.job_statuses.get(job_id, None)
         fields = self.jobs.get(job_id, None)
         return status, fields
+
+    def is_done(self, rf, conf, cli_args=None):
+        rf_status = rf.status(conf, cli_args)
+        if rf_status == 'not done':
+            return False
+        elif rf_status == 'done':
+            return True
+        mtime = os.path.getmtime(rf(conf, cli_args))
+        mdatetime = datetime.fromtimestamp(mtime)
+        if mdatetime < self.log_horizon:
+            # assume that old files are done
+            return True
+        # don't know based on just the file
+        job_status, _ = self.get_status_of_output(rf(conf, cli_args))
+        return job_status == 'finished'
 
     def get_summary(self):
         """Status summary from parsing log"""
@@ -496,6 +538,14 @@ class ExperimentLog(object):
 
     def _parse_combined_log(self):
         self._parse_log(self.logfile)
+        date_cursor = self.now
+        for _ in range(self.history_days):
+            date_cursor -= timedelta(days=1)
+            logfile = os.path.join('logs', 'experiment.{name}.{date}.log'.format(
+                name=self.recipe.name, date=date_cursor.strftime(LOG_HISTORY)))
+            self._parse_log(logfile)
+        #self._parse_log(os.path.join('logs', 'job.{}.local.log'.format(
+        #        self.recipe.name)))
 
         waiting = self.get_jobs_with_status('scheduled')
         running = self.get_jobs_with_status('running')
@@ -505,7 +555,10 @@ class ExperimentLog(object):
                 self.recipe.name, job_id))
             self._parse_log(job_logfile)
             status = self.platform.check_job(job_id)
-            if status == 'finished':
+            if status == 'local':
+                if self.job_statuses.get(job_id, None) == 'finished':
+                    self.consolidate_finished(job_id)
+            elif status == 'finished':
                 self.consolidate_finished(job_id)
                 self.job_statuses[job_id] = 'finished'
             elif status == 'failed':
