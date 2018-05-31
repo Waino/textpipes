@@ -353,6 +353,9 @@ class CLI(object):
             albl = 'immediate:'
         tpls = []
         for step in nextsteps.done + nextsteps.waiting + nextsteps.running:
+            if self.args.quiet and step.status == 'done':
+                # suppress done jobs if quiet
+                continue
             outfile = step.outputs[0](self.conf, self.cli_args)
             lbl = step.status + ':'
             tpls.append((

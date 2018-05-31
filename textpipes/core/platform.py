@@ -24,6 +24,10 @@ class Platform(object):
     def read_log(self, log):
         pass
 
+    def _cmd(self, recipe, conf, sec_key):
+        return 'python {recipe}.py {conf}.ini --make {sec_key} --platform {platform}'.format(
+            recipe=recipe.name, conf=conf.name, sec_key=sec_key, platform=self.name)
+
     def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
         # -> job id (or None if not scheduled)
         raise NotImplementedError()
@@ -60,9 +64,7 @@ class Local(Platform):
 
     def post_schedule(self, job_id, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
         """Run immediately, instead of scheduling"""
-        cmd = 'python {recipe}.py {conf}.ini --make {sec_key}'.format(
-            recipe=recipe.name, conf=conf.name, sec_key=sec_key)
-        r = run(cmd)
+        r = run(self._cmd(recipe, conf, sec_key))
 
     def check_job(self, job_id):
         return 'local'
@@ -92,8 +94,7 @@ class Slurm(Platform):
     def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
         rc_args = self.resource_class(rule.resource_class)
         assert rc_args != 'make_immediately'
-        cmd = 'python {recipe}.py {conf}.ini --make {sec_key}'.format(
-            recipe=recipe.name, conf=conf.name, sec_key=sec_key)
+        cmd = self._cmd(recipe, conf, sec_key)
         job_name = '{}:{}'.format(conf.name, sec_key)
         for i in range(rule.chain_schedule):
             if deps:
