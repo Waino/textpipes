@@ -209,7 +209,7 @@ class Recipe(object):
             border.update(rule.inputs)
             needed.add(cursor)
 
-        if len(missing) > 0:
+        if len(missing) > 0 and not config.force:
             # missing inputs block anything at all from running
             raise Exception(
             '\n'.join(str(JobStatus('missing_inputs', [inp], inputs=[inp])) for inp in missing))
