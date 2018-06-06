@@ -181,9 +181,9 @@ class Recipe(object):
                 raise Exception('No rule to build requested output {}'.format(cursor))
             # FIXME: pass self.conf and cli_args so that flexible rules can adjust?
             # check log for waiting/running jobs
-            status, job_fields = self.log.get_status_of_output(
+            job_fields = self.log.get_status_of_output(
                 cursor(self.conf, cli_args))
-            if status == 'running':
+            if job_fields.status == 'running':
                 if not self.log.is_done(cursor, self.conf, cli_args):
                     # must wait for non-atomic files until job stops running
                     # also wait for an atomic file that doesn't yet exist
@@ -198,7 +198,7 @@ class Recipe(object):
                 else:
                     seen_done.add(cursor)
                 continue
-            if status == 'scheduled':
+            if job_fields.status == 'scheduled':
                 waiting.append(JobStatus('waiting', [cursor], job_id=job_fields.job_id))
                 known.add(cursor)
                 continue

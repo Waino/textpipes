@@ -356,3 +356,29 @@ class Prefix(SingleCellComponent):
 
     def single_cell(self, line):
         return ''.join((self.prefix, line, self.suffix))
+
+
+class CutPrefix(MonoPipeComponent):
+    def __init__(self, prefix_file, sep=' ', **kwargs):
+        super().__init__(side_outputs=[prefix_file], **kwargs)
+        self.prefix_file = prefix_file
+        self.sep = sep
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        prefix_file = side_fobjs[self.prefix_file]
+        for line in stream:
+            prefix, tail = line.split(self.sep, 1)
+            prefix_file.write('{}\n'.format(prefix))
+            yield tail
+
+
+class LineNumbers(MonoPipeComponent):
+    def __init__(self, start=0, **kwargs):
+        super().__init__(**kwargs)
+        self.start = start
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        for (i, line) in enumerate(stream):
+            yield '{} {}'.format(self.start + i, line)
