@@ -95,7 +95,7 @@ class Slurm(Platform):
     """Schedule and return job id"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._job_status = None
+        self._job_status = {}
 
     def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
         rc_args = self.resource_class(rule.resource_class)
@@ -120,7 +120,7 @@ class Slurm(Platform):
         return job_id
 
     def check_job(self, job_id):
-        if self._job_status is None:
+        if job_id not in self._job_status:
             self._parse_sacct(job_id)
         if job_id in self._job_status:
             (_, _, status, _) = self._job_status[job_id]
@@ -131,7 +131,19 @@ class Slurm(Platform):
     def _parse_sacct(self, job_id):
         r = run('sacct -j "{}" -Pno jobid,elapsed,start,state'.format(job_id))
         for (i, line) in enumerate(r.std_out.split('\n')):
-            job_id,time, start, status, reason = line.split('|')
+            if len(line.strip()) == 0:
+                continue
+            parts = line.split('|')
+            # FIXME not asking for reason
+            #if len(parts) == 5:
+            #    job_id, time, start, status, reason = parts
+            #elif
+            if len(parts) == 4:
+                job_id, time, start, status = parts
+                reason = ''
+            else:
+                print('Unexpected output from sacct: ', line)
+                continue
             # FIXME: non-slurm-specific namedtuple?
             self._job_status[job_id] = (time, start, status, reason)
 
