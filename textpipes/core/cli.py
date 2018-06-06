@@ -225,7 +225,7 @@ class CLI(object):
             files_by_job_id[job_id].append(filepath)
         keyfunc = lambda x: x.exp
         for (exp, jobs) in itertools.groupby(
-                sorted(self.log.jobs.values(), key=keyfunc), keyfunc):
+                sorted(self.log.status(), key=keyfunc), keyfunc):
             if exp not in self.log.ongoing_experiments:
                 continue
             # FIXME: passing current args to another experiments conf
@@ -233,26 +233,25 @@ class CLI(object):
             print('=' * 80)
             print('Experiment: {}'.format(exp))
             tpls = []
-            for job in sorted(jobs, key=lambda x: (x.status, x.last_time)):
-                status = self.log.job_statuses[job.job_id]
-                if status not in ('scheduled', 'running', 'failed'):
+            for job in sorted(jobs, key=lambda x: (x.status, x.time)):
+                if job.status not in ('scheduled', 'running', 'failed'):
                     continue
-                if self.args.quiet and status == 'failed':
+                if self.args.quiet and job.status == 'failed':
                     # suppress failed jobs when quiet
                     continue
                 # suppress failed jobs if it has been relaunched
                 # (no longer the designated job for any files)
-                if status == 'failed' and len(files_by_job_id[job.job_id]) == 0:
+                if job.status == 'failed' and len(files_by_job_id[job.job_id]) == 0:
                     continue
                 try:
                     rule = self.recipe.get_rule(job.sec_key)
-                    if status == 'running':
+                    if job.status == 'running':
                         monitoring = rule.monitor(self.platform, exp_conf, None)
                     else:
                         monitoring = '-'
                     # FIXME: truncate too long?
                     tpls.append(
-                        (status, job.job_id, job.sec_key, rule.name, monitoring))
+                        (job.status, job.job_id, job.sec_key, rule.name, monitoring))
                 except Exception:
                     #print('Rule for "{}" is obsolete'.format(job.sec_key))
                     pass
@@ -440,12 +439,14 @@ class CLI(object):
 # - manually: mark an experiment as ended (won't show up in status list anymore)
 
 LogItem = collections.namedtuple('LogItem',
-    ['last_time', 'recipe', 'exp', 'status', 'job_id', 'sec_key', 'rule'])
+    ['time', 'recipe', 'exp', 'status', 'job_id', 'sec_key', 'rule'])
+ITEM_UNKNOWN = LogItem('-', '-', '-', 'unknown', '-', '-', '-')
+ITEM_NOT_SCHEDULED = LogItem('-', '-', '-', 'not scheduled', '-', '-', '-')
 
 LOG_HISTORY = '%Y.%m.%d'
 TIMESTAMP = '%d.%m.%Y %H:%M:%S'
 GIT_FMT = '{time} {recipe} {exp} : {key} git commit {commit} branch {branch}'
-LOG_FMT = '{time} {recipe} {exp} : status {status} {job} {sec_key} {rule}'
+LOG_FMT = '{time} {recipe} {exp} : status {status} {job_id} {sec_key} {rule}'
 FILE_FMT = '{time} {recipe} {exp} : output {job} {sec_key} {filename}'
 END_FMT = '{time} {recipe} {exp} : experiment ended'
 
@@ -461,32 +462,46 @@ class ExperimentLog(object):
         self.conf = conf
         self.platform = platform
         self.now = datetime.now()
-        self.logfile = os.path.join('logs', 'experiment.{name}.{date}.log'.format(
-            name=self.recipe.name, date=self.now.strftime(LOG_HISTORY)))
+        self.log_file_to_jobid_current = os.path.join(
+            'logs', 'file_to_jobid.{date}.log'.format(
+                date=self.now.strftime(LOG_HISTORY)))
         self.history_days = history_days
         self.log_horizon = self.now - timedelta(days=history_days)
-        self.jobs = {}
-        self.job_statuses = {}
+        self.parsed_job_logs = {}
         self.outputs = {}
         self.ongoing_experiments = set()
         self._parse_combined_log()
 
-    def get_jobs_with_status(self, status='running'):
-        """Returns e.g. Waiting and Running output files"""
-        return [job_id for (job_id, job_status) in self.job_statuses.items()
-                if job_status == status]
+    #def get_jobs_with_status(self, status='running'):
+    #    """Returns e.g. Waiting and Running output files"""
+    #    return [job_id for (job_id, job_status) in self.job_statuses.items()
+    #            if job_status == status]
 
     def get_status_of_output(self, outfile):
         # outfile: a concrete file path
         # status: a string from STATUSES
-        # fields: a LogItem
+        # logitem: a LogItem
         assert not isinstance(outfile, RecipeFile)
         job_id = self.outputs.get(outfile, None)
         if job_id is None:
-            return 'not scheduled', None
-        status = self.job_statuses.get(job_id, None)
-        fields = self.jobs.get(job_id, None)
-        return status, fields
+            return ITEM_NOT_SCHEDULED
+        if job_id not in self.parsed_job_logs:
+            job_logfile = os.path.join('logs', 'job.{}.{}.log'.format(
+                self.recipe.name, job_id))
+            self._parse_log(job_logfile)
+            logitem = self.parsed_job_logs.get(job_id, None)
+            if logitem is None:
+                return None
+            expected_status = logitem.status
+            platform_status = self.platform.check_job(job_id)
+            if platform_status not in ('unknown', 'local'):
+                if platform_status != expected_status:
+                    if platform_status == 'failed':
+                        logitem = self.failed(job_id)
+                        self.parsed_job_logs[job_id] = logitem
+                # else: finished, but too long ago to show up in history
+        logitem = self.parsed_job_logs.get(job_id, ITEM_UNKNOWN)
+        return logitem
 
     def is_done(self, rf, conf, cli_args=None):
         rf_status = rf.status(conf, cli_args)
@@ -503,12 +518,18 @@ class ExperimentLog(object):
             # assume that old files are done
             return True
         # don't know based on just the file
-        job_status, _ = self.get_status_of_output(rf(conf, cli_args))
-        return job_status == 'finished'
+        logitem = self.get_status_of_output(rf(conf, cli_args))
+        return logitem.status == 'finished'
 
-    def get_summary(self):
-        """Status summary from parsing log"""
-        pass
+    @property
+    def last_job_id(self):
+        return max([0] + list(int(x) for x in self.outputs.values()))
+
+    def status(self):
+        """Status summary from deeply parsing log"""
+        for outp in self.outputs.keys():
+            log_item = self.get_status_of_output(outp)
+            yield log_item
 
     def _parse_log(self, logfile):
         try:
@@ -523,16 +544,17 @@ class ExperimentLog(object):
                     if status not in STATUSES:
                         print('unknown status {} in {}'.format(status, m.groups()))
                     if not job_id == '-':
-                        self.job_statuses[job_id] = status
-                        self.jobs[job_id] = LogItem(*m.groups())
+                        self.parsed_job_logs[job_id] = LogItem(*m.groups())
                     self.ongoing_experiments.add(exp)
                     continue
                 m = FILE_RE.match(line)
                 if m:
+                    exp = m.group(3)
                     job_id = m.group(4)
                     filename = m.group(6)
                     if not job_id == '-':
                         self.outputs[filename] = job_id
+                    self.ongoing_experiments.add(exp)
                     continue
                 m = END_RE.match(line)
                 if m:
@@ -545,55 +567,57 @@ class ExperimentLog(object):
             pass
 
     def _parse_combined_log(self):
-        self._parse_log(self.logfile)
+        self._parse_log(self.log_file_to_jobid_current)
         date_cursor = self.now
         for _ in range(self.history_days):
             date_cursor -= timedelta(days=1)
-            logfile = os.path.join('logs', 'experiment.{name}.{date}.log'.format(
-                name=self.recipe.name, date=date_cursor.strftime(LOG_HISTORY)))
+            logfile = os.path.join('logs', 'file_to_jobid.{date}.log'.format(
+                date=date_cursor.strftime(LOG_HISTORY)))
             self._parse_log(logfile)
         #self._parse_log(os.path.join('logs', 'job.{}.local.log'.format(
         #        self.recipe.name)))
 
-        waiting = self.get_jobs_with_status('scheduled')
-        running = self.get_jobs_with_status('running')
-        # check their status (platform dependent), log the failed ones
-        for job_id in waiting + running:
-            job_logfile = os.path.join('logs', 'job.{}.{}.log'.format(
-                self.recipe.name, job_id))
-            self._parse_log(job_logfile)
-            status = self.platform.check_job(job_id)
-            if status == 'local':
-                if self.job_statuses.get(job_id, None) == 'finished':
-                    self.consolidate_finished(job_id)
-            elif status == 'finished':
-                self.consolidate_finished(job_id)
-                self.job_statuses[job_id] = 'finished'
-            elif status == 'failed':
-                self.failed(job_id)
-                self.job_statuses[job_id] = 'failed'
-            elif status == 'unknown':
-                expected = self.job_statuses.get(job_id, None)
-                if expected != 'finished':
-                    # expecting waiting or running but not in list
-                    self.failed(job_id)
-                    self.job_statuses[job_id] = 'failed'
-                # else: finished, but too long ago to show up in history
+
+    #def consolidate_finished(self, job_id):
+    #    timestamp = datetime.now().strftime(TIMESTAMP)
+    #    if job_id in self.parsed_job_logs:
+    #        fields = self.parsed_job_logs[job_id]
+    #    else:
+    #        fields = LogItem(*['-'] * len(LogItem._fields))
+
+    #    self._append(LOG_FMT.format(
+    #        time=timestamp,
+    #        recipe=self.recipe.name,
+    #        exp=fields.exp,
+    #        status='finished',
+    #        job=job_id,
+    #        sec_key=fields.sec_key,
+    #        rule=fields.rule,
+    #        ))
+
+    # the status updates are written to job log file
+
+    def _job_log_file(self, job_id):
+        logfile = os.path.join('logs', 'job.{}.{}.log'.format(
+            self.recipe.name,
+            job_id if job_id != '-' else 'local'))
+        return logfile
 
     def scheduled(self, rule, sec_key, job_id, output_files):
         # main sec_key is the one used as --make argument
         # output_files are (sec_key, concrete) tuples
         # job id (platform dependent, e.g. slurm or pid)
+        logfile = self._job_log_file(job_id)
         timestamp = datetime.now().strftime(TIMESTAMP)
-        self._append(LOG_FMT.format(
+        log_item = LogItem(
             time=timestamp,
             recipe=self.recipe.name,
             exp=self.conf,
             status='scheduled',
-            job=job_id,
+            job_id=job_id,
             sec_key=sec_key,
-            rule=rule,
-            ))
+            rule=rule)
+        self._append_item(log_item, logfile=logfile)
         for (sub_sec_key, output) in output_files:
             self.outputs[output] = job_id
             self._append(FILE_FMT.format(
@@ -604,60 +628,20 @@ class ExperimentLog(object):
                 sec_key=sub_sec_key,
                 filename=output,
                 ))
-
-    def consolidate_finished(self, job_id):
-        timestamp = datetime.now().strftime(TIMESTAMP)
-        if job_id in self.jobs:
-            fields = self.jobs[job_id]
-        else:
-            fields = LogItem(*['-'] * len(LogItem._fields))
-
-        self._append(LOG_FMT.format(
-            time=timestamp,
-            recipe=self.recipe.name,
-            exp=fields.exp,
-            status='finished',
-            job=job_id,
-            sec_key=fields.sec_key,
-            rule=fields.rule,
-            ))
-        pass
-
-    def failed(self, job_id):
-        timestamp = datetime.now().strftime(TIMESTAMP)
-        if job_id in self.jobs:
-            fields = self.jobs[job_id]
-        else:
-            fields = LogItem(*['-'] * len(LogItem._fields))
-
-        self._append(LOG_FMT.format(
-            time=timestamp,
-            recipe=self.recipe.name,
-            exp=fields.exp,
-            status='failed',
-            job=job_id,
-            sec_key=fields.sec_key,
-            rule=fields.rule,
-            ))
-        pass
-
-    # the following two are written to job log file
+        return log_item
 
     def started_running(self, step, job_id, rule):
-        logfile = os.path.join('logs', 'job.{}.{}.log'.format(
-            self.recipe.name,
-            job_id if job_id != '-' else 'local'))
+        logfile = self._job_log_file(job_id)
         timestamp = datetime.now().strftime(TIMESTAMP)
-        self._append(LOG_FMT.format(
+        log_item = LogItem(
             time=timestamp,
             recipe=self.recipe.name,
             exp=self.conf,
             status='running',
-            job=job_id,
+            job_id=job_id,
             sec_key=step.sec_key,
-            rule=rule,
-            ),
-            logfile=logfile)
+            rule=rule)
+        self._append_item(log_item, logfile=logfile)
         # alternative would be git describe --always, but that mainly works with tags
         for gitkey in  self.platform.conf['git']:
             gitdir = self.platform.conf['git'][gitkey]
@@ -673,26 +657,47 @@ class ExperimentLog(object):
                 branch=branch,
                 ),
                 logfile=logfile)
+        return log_item
 
     def finished_running(self, step, job_id, rule):
-        logfile = os.path.join('logs', 'job.{}.{}.log'.format(
-            self.recipe.name,
-            job_id if job_id != '-' else 'local'))
+        logfile = self._job_log_file(job_id)
         timestamp = datetime.now().strftime(TIMESTAMP)
-        self._append(LOG_FMT.format(
+        log_item = LogItem(
             time=timestamp,
             recipe=self.recipe.name,
             exp=self.conf,
             status='finished',
-            job=job_id,
+            job_id=job_id,
             sec_key=step.sec_key,
-            rule=rule,
-            ),
-            logfile=logfile)
+            rule=rule)
+        self._append_item(log_item, logfile=logfile)
+        return log_item
+
+    def failed(self, job_id):
+        logfile = self._job_log_file(job_id)
+        timestamp = datetime.now().strftime(TIMESTAMP)
+        if job_id in self.parsed_job_logs:
+            fields = self.parsed_job_logs[job_id]
+        else:
+            fields = ITEM_UNKNOWN
+
+        log_item = LogItem(
+            time=timestamp,
+            recipe=self.recipe.name,
+            exp=fields.exp,
+            status='failed',
+            job_id=job_id,
+            sec_key=fields.sec_key,
+            rule=fields.rule,)
+        self._append_item(log_item, logfile=logfile)
+        return log_item
+
+    def _append_item(self, log_item, logfile=None):
+        self._append(LOG_FMT.format(**log_item._asdict()), logfile=logfile)
 
     def _append(self, msg, logfile=None):
         os.makedirs('logs', exist_ok=True)
-        logfile = logfile if logfile is not None else self.logfile
+        logfile = logfile if logfile is not None else self.log_file_to_jobid_current
         with open_text_file(logfile, mode='a') as fobj:
             fobj.write(msg)
             fobj.write('\n')

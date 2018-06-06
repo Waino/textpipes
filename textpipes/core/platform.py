@@ -55,7 +55,7 @@ class Local(Platform):
         self.make_immediately = True
 
     def read_log(self, log):
-        self.job_id = max([0] + list(int(x) for x in log.jobs.keys()))
+        self.job_id = log.last_job_id
 
     def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
         # dummy incremental job_id
@@ -78,11 +78,17 @@ class Local(Platform):
 SLURM_STATUS_MAP = {
     'RUNNING': 'running',
     'COMPLETI': 'running',
+    'COMPLETING': 'running',
     'PENDING': 'scheduled',
     'COMP': 'finished',
+    'COMPLETED': 'finished',
     'FAIL': 'failed',
+    'FAILED': 'failed',
     'TIME': 'failed',
-    'CANC': 'failed',}
+    'TIMEOUT': 'failed',
+    'CANC': 'failed',
+    'CANCELLED': 'failed',
+    }
 RE_SLURM_SUBMITTED_ID = re.compile(r'Submitted batch job (\d*)')
 
 class Slurm(Platform):
@@ -115,42 +121,49 @@ class Slurm(Platform):
 
     def check_job(self, job_id):
         if self._job_status is None:
-            self._parse_q()
+            self._parse_sacct(job_id)
         if job_id in self._job_status:
             (_, _, status, _) = self._job_status[job_id]
             result = SLURM_STATUS_MAP.get(status, status)
             return result
         return 'unknown'
 
-    def _parse_q(self):
-        self._job_status = {}
-        r = run('slurm q')
+    def _parse_sacct(self, job_id):
+        r = run('sacct -j "{}" -Pno jobid,elapsed,start,state'.format(job_id))
         for (i, line) in enumerate(r.std_out.split('\n')):
-            if i == 0:
-                continue
-            line = line.strip()
-            if len(line) == 0:
-                continue
-            fields = MULTISPACE_RE.split(line)
-            (job_id, _, _, time, start, status) = fields[:6]
-            reason = ' '.join(fields[6:])
+            job_id,time, start, status, reason = line.split('|')
             # FIXME: non-slurm-specific namedtuple?
             self._job_status[job_id] = (time, start, status, reason)
-        r = run('slurm history')
-        for (i, line) in enumerate(r.std_out.split('\n')):
-            if i == 0:
-                continue
-            line = line.strip()
-            if len(line) < 12:
-                continue
-            fields = MULTISPACE_RE.split(line)
-            job_id = fields[0]
-            time = fields[6]
-            start = fields[2]
-            status = fields[12]
-            reason = ''
-            # FIXME: non-slurm-specific namedtuple?
-            self._job_status[job_id] = (time, start, status, reason)
+
+    #def _parse_q(self):
+    #    self._job_status = {}
+    #    r = run('slurm q')
+    #    for (i, line) in enumerate(r.std_out.split('\n')):
+    #        if i == 0:
+    #            continue
+    #        line = line.strip()
+    #        if len(line) == 0:
+    #            continue
+    #        fields = MULTISPACE_RE.split(line)
+    #        (job_id, _, _, time, start, status) = fields[:6]
+    #        reason = ' '.join(fields[6:])
+    #        # FIXME: non-slurm-specific namedtuple?
+    #        self._job_status[job_id] = (time, start, status, reason)
+    #    r = run('slurm history')
+    #    for (i, line) in enumerate(r.std_out.split('\n')):
+    #        if i == 0:
+    #            continue
+    #        line = line.strip()
+    #        if len(line) < 12:
+    #            continue
+    #        fields = MULTISPACE_RE.split(line)
+    #        job_id = fields[0]
+    #        time = fields[6]
+    #        start = fields[2]
+    #        status = fields[12]
+    #        reason = ''
+    #        # FIXME: non-slurm-specific namedtuple?
+    #        self._job_status[job_id] = (time, start, status, reason)
 
 class LogOnly(Slurm):
     """dummy platform for testing"""
