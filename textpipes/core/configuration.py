@@ -15,6 +15,7 @@ class Config(object):
         if 'subconf' in self.conf:
             for (key, subconf) in self.conf['subconf'].items():
                 self.conf.read_file(open(subconf, 'r'))
+        self.force = args.force
 
     def get_path(self, section, key):
         try:
