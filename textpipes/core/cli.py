@@ -491,15 +491,15 @@ class ExperimentLog(object):
             self._parse_log(job_logfile)
             logitem = self.parsed_job_logs.get(job_id, None)
             if logitem is None:
-                return None
+                return ITEM_UNKNOWN
             expected_status = logitem.status
-            platform_status = self.platform.check_job(job_id)
-            if platform_status not in ('unknown', 'local'):
-                if platform_status != expected_status:
-                    if platform_status == 'failed':
-                        logitem = self.failed(job_id)
-                        self.parsed_job_logs[job_id] = logitem
-                # else: finished, but too long ago to show up in history
+            if expected_status in ('scheduled', 'running'):
+                platform_status = self.platform.check_job(job_id)
+                if platform_status not in ('unknown', 'local'):
+                    if platform_status != expected_status:
+                        if platform_status == 'failed':
+                            logitem = self.failed(job_id)
+                            self.parsed_job_logs[job_id] = logitem
         logitem = self.parsed_job_logs.get(job_id, ITEM_UNKNOWN)
         return logitem
 
