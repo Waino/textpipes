@@ -54,6 +54,8 @@ def get_parser(recipe):
     parser.add_argument('-r', '--recursive', default=False, action='store_true',
                         help='Schedule the whole DAG recursively. '
                         'Default is to only schedule jobs that are ready to run.')
+    parser.add_argument('-f', '--force', default=False, action='store_true',
+                        help='Ignore failed dependencies when scheduling. ')
     parser.add_argument('--no-fork', default=False, action='store_true',
                         help='Do not use multiprocessing to speed up.')
     parser.add_argument('--resource-classes', default=None, type=str,
@@ -484,6 +486,9 @@ class ExperimentLog(object):
         if rf_status == 'not done':
             return False
         elif rf_status == 'done':
+            return True
+        if conf.force:
+            # force flag causes failures to be ignored
             return True
         mtime = os.path.getmtime(rf(conf, cli_args))
         mdatetime = datetime.fromtimestamp(mtime)
