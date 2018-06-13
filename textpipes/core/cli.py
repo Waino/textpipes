@@ -380,6 +380,7 @@ class CLI(object):
                         '   ^input:', '', inp.sec_key(), '', '', inp(self.conf, self.cli_args)))
         for step in nextsteps.delayed:
             lbl = 'delayed:'
+            rclass = step.rule.resource_class
             outfile = step.outputs[0](self.conf, self.cli_args)
             tpls.append((
                 lbl, step.job_id, step.sec_key, step.rule.name, rclass, outfile))
