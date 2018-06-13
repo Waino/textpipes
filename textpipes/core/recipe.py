@@ -534,7 +534,7 @@ class WildcardLoopRecipeFile(LoopRecipeFile):
             return super_path
         elif len(matches) == 1:
             return matches[0]
-        raise Exception('{} matched multiple files'.format(self))
+        raise Exception('{} matched multiple files:\n{}'.format(self, '\n'.join(matches)))
 
     def open(self, conf, cli_args=None, mode='r', strip_newlines=True):
         assert 'w' not in mode, 'Cannot write into WildcardLoopRecipeFile'

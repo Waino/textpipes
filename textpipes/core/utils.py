@@ -135,10 +135,11 @@ def read_lang_file(fname, lang):
     return result
 
 
-def find_highest_file(path_template):
-    directory, filename_template = os.path.split(path_template)
-    matches = []
+def find_highest_file(path_template, wildcard):
+    directory, filename_base = os.path.split(path_template)
+    filename_template = re.escape(filename_base) + wildcard
     re_filename_template = re.compile(filename_template)
+    matches = []
     for candidate in os.listdir(directory):
         m = re_filename_template.match(candidate)
         if not m:
