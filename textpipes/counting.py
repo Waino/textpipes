@@ -78,6 +78,7 @@ class CombineCounts(MonoPipe):
         self.words_file = words_only
         # BPE wants word first, followed by count
         self.reverse = reverse
+        self.reversed_input = False
         # scale counts to balance contribution of different inputs
         self.balance = balance
         # minimum unscaled count to include in output
@@ -93,8 +94,16 @@ class CombineCounts(MonoPipe):
             count_sum = 0
             in_fobj = inp.open(conf, cli_args, mode='r')
             for line in in_fobj:
-                count, wtype = line.split('\t')
-                count = int(count)
+                if self.reversed_input:
+                    wtype, count = line.split('\t')
+                else:
+                    count, wtype = line.split('\t')
+                try:
+                    count = int(count)
+                except ValueError:
+                    self.reversed_input = True
+                    wtype, count = line.split('\t')
+                    count = int(count)
                 count_sum += count
                 if count >= self.threshold:
                     counts[wtype] += count

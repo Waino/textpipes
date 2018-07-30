@@ -69,6 +69,9 @@ def get_parser(recipe):
                         help='Temporarily override the platform. '
                         'Generally not recommended. '
                         'Use the file current_platform instead.')
+    parser.add_argument('--fail-running', default=False, action='store_true',
+                        help='Mark all running jobs as failed. '
+                        '(to kill zombies in exceptional cases)')
 
     parser.add_argument('--make', default=None, type=str, metavar='OUTPUT',
                         help='Output to make, in section:key format. '
@@ -131,6 +134,12 @@ class CLI(object):
             assert not self.args.recursive
             nextsteps = self._filter_by_resource(nextsteps,
                                                  self.args.resource_classes.split(','))
+
+        if self.args.fail_running:
+            for step in nextsteps.running:
+                self.log.failed(step.job_id)
+                print('Marked job {} as failed')
+            return  # don't do anything more
 
         if self.platform.make_immediately:
             # show before running locally
