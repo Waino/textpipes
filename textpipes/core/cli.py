@@ -278,9 +278,11 @@ class CLI(object):
                 tpls = []
                 sec_key = rf.sec_key()
                 rule = self.recipe.get_rule(sec_key)
-                tpls.append(('Rule:', sec_key, rule.name, concrete_output))
-                for inp in rule.inputs:
-                    tpls.append((' ^input:', inp.sec_key(), '', inp(self.conf, self.cli_args)))
+                rule_name = rule.name if rule is not None else 'input'
+                tpls.append(('Rule:', sec_key, rule_name, concrete_output))
+                if rule is not None:
+                    for inp in rule.inputs:
+                        tpls.append((' ^input:', inp.sec_key(), '', inp(self.conf, self.cli_args)))
                 table_print(tpls)
                 return
         print('No rule to make {}'.format(concrete_output))
@@ -318,9 +320,13 @@ class CLI(object):
             if step.job_id is not None and step.job_id != '-':
                 for output in step.outputs:
                     wait_ids[output] = step.job_id
-            self.platform.post_schedule(
-                job_id, self.recipe, self.conf, step.rule, step.sec_key,
-                output_files, self.cli_args, deps=wait_for_jobs)
+            try:
+                self.platform.post_schedule(
+                    job_id, self.recipe, self.conf, step.rule, step.sec_key,
+                    output_files, self.cli_args, deps=wait_for_jobs)
+            except Exception as e:
+                self.log.failed(job_id)
+                raise e
 
     def make(self, output):
         next_steps = self.recipe.get_next_steps_for(

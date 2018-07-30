@@ -67,6 +67,8 @@ def main(args):
             binlabels(field, bins, offset=bin_offset)
     for field in ('lnames',
                   'sys_reps_anywhere', 'sys_reps_conseq',):
+        if field not in df.columns:
+            continue
         # no need to quantize
         for measure in measures:
             plot_func(field, measure,  df, binned=False)
