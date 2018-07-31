@@ -20,6 +20,7 @@ OPT_DEPS = (
     ('pandas', 'AnalyzeTranslations'),
     ('ftfy', 'Clean'),
     ('pybloom', 'Deduplicate'),
+    ('Levenshtein', 'Levenshtein')  # package python-Levenshtein
     #('nltk', ''),
     )
 # external binary optional deps:
