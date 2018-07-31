@@ -139,7 +139,7 @@ class CLI(object):
         if self.args.fail_running:
             for step in nextsteps.running:
                 self.log.failed(step.job_id)
-                print('Marked job {} as failed')
+                print('Marked job {} as failed'.format(step.job_id))
             return  # don't do anything more
 
         if self.platform.make_immediately:
