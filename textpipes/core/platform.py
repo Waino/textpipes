@@ -120,6 +120,7 @@ class Slurm(Platform):
         assert rc_args != 'make_immediately'
         cmd = self._cmd(recipe, conf, sec_key, overrides=overrides)
         job_name = '{}:{}'.format(conf.name, sec_key)
+        log_str = 'slurmlogs/{}_{}_%j.out'.format(conf.name, sec_key)
         for i in range(rule.chain_schedule):
             if deps:
                 dep_args = ' --dependency=afterok:' + ':'.join(
@@ -127,8 +128,9 @@ class Slurm(Platform):
             else:
                 dep_args = ''
                 deps = []
-            sbatch = 'sbatch --job-name {name} {rc_args}{dep_args} --wrap="{cmd}"'.format(
-                name=job_name, cmd=cmd.replace('"', r'\"'), rc_args=rc_args, dep_args=dep_args)
+            sbatch = 'sbatch --job-name {name} {rc_args}{dep_args} -o {log} --wrap="{cmd}"'.format(
+                name=job_name, cmd=cmd.replace('"', r'\"'), rc_args=rc_args,
+                dep_args=dep_args, log=logstr)
             r = run(sbatch)
             try:
                 job_id = str(int(RE_SLURM_SUBMITTED_ID.match(r.std_out).group(1)))

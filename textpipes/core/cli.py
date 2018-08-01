@@ -213,6 +213,7 @@ class CLI(object):
                     print(key, gitdir)
         else:
             print('********** WARNING! NO "git" section in platform conf **********')
+        os.makedirs('slurmlogs', exist_ok=True)
         # check existence of original inputs
         warn = False
         for rf in self.recipe.main_inputs:
