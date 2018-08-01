@@ -64,7 +64,11 @@ def get_parser(recipe):
     parser.add_argument('--resource-classes', default=None, type=str,
                         help='Only schedule jobs with one of these resource classes. '
                         'Comma separated list of strings. '
-                        'Cannot be used with --recursive.')
+                        'UNTESTED: if used with --recursive.')
+    parser.add_argument('--only-rules', default=None, type=str,
+                        help='Only schedule jobs with one of these Rules. '
+                        'Comma separated list of strings. '
+                        'UNTESTED: if used with --recursive.')
     parser.add_argument('--grid', default=None, type=str, metavar='CONF',
                         help='Perform grid search specified by the given conf. ')
     parser.add_argument('--blame', default=None, type=str,
@@ -162,6 +166,11 @@ class CLI(object):
                 print('WARNING: recursive with filtered is experimental')
             nextsteps = self._filter_by_resource(nextsteps,
                                                  self.args.resource_classes.split(','))
+        if self.args.only_rules is not None:
+            if self.args.recursive:
+                print('WARNING: recursive with filtered is experimental')
+            nextsteps = self._filter_by_rule(nextsteps,
+                                             self.args.only_rules.split(','))
 
         if self.args.fail_running:
             for step in nextsteps.running:
@@ -476,8 +485,26 @@ class CLI(object):
                     result[-1].append(step)
                     continue
                 if step.rule.resource_class in classes and \
-                        all(step.inputs not in removed):
+                        all(inp not in removed for inp in step.inputs):
                     # valid resource class
+                    result[-1].append(step)
+                    continue
+                # else remove
+                removed.update(step.outputs)
+        return NextSteps(*result)
+
+    def _filter_by_rule(self, nextsteps, rules):
+        result = []
+        removed = set()
+        for status in nextsteps:
+            result.append([])
+            for step in status:
+                if step.rule is None:
+                    # can't match if no name
+                    continue
+                if step.rule.name in rules and \
+                        all(inp not in removed for inp in step.inputs):
+                    # valid Rule
                     result[-1].append(step)
                     continue
                 # else remove
