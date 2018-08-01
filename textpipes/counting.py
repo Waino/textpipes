@@ -9,6 +9,8 @@ from .components.filtering import Filter
 
 logger = logging.getLogger('textpipes')
 
+def sort_counts(counts):
+    return sorted(counts, key=lambda pair: (-pair[1], pair[0]))
 
 class CountTokensComponent(SingleCellComponent):
     def __init__(self, output, words_only=None, **kwargs):
@@ -29,7 +31,7 @@ class CountTokensComponent(SingleCellComponent):
         fobj = side_fobjs[self.count_file]
         if self.words_file:
             wo_fobj = side_fobjs[self.words_file]
-        for (wtype, count) in self.counts.most_common():
+        for (wtype, count) in sort_counts(self.counts.most_common()):
             fobj.write('{}\t{}\n'.format(count, wtype))
             if self.words_file:
                 wo_fobj.write('{}\n'.format(wtype))
@@ -64,7 +66,6 @@ class ScaleCountsComponent(SingleCellComponent):
         return '{}\t{}'.format(count, wtype)
 
 
-# FIXME: replace with apply_component
 class ScaleCounts(MonoPipe):
     def __init__(self, inp, output, scale, **kwargs):
         component = ScaleCountsComponent(scale)
@@ -125,7 +126,7 @@ class CombineCounts(MonoPipe):
         out_fobj = self.count_file.open(conf, cli_args, mode='w')
         if self.words_file:
             wo_fobj = self.words_file.open(conf, cli_args, mode='w')
-        for (wtype, count) in combined_counts.most_common():
+        for (wtype, count) in sort_counts(combined_counts.most_common()):
             pair = (wtype, count) if self.reverse else (count, wtype)
             out_fobj.write('{}\t{}\n'.format(*pair))
             if self.words_file:
@@ -143,11 +144,7 @@ class CombineWordlistsComponent(MonoPipeComponent):
         for word in sorted(words):
             yield word
 
-# FIXME: replace with apply_component
-class CombineWordlists(MonoPipe):
-    def __init__(self, inputs, output, **kwargs):
-        super().__init__([CombineWordlistsComponent()], inputs, [output],
-                         auto_concat=True, **kwargs)
+CombineWordlists = apply_component(CombineWordlistsComponent(), auto_concat=True)
 
 
 class FilterCounts(Filter):
@@ -197,7 +194,7 @@ class SegmentCountsFile(SingleCellComponent):
         fobj = side_fobjs[self.count_file]
         if self.words_file:
             wo_fobj = side_fobjs[self.words_file]
-        for (wtype, count) in self.counts.most_common():
+        for (wtype, count) in sort_counts(self.counts.most_common()):
             fobj.write('{}\t{}\n'.format(count, wtype))
             if self.words_file:
                 wo_fobj.write('{}\n'.format(wtype))

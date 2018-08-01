@@ -9,19 +9,25 @@ from ..core.recipe import Rule
 from ..core.utils import safe_zip, progress
 
 
-def apply_component(component, para=False):
+def apply_component(component, para=False, **kwargs):
     """Convenience function for applying a single PipeComponent"""
     if para:
         class WrappedComponent(ParallelPipe):
             def __init__(self):
                 super().__init__([component], inp, out,
-                                name=component.__class__.__name__)
+                                name=component.__class__.__name__,
+                                **kwargs)
     else:
         assert component._is_mono_pipe_component
         class WrappedComponent(MonoPipe):
             def __init__(self, inp, out):
-                super().__init__([component], [inp], [out],
-                                name=component.__class__.__name__)
+                if not isinstance(inp, list):
+                    inp = [inp]
+                if not isinstance(out, list):
+                    out = [out]
+                super().__init__([component], inp, out,
+                                name=component.__class__.__name__,
+                                **kwargs)
     return WrappedComponent
 
 
