@@ -372,6 +372,9 @@ class CLI(object):
             except Exception as e:
                 self.log.failed(job_id)
                 raise e
+            except KeyboardInterrupt as ki:
+                self.log.failed(job_id)
+                raise ki
 
     def make(self, output, override_str):
         overrides = parse_override_string(override_str)
