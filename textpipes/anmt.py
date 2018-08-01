@@ -3,6 +3,7 @@ import os
 from .core.recipe import Rule, LoopRecipeFile
 from .core.platform import run
 
+# could be replaced with simple_external
 class MakeVocabularies(Rule):
     def __init__(self, *args, argstr='', **kwargs):
         super().__init__(*args, **kwargs)

@@ -3,6 +3,7 @@ import subprocess
 
 from .core.recipe import Rule
 from .core.platform import run
+from .core.utils import safe_zip
 
 # FIXME: use package resources instead
 WRAPPER_DIR = os.path.join(
@@ -22,6 +23,38 @@ def maybe_gz_out(outfile):
         return 'gzip', outfile
     else:
         return 'tee', outfile
+
+def simple_external(name, inputs, outputs, template):
+    """Helper to make integrating external tools easier"""
+    assert '{argstr}' in template
+    for inp_name in inputs:
+        assert '{' + inp_name + '}' in template
+    for out_name in outputs:
+        assert '{' + out_name + '}' in template
+    # FIXME: handle forbidding of .gz . fail in --check
+
+    class SimpleExternalRule(Rule):
+        def __init__(self, input_rfs, output_rfs, argstr='', **kwargs):
+            super().__init__(input_rfs, output_rfs, **kwargs)
+            self.argstr = argstr
+            self._name = name
+            assert len(self.inputs) == len(inputs)
+            assert len(self.outputs) == len(outputs)
+
+        def make(self, conf, cli_args):
+            template_values = {}
+            for inp_name, inp in safe_zip(inputs, self.inputs):
+                template_values[inp_name] = inp(conf, cli_args)
+            for out_name, out in safe_zip(outputs, self.outputs):
+                template_values[out_name] = out(conf, cli_args)
+            template_values['argstr'] = self.argstr
+            run(template.format(**template_values))
+
+        @property
+        def name(self):
+            return self._name
+
+    return SimpleExternalRule
 
 
 class Concatenate(Rule):

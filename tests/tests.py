@@ -8,14 +8,15 @@ conf = recipe.conf
 ### individual text input
 
 ind_rules = (
-    ('count_tokens', tp.counting.CountTokens),
-    ('count_chars', tp.counting.CountChars),
+    # counting.py
+    ('count_tokens', tp.counting.CountTokens, {}),
+    ('count_chars', tp.counting.CountChars, {}),
     )
 
-for name, rule in ind_rules:
+for name, rule, kwargs in ind_rules:
     inp = recipe.add_input('inputs', name)
     out = recipe.add_output('outputs', name, main=True)
-    recipe.add_rule(rule(inp, out))
+    recipe.add_rule(rule(inp, out, **kwargs))
 
 #### multiple inputs or outputs
 
@@ -36,6 +37,9 @@ dep_rules = (
     ('combine_counts_balance', tp.counting.CombineCounts,
         [recipe.use_output('outputs', 'count_tokens'),
          recipe.use_output('outputs', 'count_tokens2')], {'balance': True}),
+    # morfessor.py
+    ('train_morfessor', tp.morfessor.TrainMorfessor, recipe.use_output('outputs', 'count_tokens'),
+        {'argstr': '--traindata-list -w 0.4'})
     )
 
 for name, rule, inputs, kwargs in dep_rules:
