@@ -91,23 +91,25 @@ class Pipe(Rule):
 
 
 class MonoPipe(Pipe):
-    def __init__(self, components, *args, **kwargs):
+    def __init__(self, components, *args, auto_concat=False, **kwargs):
         for component in components:
             if not hasattr(component, '_is_mono_pipe_component'):
                 raise Exception('MonoPipe expected MonoPipeComponent, '
                     'received {}'.format(component))
         super().__init__(components, *args, **kwargs)
+        self.auto_concat = auto_concat
 
     def make(self, conf, cli_args=None):
-        if len(self.main_inputs) != 1:
+        if len(self.main_inputs) != 1 and not self.auto_concat:
             raise Exception('MonoPipe must have exactly 1 main input. '
                 'Received: {}'.format(self.main_inputs))
         if len(self.main_outputs) != 1:
             raise Exception('MonoPipe must have exactly 1 main output. '
                 'Received: {}'.format(self.main_outputs))
-        # Make a generator that reads from main_input
-        main_in_fobj = self.main_inputs[0].open(conf, cli_args, mode='r')
-        stream = main_in_fobj
+        # Make a tuple of generators that reads from main_inputs
+        readers = [inp.open(conf, cli_args, mode='r')
+                   for inp in self.main_inputs]
+        stream = itertools.chain(*readers)
 
         stream, side_fobjs = self._make_helper(stream, conf, cli_args)
 
@@ -120,8 +122,7 @@ class MonoPipe(Pipe):
         # post_make must be done after draining
         self._post_make(side_fobjs)
         # close all file objects
-        main_in_fobj.close()
-        for fobj in side_fobjs.values():
+        for fobj in readers + list(side_fobjs.values()):
             fobj.close()
 
 

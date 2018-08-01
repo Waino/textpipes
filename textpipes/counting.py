@@ -3,7 +3,8 @@ import logging
 import math
 
 from .core.recipe import Rule
-from .components.core import SingleCellComponent, DeadEndPipe, MonoPipe, MonoPipeComponent
+from .components.core import SingleCellComponent, DeadEndPipe, \
+    MonoPipe, MonoPipeComponent, apply_component
 from .components.filtering import Filter
 
 logger = logging.getLogger('textpipes')
@@ -63,6 +64,7 @@ class ScaleCountsComponent(SingleCellComponent):
         return '{}\t{}'.format(count, wtype)
 
 
+# FIXME: replace with apply_component
 class ScaleCounts(MonoPipe):
     def __init__(self, inp, output, scale, **kwargs):
         component = ScaleCountsComponent(scale)
@@ -141,9 +143,11 @@ class CombineWordlistsComponent(MonoPipeComponent):
         for word in sorted(words):
             yield word
 
+# FIXME: replace with apply_component
 class CombineWordlists(MonoPipe):
-    def __init__(self, inp, output, **kwargs):
-        super().__init__([CombineWordlistsComponent()], [inp], [output], **kwargs)
+    def __init__(self, inputs, output, **kwargs):
+        super().__init__([CombineWordlistsComponent()], inputs, [output],
+                         auto_concat=True, **kwargs)
 
 
 class FilterCounts(Filter):
@@ -158,10 +162,12 @@ class FilterCounts(Filter):
         return self.filtr(wtype)
 
 
-class RemoveCounts(SingleCellComponent):
+class RemoveCountsComponent(SingleCellComponent):
     def single_cell(self, line):
         count, wtype = line.strip().split()
         return wtype
+
+RemoveCounts = apply_component(RemoveCountsComponent())
 
 
 class SegmentCountsFile(SingleCellComponent):
