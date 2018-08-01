@@ -11,6 +11,12 @@ ind_rules = (
     # counting.py
     ('count_tokens', tp.counting.CountTokens, {}),
     ('count_chars', tp.counting.CountChars, {}),
+    ### built-in features
+    # transparent gzip
+    ('gzip', tp.dummy.DummyParamPrint, {'name': 'gzip'}),
+    # template subconf
+    ('template_subconf1', tp.dummy.DummyParamPrint, {'name': 'subconf1'}),
+    ('template_subconf2', tp.dummy.DummyParamPrint, {'name': 'subconf2'}),
     )
 
 for name, rule, kwargs in ind_rules:

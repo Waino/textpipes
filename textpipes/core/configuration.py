@@ -21,7 +21,13 @@ class Config(object):
         self.conf.read_file(open(main_conf_file, 'r'))
         if 'subconf' in self.conf:
             for (key, subconf) in self.conf['subconf'].items():
-                self.conf.read_file(open(subconf, 'r'))
+                lines = open(subconf, 'r')
+                if 'subconf.template' in self.conf:
+                    if key in self.conf['subconf.template']:
+                        for pair in self.conf['subconf.template'][key].split(';'):
+                            pattern, repl = pair.split('=')
+                            lines = [line.replace(pattern, repl) for line in lines]
+                self.conf.read_file(lines)
         self.force = args.force
 
     def get_path(self, section, key):
