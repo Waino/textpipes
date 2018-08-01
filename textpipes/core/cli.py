@@ -158,7 +158,8 @@ class CLI(object):
                 recursive=self.args.recursive)
 
         if self.args.resource_classes is not None:
-            assert not self.args.recursive
+            if self.args.recursive:
+                print('WARNING: recursive with filtered is experimental')
             nextsteps = self._filter_by_resource(nextsteps,
                                                  self.args.resource_classes.split(','))
 
@@ -466,6 +467,7 @@ class CLI(object):
 
     def _filter_by_resource(self, nextsteps, classes):
         result = []
+        removed = set()
         for status in nextsteps:
             result.append([])
             for step in status:
@@ -473,11 +475,13 @@ class CLI(object):
                     # unknown and uninteresting resouce class
                     result[-1].append(step)
                     continue
-                if step.rule.resource_class in classes:
+                if step.rule.resource_class in classes and \
+                        all(step.inputs not in removed):
                     # valid resource class
                     result[-1].append(step)
                     continue
                 # else remove
+                removed.update(step.outputs)
         return NextSteps(*result)
 
 # keep a log of jobs
