@@ -29,7 +29,7 @@ from . import translation_analysis
 from .dedup import Deduplicate
 from .dummy import Manual
 from .counting import CountTokens
-from .external import Concatenate
+from .external import Concatenate, ReEncode
 from .tabular import SplitColumns
 from .truecaser import TrainTrueCaser, TrueCase
 

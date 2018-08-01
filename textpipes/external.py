@@ -56,6 +56,13 @@ def simple_external(name, inputs, outputs, template):
 
     return SimpleExternalRule
 
+def ReEncode(infile, outfile, from_encoding='utf-8', to_encoding='utf-8//IGNORE'):
+    argstr = '-f {from_encoding} -t {to_encoding}'.format(
+        from_encoding=from_encoding, to_encoding=to_encoding)
+    ReEncode = simple_external(
+        'ReEncode', ['infile'], ['outfile'],
+        'iconv {argstr} {infile} -o {outfile}')
+    return ReEncode(infile, outfile, argstr=argstr)
 
 class Concatenate(Rule):
     def __init__(self, *args, resource_class='make_immediately', **kwargs):
