@@ -7,8 +7,7 @@ from .components.core import MonoPipeComponent, MonoPipe
 from .external import simple_external
 
 TrainMorfessor = simple_external(
-    'TrainMorfessor',
-    ['infile'], ['model'],
+    'TrainMorfessor', ['infile'], ['model'],
     'morfessor-train {infile} --save-segmentation {model} {argstr}')
 
 
