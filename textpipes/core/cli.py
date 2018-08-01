@@ -7,8 +7,8 @@ import os
 import re
 from datetime import datetime, timedelta
 
-from .configuration import Config
-from .platform import run
+from .configuration import Config, GridConfig
+from .platform import run, parse_override_string
 from .recipe import *
 from .utils import *
 
@@ -50,6 +50,8 @@ def get_parser(recipe):
                         help='Less verbose output, by hiding some info')
     parser.add_argument('-v', '--verbose', default=False, action='store_true',
                         help='More verbose output, e.g. print inputs')
+    parser.add_argument('--show-all', default=False, action='store_true',
+                        help='More verbose output, by showing all grid points')
     parser.add_argument('-n', '--dryrun', default=False, action='store_true',
                         help='Show what would be done, but do not do it')
     parser.add_argument('-r', '--recursive', default=False, action='store_true',
@@ -63,6 +65,8 @@ def get_parser(recipe):
                         help='Only schedule jobs with one of these resource classes. '
                         'Comma separated list of strings. '
                         'Cannot be used with --recursive.')
+    parser.add_argument('--grid', default=None, type=str, metavar='CONF',
+                        help='Perform grid search specified by the given conf. ')
     parser.add_argument('--blame', default=None, type=str,
                         help='When given a concrete filename, '
                         'shows which rule built it, and its inputs.')
@@ -77,6 +81,9 @@ def get_parser(recipe):
     parser.add_argument('--make', default=None, type=str, metavar='OUTPUT',
                         help='Output to make, in section:key format. '
                         'You should NOT call this directly')
+    parser.add_argument('--overrides', default=None, type=str, metavar='str',
+                        help='Overridden params in grid search. '
+                        'You should NOT call this directly')
 
     return parser
 
@@ -86,7 +93,18 @@ class CLI(object):
         self.recipe = recipe
         parser = get_parser(recipe)
         self.args = parser.parse_args(args=argv)
-        self.conf = Config(self.args.conf, self.args)
+        self.conf = Config()
+        self.conf.read(self.args.conf, self.args)
+        if self.args.grid is not None:
+            self.grid_conf = GridConfig(self.args.grid, self.args)
+        else:
+            self.grid_conf = None
+            if self.args.make is not None and self.args.overrides is not None:
+                # when in making mode,
+                # apply overrides before constructing recipe
+                # to enable e.g. conf-based control flow
+                overrides = parse_override_string(self.args.overrides)
+                self.conf = GridConfig.apply_override(self.conf, overrides)
         # the recipe-altering cli args
         self.cli_args = None # FIXME
         self.platform = self.conf.platform
@@ -123,14 +141,22 @@ class CLI(object):
             self.blame(self.args.blame)
             return  # don't do anything more
         if self.args.make is not None:
-            self.make(self.args.make)
+            self.make(self.args.make, self.args.overrides)
             return  # don't do anything more
         # implicit else 
 
-        nextsteps = self.recipe.get_next_steps_for(
-            outputs=self.args.output,
-            cli_args=self.cli_args,
-            recursive=self.args.recursive)
+        if self.grid_conf is None:
+            nextsteps = self.recipe.get_next_steps_for(
+                outputs=self.args.output,
+                cli_args=self.cli_args,
+                recursive=self.args.recursive)
+        else:
+            nextsteps = self.recipe.grid_next_steps(
+                grid=self.grid_conf.get_overrides(self.conf),
+                outputs=self.args.output,
+                cli_args=self.cli_args,
+                recursive=self.args.recursive)
+
         if self.args.resource_classes is not None:
             assert not self.args.recursive
             nextsteps = self._filter_by_resource(nextsteps,
@@ -146,16 +172,18 @@ class CLI(object):
             # show before running locally
             self.show_next_steps(nextsteps,
                                  dryrun=self.args.dryrun,
+                                 immediate=self.platform.make_immediately,
                                  verbose=self.args.verbose,
-                                 immediate=self.platform.make_immediately)
+                                 show_all=self.args.show_all)
         if not self.args.dryrun:
             self.schedule(nextsteps)
         if not self.platform.make_immediately:
             # show after schduling on cluster
             self.show_next_steps(nextsteps,
                                  dryrun=self.args.dryrun,
+                                 immediate=self.platform.make_immediately,
                                  verbose=self.args.verbose,
-                                 immediate=self.platform.make_immediately)
+                                 show_all=self.args.show_all)
 
     def check_validity(self):
         # check that script is correctly named
@@ -317,11 +345,16 @@ class CLI(object):
                 wait_for_jobs.append(wait_ids[inp])
             if unk_deps:
                 continue
-            output_files = [(output.sec_key(), output(self.conf, self.cli_args))
+            if step.overrides:
+                conf = GridConfig.apply_override(self.conf, step.overrides)
+            else:
+                conf = self.conf
+            output_files = [(output.sec_key(), output(conf, self.cli_args))
                             for output in sorted(step.outputs)]
             job_id = self.platform.schedule(
-                self.recipe, self.conf, step.rule, step.sec_key,
-                output_files, self.cli_args, deps=wait_for_jobs)
+                self.recipe, conf, step.rule, step.sec_key,
+                output_files, self.cli_args, deps=wait_for_jobs,
+                overrides=step.overrides)
             if job_id is None:
                 # not scheduled for some reason
                 continue
@@ -333,36 +366,42 @@ class CLI(object):
             try:
                 self.platform.post_schedule(
                     job_id, self.recipe, self.conf, step.rule, step.sec_key,
-                    output_files, self.cli_args, deps=wait_for_jobs)
+                    output_files, self.cli_args, deps=wait_for_jobs,
+                    overrides=step.overrides)
             except Exception as e:
                 self.log.failed(job_id)
                 raise e
 
-    def make(self, output):
+    def make(self, output, override_str):
+        overrides = parse_override_string(override_str)
         next_steps = self.recipe.get_next_steps_for(
-            outputs=[output], cli_args=self.cli_args)
+            outputs=[output], cli_args=self.cli_args, overrides=overrides)
         concat = next_steps.waiting + next_steps.available
         if len(concat) == 0:
-            #concrete = next_step.outputs[0](self.conf, self.cli_args)
             raise Exception('Cannot start running {}: {}'.format(
                 output, next_steps))
         next_step = concat[0]
         job_id = self.log.outputs.get(
-            next_step.outputs[0](self.conf, self.cli_args), None)
+            next_step.concrete[0], None)
         if job_id is None:
             raise Exception('No scheduled job id for {}'.format(
-                next_step.outputs[0](self.conf, self.cli_args)))
-        self._make_helper(output, next_step, job_id)
+                next_step.concrete[0]))
+        self._make_helper(output, next_step, job_id, overrides=overrides)
 
-    def _make_helper(self, output, next_step, job_id):
+    def _make_helper(self, output, next_step, job_id, overrides=None):
         rule = self.recipe.files.get(next_step.outputs[0], None)
         self.log.started_running(next_step, job_id, rule.name)
-        self.recipe.make_output(output=output, cli_args=self.cli_args)
+        if overrides:
+            conf = GridConfig.apply_override(self.conf, overrides)
+        else:
+            conf = self.conf
+        self.recipe.make_output(output=output, conf=conf, cli_args=self.cli_args)
         self.log.finished_running(next_step, job_id, rule.name)
 
-    def show_next_steps(self, nextsteps, dryrun=False, immediate=False, verbose=False):
+    def show_next_steps(self, nextsteps, dryrun=False, immediate=False, verbose=False, show_all=False):
         # FIXME: don't filter out redundant scheduled?
-        nextsteps = self._remove_redundant(nextsteps, dryrun=dryrun)
+        if not show_all:
+            nextsteps = self._remove_redundant(nextsteps, dryrun=dryrun)
         albl = 'scheduled:'
         if dryrun:
             albl = 'available:'
@@ -373,7 +412,7 @@ class CLI(object):
             if self.args.quiet and step.status == 'done':
                 # suppress done jobs if quiet
                 continue
-            outfile = step.outputs[0](self.conf, self.cli_args)
+            outfile = step.concrete[0]
             lbl = step.status + ':'
             tpls.append((
                 lbl, step.job_id, step.sec_key, outfile))
@@ -381,7 +420,7 @@ class CLI(object):
         table_print(tpls, line_before='-')
         tpls = []
         for step in nextsteps.available:
-            outfile = step.outputs[0](self.conf, self.cli_args)
+            outfile = step.concrete[0]
             rclass = step.rule.resource_class
             tpls.append((
                 albl, step.job_id, step.sec_key, step.rule.name, rclass, outfile))
@@ -397,7 +436,7 @@ class CLI(object):
         for step in nextsteps.delayed:
             lbl = 'delayed:'
             rclass = step.rule.resource_class
-            outfile = step.outputs[0](self.conf, self.cli_args)
+            outfile = step.concrete[0]
             tpls.append((
                 lbl, step.job_id, step.sec_key, step.rule.name, rclass, outfile))
         table_print(tpls, line_before='-')
