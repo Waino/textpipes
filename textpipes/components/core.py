@@ -81,9 +81,10 @@ class Pipe(Rule):
         # progress bar
         out = self.main_outputs[0] if len(self.main_outputs) > 0 \
             else self.side_outputs[0]
-        stream = progress(stream, self, conf, 
-                          out(conf, cli_args),
-                          total=self.estimated_lines)
+        # FIXME: progress bar is not seen anyhow
+        #stream = progress(stream, self, conf, 
+        #                  out(conf, cli_args),
+        #                  total=self.estimated_lines)
 
         return stream, side_fobjs
 
@@ -407,3 +408,37 @@ class ApplyLexicon(SingleCellComponent):
         return ' '.join(
             self.lexicon.get(token, token)
             for token in sentence.split())
+
+
+class RegexDispatch(MonoPipeComponent):
+    """Dispatch to functions based on regexp match"""
+    def __init__(self, expressions, ignore_case=False, logfile=None):
+        side_outputs = [logfile]
+        super().__init__(side_outputs=side_outputs)
+        flags = re.UNICODE
+        if ignore_case:
+            flags += re.IGNORECASE
+        self.expressions = [(re.compile(exp, flags=flags), func)
+                            for (exp, func) in expressions]
+        self.logfile = logfile
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        logfile = side_fobjs.get(self.logfile, None)
+        for line in stream:
+            line, match = self._dispatch(line)
+            if match:
+                if line is not None:
+                    yield line
+            else:
+                # (add an expression ".*" if you want passthrough)
+                if self.logfile is not None:
+                    print(line, file=logfile)
+
+    def _dispatch(self, line):
+        for (exp, func) in self.expressions:
+            m = exp.match(line)
+            if m:
+                line = func(line, m.groups())
+                return line, True
+        return line, False
