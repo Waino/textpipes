@@ -272,9 +272,11 @@ class StripXml(MonoPipeComponent):
 class NormalizeContractions(RegexSubstitution):
     """replace contractions with normalized form"""
 
-    def __init__(self, lang, **kwargs):
+    def __init__(self, lang, reverse=False, **kwargs):
         contractions = [line.split('\t')
                         for line in read_lang_file('contractions', lang)]
+        if reverse:
+            contractions = [(y, x) for (x, y) in contractions]
         expressions = ((r'\b{}\b'.format(cont.replace("'", " ?' ?")), repl)
                        for (cont, repl) in contractions)
         super().__init__(expressions, ignore_case=True, **kwargs)
