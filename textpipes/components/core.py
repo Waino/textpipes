@@ -189,6 +189,9 @@ class DeadEndPipe(MonoPipe):
         super().__init__(components, *args, main_outputs=[], **kwargs)
 
     def make(self, conf, cli_args=None):
+        if len(self.main_inputs) == 0:
+            raise Exception('DeadEndPipe must have at least one main input. '
+                'Received: {}'.format(self.main_inputs))
         if len(self.main_outputs) != 0:
             raise Exception('DeadEndPipe cannot have a main output. '
                 'Received: {}'.format(self.main_outputs))

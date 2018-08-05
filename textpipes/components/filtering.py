@@ -1,7 +1,7 @@
 import collections
 import re
 
-from .core import MonoPipeComponent, ParallelPipeComponent, PipeComponent
+from .core import MonoPipeComponent, ParallelPipeComponent, PipeComponent, apply_component
 from .preprocessing import Clean
 from ..core.utils import safe_zip
 
@@ -10,6 +10,14 @@ from ..core.utils import safe_zip
 FILTER_ALPHA = set('abcdefghijklmnopqrstuvwxyz')
 
 RE_NUMPUNC = re.compile(r'^[0-9,\.-]+$')
+
+def apply_filter(filtr, para=False, logfile=None, **kwargs):
+    if para:
+        component = ParaFilter(filtr, logfile=logfile)
+    else:
+        component = MonoFilter(filtr, logfile=logfile)
+    return apply_component(component, **kwargs)
+
 
 class MonoFilter(MonoPipeComponent):
     def __init__(self, filtr, logfile=None):

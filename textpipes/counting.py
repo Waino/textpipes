@@ -199,3 +199,49 @@ class SegmentCountsFile(SingleCellComponent):
             if self.words_file:
                 wo_fobj.write('{}\n'.format(wtype))
         del self.counts
+
+
+class TfIdfComponent(SingleCellComponent):
+    def __init__(self, output, parse_func, **kwargs):
+        side_outputs = [output]
+        # must disable multiprocessing
+        super().__init__(side_outputs=side_outputs, mp=False, **kwargs)
+        self.count_file = output
+        self.parse_func = parse_func
+        self.tf_counts = collections.Counter()
+        self.df_counts = collections.Counter()
+        self.total_docs = 0
+        self.docid = None
+        self.seen = set()
+
+    def single_cell(self, line):
+        docid, sentence = self.parse_func(line)
+        if docid != self.docid:
+            # start of new document
+            self.seen = set()
+            self.docid = docid
+            self.total_docs += 1
+        for token in sentence.split():
+            self.tf_counts[token] += 1
+            if token not in self.seen:
+                self.df_counts[token] += 1
+            self.seen.add(token)
+
+    def post_make(self, side_fobjs):
+        fobj = side_fobjs[self.count_file]
+        tf_idf = collections.Counter()
+        for wtype, tf in self.tf_counts.items():
+            df = self.df_counts[wtype]
+            tf_idf[wtype] = math.log(1 + tf) * math.log(self.total_docs / (1 + df))
+        for (wtype, weight) in sort_counts(tf_idf.most_common()):
+            tf = self.tf_counts[wtype]
+            df = self.df_counts[wtype]
+            fobj.write('{}\t{}\t{}\t{}\n'.format(weight, wtype, tf, df))
+        del self.tf_counts
+        del self.df_counts
+
+
+class TfIdf(DeadEndPipe):
+    def __init__(self, inp, output, parse_func, **kwargs):
+        component = TfIdfComponent(output, parse_func=parse_func)
+        super().__init__([component], [inp], **kwargs)

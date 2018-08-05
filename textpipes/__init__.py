@@ -36,6 +36,7 @@ from .truecaser import TrainTrueCaser, TrueCase
 # Most common components for easy access
 # more are available by importing from tp.components
 from .components.preprocessing import *
-from .components.filtering import MonoFilter, ParallelFilter, FilterByLength
+from .components.filtering import apply_filter, Filter, \
+    MonoFilter, ParallelFilter, FilterByLength
 from .components.tokenizer import Tokenize
 from .components.core import *
