@@ -384,3 +384,13 @@ class LineNumbers(MonoPipeComponent):
                  config=None, cli_args=None):
         for (i, line) in enumerate(stream):
             yield '{} {}'.format(self.start + i, line)
+
+
+class NormalizeLongSounds(RegexSubstitution):
+    """4 or more repetitions of a character normalized to 3.
+    Does not modify numbers."""
+    def __init__(self, **kwargs):
+        expressions = [
+            (r'(.)\1\1+', r'\1\1\1'),
+            ]
+        super().__init__(expressions, **kwargs)
