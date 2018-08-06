@@ -86,6 +86,17 @@ class NoFilter(Filter):
         return False
 
 
+class InverseFilter(Filter):
+    def __init__(self, filtr):
+        super().__init__()
+        self.filtr = filtr
+
+    """Inverts a Filter,
+    leaving only lines that the original would have removed"""
+    def __call__(self, line, side_fobjs=None):
+        return not self.filtr(line, side_fobjs=side_fobjs)
+
+
 class FilterRegex(Filter):
     """Filters out any lines matching the expressions"""
     def __init__(self, expressions, ignore_case=False):
