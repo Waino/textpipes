@@ -20,8 +20,9 @@ class FilterContractions(FilterRegex):
     Do NOT apply this filter to the English side of a corpus.
     """
 
-    def __init__(self):
-        contractions = [line.split('\t')[0]
+    def __init__(self, reverse=False):
+        idx = 1 if reverse else 0
+        contractions = [line.split('\t')[idx]
                         for line in read_lang_file('contractions', 'en')]
         expressions = (r'\b{}\b'.format(cont.replace("'", " ?' ?"))
                        for cont in contractions)
