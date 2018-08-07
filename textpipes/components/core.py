@@ -13,7 +13,7 @@ def apply_component(component, para=False, **kwargs):
     """Convenience function for applying a single PipeComponent"""
     if para:
         class WrappedComponent(ParallelPipe):
-            def __init__(self):
+            def __init__(self, inp, out):
                 super().__init__([component], inp, out,
                                 name=component.__class__.__name__,
                                 **kwargs)

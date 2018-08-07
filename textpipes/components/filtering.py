@@ -13,7 +13,7 @@ RE_NUMPUNC = re.compile(r'^[0-9,\.-]+$')
 
 def apply_filter(filtr, para=False, logfile=None, **kwargs):
     if para:
-        component = ParaFilter(filtr, logfile=logfile)
+        component = ParallelFilter(filtr, logfile=logfile)
     else:
         component = MonoFilter(filtr, logfile=logfile)
     return apply_component(component, **kwargs)
