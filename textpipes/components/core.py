@@ -5,7 +5,7 @@ Components are text processing operations expressed as Python generators.
 import re
 import itertools
 
-from ..core.recipe import Rule
+from ..core.recipe import Rule, RecipeFile
 from ..core.utils import safe_zip, progress
 
 
@@ -98,12 +98,17 @@ class Pipe(Rule):
 
 
 class MonoPipe(Pipe):
-    def __init__(self, components, *args, auto_concat=False, **kwargs):
+    def __init__(self, components, main_inputs, main_outputs,
+                 auto_concat=False, **kwargs):
         for component in components:
             if not hasattr(component, '_is_mono_pipe_component'):
                 raise Exception('MonoPipe expected MonoPipeComponent, '
                     'received {}'.format(component))
-        super().__init__(components, *args, **kwargs)
+        if isinstance(main_inputs, RecipeFile):
+            main_inputs = [main_inputs]
+        if isinstance(main_outputs, RecipeFile):
+            main_outputs = [main_outputs]
+        super().__init__(components, main_inputs, main_outputs, **kwargs)
         self.auto_concat = auto_concat
 
     def make(self, conf, cli_args=None):
