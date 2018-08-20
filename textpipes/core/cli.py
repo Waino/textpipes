@@ -430,6 +430,7 @@ class CLI(object):
                 # suppress done jobs if quiet
                 continue
             outfile = step.concrete[0]
+            logitem = self.log.get_status_of_output(outfile)
             lbl = step.status + ':'
             tpls.append((
                 lbl, step.job_id, step.sec_key, outfile))

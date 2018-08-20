@@ -50,7 +50,7 @@ class Platform(object):
         # -> job id (or None if not scheduled)
         raise NotImplementedError()
 
-    def post_schedule(self, job_id, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
+    def post_schedule(self, job_id, recipe, conf, rule, sec_key, output_files, cli_args, deps=None, overrides=None):
         pass
 
     def check_job(self, job_id):
@@ -130,7 +130,7 @@ class Slurm(Platform):
                 deps = []
             sbatch = 'sbatch --job-name {name} {rc_args}{dep_args} -o {log} --wrap="{cmd}"'.format(
                 name=job_name, cmd=cmd.replace('"', r'\"'), rc_args=rc_args,
-                dep_args=dep_args, log=logstr)
+                dep_args=dep_args, log=log_str)
             r = run(sbatch)
             try:
                 job_id = str(int(RE_SLURM_SUBMITTED_ID.match(r.std_out).group(1)))
@@ -144,6 +144,7 @@ class Slurm(Platform):
             self._parse_sacct(job_id)
         if job_id in self._job_status:
             (_, _, status, _) = self._job_status[job_id]
+            status = status.split(' ')[0]
             result = SLURM_STATUS_MAP.get(status, status)
             return result
         return 'unknown'
