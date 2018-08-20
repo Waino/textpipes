@@ -254,8 +254,11 @@ class CLI(object):
             except KeyError:
                 warn.append(rf)
         if warn:
-            for rf in sorted(warn):
-                print('config is missing path: {}'.format(rf))
+            print('*** add these path definitions to config:')
+            for sec, group in itertools.groupby(sorted(warn), key=lambda rf: rf.section):
+                print('[paths.{}]'.format(sec))
+                for rf in group:
+                    print('{} = '.format(rf.key))
             print('********** WARNING! Some paths are missing **********')
         for (dep, msg) in OPT_DEPS:
             try:

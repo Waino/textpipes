@@ -17,7 +17,7 @@ def apply_filter(filtr, para=False, logfile=None, **kwargs):
         component = ParallelFilter(filtr, logfile=logfile)
     else:
         component = MonoFilter(filtr, logfile=logfile)
-    return apply_component(component, **kwargs)
+    return apply_component(component, para=para, **kwargs)
 
 
 class MonoFilter(MonoPipeComponent):
