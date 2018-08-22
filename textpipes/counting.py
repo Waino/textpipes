@@ -168,7 +168,7 @@ RemoveCounts = apply_component(RemoveCountsComponent())
 
 
 class SegmentCountsFile(SingleCellComponent):
-    def __init__(self, segmenters, output, words_only=None, **kwargs):
+    def __init__(self, segmenters, output, words_only=None, reverse=False, **kwargs):
         assert all(isinstance(segmenter, SingleCellComponent) for segmenter in segmenters)
         self.segmenters = segmenters
         side_outputs = [output]
@@ -179,14 +179,17 @@ class SegmentCountsFile(SingleCellComponent):
         self.count_file = output
         self.words_file = words_only
         self.counts = collections.Counter()
+        self.rev = reverse
 
     def single_cell(self, line):
         count, word = line.split(None, 1)
+        if self.rev:
+            count, word = word, count
+        count = int(count)
         modified = word
         for segmenter in self.segmenters:
             modified = segmenter.single_cell(modified)
         parts = modified.split()
-        count = int(count)
         for part in parts:
             self.counts[part] += count
 
@@ -195,6 +198,8 @@ class SegmentCountsFile(SingleCellComponent):
         if self.words_file:
             wo_fobj = side_fobjs[self.words_file]
         for (wtype, count) in sort_counts(self.counts.most_common()):
+            if self.rev:
+                count, wtype = wtype, count
             fobj.write('{}\t{}\n'.format(count, wtype))
             if self.words_file:
                 wo_fobj.write('{}\n'.format(wtype))
