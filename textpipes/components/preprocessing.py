@@ -272,10 +272,13 @@ class StripXml(MonoPipeComponent):
 class NormalizeContractions(RegexSubstitution):
     """replace contractions with normalized form"""
 
-    def __init__(self, lang, **kwargs):
+    def __init__(self, lang, reverse=False, **kwargs):
         contractions = [line.split('\t')
                         for line in read_lang_file('contractions', lang)]
-        expressions = ((r'\b{}\b'.format(cont.replace("'", " ?' ?")), repl)
+        if reverse:
+            contractions = [(y, x) for (x, y) in contractions]
+        expressions = ((r'\b{}\b'.format(cont.replace("'", " ?' ?")),
+                        repl.replace("'", " '"))
                        for (cont, repl) in contractions)
         super().__init__(expressions, ignore_case=True, **kwargs)
 
@@ -382,3 +385,13 @@ class LineNumbers(MonoPipeComponent):
                  config=None, cli_args=None):
         for (i, line) in enumerate(stream):
             yield '{} {}'.format(self.start + i, line)
+
+
+class NormalizeLongSounds(RegexSubstitution):
+    """4 or more repetitions of a character normalized to 3.
+    Does not modify numbers."""
+    def __init__(self, **kwargs):
+        expressions = [
+            (r'(.)\1\1+', r'\1\1\1'),
+            ]
+        super().__init__(expressions, **kwargs)

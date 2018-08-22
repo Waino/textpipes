@@ -80,15 +80,18 @@ class Tokenize(SingleCellComponent):
     Might be useful for systems that benefit from not splitting too much:
     e.g. SMT and copy-mechanisms.
     """
-    def __init__(self, lang, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, lang, extra=None, escape_extra=True, **kwargs):
+        side_inputs = []
+        if extra:
+            side_inputs.append(extra)
+        super().__init__(side_inputs=side_inputs, **kwargs)
         self.lang = lang
         # FIXME: customizable punctuation?
         self.punctuation_re = TOK_PUNC_RE
-        protected_str = read_lang_file('nonbreaking_prefix', self.lang)
+        self.protected_str = read_lang_file('nonbreaking_prefix', self.lang)
         # these are specified in the over-tokenized form
         # all contained spaces are removed
-        protected_re = [
+        self.protected_re = [
             # decimal and thousand separators, IPs (note: non-grouping)
             r'\d (?:[\.,] \d)+',
             #r'\d %',           # percentages
@@ -100,7 +103,7 @@ class Tokenize(SingleCellComponent):
             # emails. stops at first original space
             r'[a-z\. ]* @ [a-z\. ]*',
             ]
-        map_re = [
+        self.map_re = [
             # Abbreviations protected if followed by a number.
             (r'(No|Art|pp) \.(\s+\d)', r"\1.\2"),
             # name clitics: O' D' L' (don't split at all)
@@ -110,30 +113,39 @@ class Tokenize(SingleCellComponent):
             ('(\u001F) ?\\. (\\d)', r'\1 .\2'),
             ]
         if self.lang == 'en':
-            map_re.extend(
+            self.map_re.extend(
                 ((r'(?<=\w) \'\s+([a-z]) ', r" '\1 "),    # english suffix clitics. FIXME: fr and others
                  (r'(?<=\w) \'\s+(ll|re|ve) ', r" '\1 "), # longer clitics: 'll 're 've
                  (r'(?<=\d) \'\s+s ', r" 's "),           # special case: 1990's
                 ))
         elif self.lang in ('fi', 'et'):
-            protected_re.extend(
+            self.protected_re.extend(
                 (r'\d \. ',  # ordinals
                 ))
             # not trying to correct if split in input
-            map_re.extend(
+            self.map_re.extend(
                 ((r'(?<=\w) : ([a-zåäöõü]{1,3}) ', r" :\1 "),  # finnish abbrevation suffixes
                  (r'(?<=\w) : (nneksi|ista) ', r" :\1 "),      # longer suffixes
                 ))
         if self.lang not in ('en',):
             # languages without specific clitic rules
-            map_re.extend(
+            self.map_re.extend(
                 ((r'([A-Za-z][a-z][a-z]) \' ([a-z]) ', r"\1'\2 "), # join obvious clitics
                 ))
+        self.extra = extra
+        self.escape_extra = escape_extra
+
+    def pre_make(self, side_fobjs):
+        if self.extra:
+            for line in side_fobjs[self.extra]:
+                if self.escape_extra:
+                    line = re.escape(line)
+                self.protected_re.append(line)
 
         # process and compile expressions
-        self.protected_str = self._compile_str(protected_str)
-        self.protected_re = self._compile_re(protected_re)
-        self.map_re = self._compile_map(map_re)
+        self.protected_str = self._compile_str(self.protected_str)
+        self.protected_re = self._compile_re(self.protected_re)
+        self.map_re = self._compile_map(self.map_re)
 
     def single_cell(self, sentence):
         out = sentence

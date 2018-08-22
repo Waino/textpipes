@@ -5,11 +5,13 @@ import os
 import sys
 
 from .utils import *
+from .configuration import GridConfig
 
 logger = logging.getLogger('textpipes')
 
 class JobStatus(object):
-    def __init__(self, status, outputs, inputs=None, rule=None, job_id='-'):
+    def __init__(self, status, outputs, inputs=None, rule=None, job_id='-',
+                 concrete=None, overrides=None):
         assert status in (
             'done', 'waiting', 'running',   # info only: no need to schedule
             'available', 'delayed',         # schedule these
@@ -20,6 +22,8 @@ class JobStatus(object):
         self.inputs = inputs if inputs is not None else tuple()
         self.rule = rule
         self.job_id = str(job_id)
+        self.concrete = concrete if concrete else []
+        self.overrides = overrides if overrides else dict()
 
     @property
     def sec_key(self):
@@ -32,13 +36,15 @@ class JobStatus(object):
         return self.outputs == other.outputs
 
     def __repr__(self):
-        return "{}('{}', {}, {}, {}, {})".format(
+        return "{}('{}', {}, {}, {}, {}, {}, {})".format(
             self.__class__.__name__,
             self.status,
             self.outputs,
             self.inputs,
             self.rule,
-            self.job_id)
+            self.job_id,
+            self.concrete,
+            self.overrides)
 
 NextSteps = collections.namedtuple('NextSteps',
     ['done', 'waiting', 'running', 'available', 'delayed'])
@@ -132,7 +138,30 @@ class Recipe(object):
             raise Exception('No rule to make target {}'.format(output))
         return rf
 
-    def get_next_steps_for(self, outputs=None, cli_args=None, recursive=False):
+    def grid_next_steps(self,
+                        grid,
+                        outputs=None,
+                        cli_args=None,
+                        recursive=False):
+        seen = set()
+        result = NextSteps([], [], [], [], [])
+        for overrides in grid:
+            steps = self.get_next_steps_for(outputs=outputs,
+                                            cli_args=cli_args,
+                                            recursive=recursive,
+                                            overrides=overrides)
+            for (i, phase) in enumerate(steps):
+                for step in phase:
+                    if any(path in seen for path in step.concrete):
+                        # this step has a non-grid-differentiated output
+                        # we need only one copy of it
+                        continue
+                    seen.update(step.concrete)
+                    result[i].append(step)
+        return result
+
+    def get_next_steps_for(self, outputs=None, cli_args=None, recursive=False,
+                           overrides=None):
         # -> [JobStatus]
         outputs = outputs 
         if not outputs:
@@ -164,7 +193,10 @@ class Recipe(object):
 
         for rf in outputs:
             if self.log.is_done(rf, self.conf, cli_args):
-                done.append(JobStatus('done', [rf]))
+                done.append(JobStatus('done',
+                                      [rf],
+                                      concrete=[rf(self.conf, cli_args)],
+                                      overrides=overrides))
                 seen_done.add(rf)
             else:
                 border.add(rf)
@@ -179,15 +211,22 @@ class Recipe(object):
                 rule = self.files[cursor]
             except KeyError:
                 raise Exception('No rule to build requested output {}'.format(cursor))
-            # FIXME: pass self.conf and cli_args so that flexible rules can adjust?
             # check log for waiting/running jobs
+            if rule is not None:
+                concrete = [rf(self.conf, cli_args) for rf in rule.outputs]
+            else:
+                concrete = []
             job_fields = self.log.get_status_of_output(
                 cursor(self.conf, cli_args))
             if job_fields.status == 'running':
                 if not self.log.is_done(cursor, self.conf, cli_args):
                     # must wait for non-atomic files until job stops running
                     # also wait for an atomic file that doesn't yet exist
-                    running.append(JobStatus('running', [cursor], job_id=job_fields.job_id))
+                    running.append(JobStatus('running',
+                                             [cursor],
+                                             job_id=job_fields.job_id,
+                                             concrete=concrete,
+                                             overrides=overrides))
                     known.add(cursor)
                     continue
             if cursor.exists(self.conf, cli_args):
@@ -199,7 +238,11 @@ class Recipe(object):
                     seen_done.add(cursor)
                 continue
             if job_fields.status == 'scheduled':
-                waiting.append(JobStatus('waiting', [cursor], job_id=job_fields.job_id))
+                waiting.append(JobStatus('waiting',
+                                         [cursor],
+                                         job_id=job_fields.job_id,
+                                         concrete=concrete,
+                                         overrides=overrides))
                 known.add(cursor)
                 continue
             if rule is None:
@@ -209,10 +252,17 @@ class Recipe(object):
             border.update(rule.inputs)
             needed.add(cursor)
 
-        if len(missing) > 0:
-            # missing inputs block anything at all from running
-            raise Exception(
-            '\n'.join(str(JobStatus('missing_inputs', [inp], inputs=[inp])) for inp in missing))
+        if len(missing) > 0: 
+            if self.conf.force:
+                known.update(missing)
+            else:
+                # missing inputs block anything at all from running
+                raise Exception(
+                '\n'.join(str(JobStatus('missing_inputs',
+                                        [inp],
+                                        inputs=[inp],
+                                        concrete=[inp(self.conf, cli_args)],
+                                        overrides=overrides)) for inp in missing))
 
         # iteratively sort needed
         while len(needed) > 0:
@@ -229,12 +279,15 @@ class Recipe(object):
                 known.update(rule.outputs)
                 not_done = tuple(inp for inp in rule.inputs
                                  if inp not in seen_done)
+                concrete = [rf(self.conf, cli_args) for rf in rule.outputs]
                 if len(not_done) > 0:
                     # must wait for some inputs to be built first
                     delayed.append(JobStatus('delayed',
                         rule.outputs,
                         inputs=not_done,
-                        rule=rule))
+                        rule=rule,
+                        concrete=concrete,
+                        overrides=overrides))
                     continue
                 # implicit else: ready for scheduling
                 not_done_outputs = [out for out in rule.outputs
@@ -244,7 +297,9 @@ class Recipe(object):
                         'even though all outputs exist: {}'.format(rule))
                 available.append(JobStatus('available',
                     not_done_outputs,
-                    rule=rule))
+                    rule=rule,
+                    concrete=concrete,
+                    overrides=overrides))
             if len(remaining) == len(needed):
                 raise Exception('unmet dependencies: {}'.format(remaining))
             needed = remaining
@@ -289,19 +344,21 @@ class Recipe(object):
                     inversions.append((cursor, inp, 'orphan'))
         return inversions
 
-    def make_output(self, output, cli_args=None):
+    def make_output(self, output, conf=None, cli_args=None):
+        if conf is None:
+            conf = self.conf 
         rf = self._rf(output)
         if rf not in self.files:
             raise Exception('No rule to make target {}'.format(output))
-        if rf.exists(self.conf, cli_args):
+        if rf.exists(conf, cli_args):
             return JobStatus('done', [rf])
 
         rule = self.files[rf]
         for out_rf in rule.outputs:
-            filepath = out_rf(self.conf, cli_args)
+            filepath = out_rf(conf, cli_args)
             subdir, _ = os.path.split(filepath)
             os.makedirs(subdir, exist_ok=True)
-        return rule.make(self.conf, cli_args)
+        return rule.make(conf, cli_args)
 
     def add_main_outputs(self, outputs):
         for out in outputs:

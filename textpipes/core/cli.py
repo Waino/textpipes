@@ -7,8 +7,8 @@ import os
 import re
 from datetime import datetime, timedelta
 
-from .configuration import Config
-from .platform import run
+from .configuration import Config, GridConfig
+from .platform import run, parse_override_string
 from .recipe import *
 from .utils import *
 
@@ -20,6 +20,7 @@ OPT_DEPS = (
     ('pandas', 'AnalyzeTranslations'),
     ('ftfy', 'Clean'),
     ('pybloom', 'Deduplicate'),
+    ('Levenshtein', 'Levenshtein')  # package python-Levenshtein
     #('nltk', ''),
     )
 # external binary optional deps:
@@ -49,6 +50,8 @@ def get_parser(recipe):
                         help='Less verbose output, by hiding some info')
     parser.add_argument('-v', '--verbose', default=False, action='store_true',
                         help='More verbose output, e.g. print inputs')
+    parser.add_argument('--show-all', default=False, action='store_true',
+                        help='More verbose output, by showing all grid points')
     parser.add_argument('-n', '--dryrun', default=False, action='store_true',
                         help='Show what would be done, but do not do it')
     parser.add_argument('-r', '--recursive', default=False, action='store_true',
@@ -61,7 +64,13 @@ def get_parser(recipe):
     parser.add_argument('--resource-classes', default=None, type=str,
                         help='Only schedule jobs with one of these resource classes. '
                         'Comma separated list of strings. '
-                        'Cannot be used with --recursive.')
+                        'UNTESTED: if used with --recursive.')
+    parser.add_argument('--only-rules', default=None, type=str,
+                        help='Only schedule jobs with one of these Rules. '
+                        'Comma separated list of strings. '
+                        'UNTESTED: if used with --recursive.')
+    parser.add_argument('--grid', default=None, type=str, metavar='CONF',
+                        help='Perform grid search specified by the given conf. ')
     parser.add_argument('--blame', default=None, type=str,
                         help='When given a concrete filename, '
                         'shows which rule built it, and its inputs.')
@@ -69,9 +78,15 @@ def get_parser(recipe):
                         help='Temporarily override the platform. '
                         'Generally not recommended. '
                         'Use the file current_platform instead.')
+    parser.add_argument('--fail-running', default=False, action='store_true',
+                        help='Mark all running jobs as failed. '
+                        '(to kill zombies in exceptional cases)')
 
     parser.add_argument('--make', default=None, type=str, metavar='OUTPUT',
                         help='Output to make, in section:key format. '
+                        'You should NOT call this directly')
+    parser.add_argument('--overrides', default=None, type=str, metavar='str',
+                        help='Overridden params in grid search. '
                         'You should NOT call this directly')
 
     return parser
@@ -82,7 +97,18 @@ class CLI(object):
         self.recipe = recipe
         parser = get_parser(recipe)
         self.args = parser.parse_args(args=argv)
-        self.conf = Config(self.args.conf, self.args)
+        self.conf = Config()
+        self.conf.read(self.args.conf, self.args)
+        if self.args.grid is not None:
+            self.grid_conf = GridConfig(self.args.grid, self.args)
+        else:
+            self.grid_conf = None
+            if self.args.make is not None and self.args.overrides is not None:
+                # when in making mode,
+                # apply overrides before constructing recipe
+                # to enable e.g. conf-based control flow
+                overrides = parse_override_string(self.args.overrides)
+                self.conf = GridConfig.apply_override(self.conf, overrides)
         # the recipe-altering cli args
         self.cli_args = None # FIXME
         self.platform = self.conf.platform
@@ -119,33 +145,55 @@ class CLI(object):
             self.blame(self.args.blame)
             return  # don't do anything more
         if self.args.make is not None:
-            self.make(self.args.make)
+            self.make(self.args.make, self.args.overrides)
             return  # don't do anything more
         # implicit else 
 
-        nextsteps = self.recipe.get_next_steps_for(
-            outputs=self.args.output,
-            cli_args=self.cli_args,
-            recursive=self.args.recursive)
+        if self.grid_conf is None:
+            nextsteps = self.recipe.get_next_steps_for(
+                outputs=self.args.output,
+                cli_args=self.cli_args,
+                recursive=self.args.recursive)
+        else:
+            nextsteps = self.recipe.grid_next_steps(
+                grid=self.grid_conf.get_overrides(self.conf),
+                outputs=self.args.output,
+                cli_args=self.cli_args,
+                recursive=self.args.recursive)
+
         if self.args.resource_classes is not None:
-            assert not self.args.recursive
+            if self.args.recursive:
+                print('WARNING: recursive with filtered is experimental')
             nextsteps = self._filter_by_resource(nextsteps,
                                                  self.args.resource_classes.split(','))
+        if self.args.only_rules is not None:
+            if self.args.recursive:
+                print('WARNING: recursive with filtered is experimental')
+            nextsteps = self._filter_by_rule(nextsteps,
+                                             self.args.only_rules.split(','))
+
+        if self.args.fail_running:
+            for step in nextsteps.running:
+                self.log.failed(step.job_id)
+                print('Marked job {} as failed'.format(step.job_id))
+            return  # don't do anything more
 
         if self.platform.make_immediately:
             # show before running locally
             self.show_next_steps(nextsteps,
                                  dryrun=self.args.dryrun,
+                                 immediate=self.platform.make_immediately,
                                  verbose=self.args.verbose,
-                                 immediate=self.platform.make_immediately)
+                                 show_all=self.args.show_all)
         if not self.args.dryrun:
             self.schedule(nextsteps)
         if not self.platform.make_immediately:
             # show after schduling on cluster
             self.show_next_steps(nextsteps,
                                  dryrun=self.args.dryrun,
+                                 immediate=self.platform.make_immediately,
                                  verbose=self.args.verbose,
-                                 immediate=self.platform.make_immediately)
+                                 show_all=self.args.show_all)
 
     def check_validity(self):
         # check that script is correctly named
@@ -175,6 +223,7 @@ class CLI(object):
                     print(key, gitdir)
         else:
             print('********** WARNING! NO "git" section in platform conf **********')
+        os.makedirs('slurmlogs', exist_ok=True)
         # check existence of original inputs
         warn = False
         for rf in self.recipe.main_inputs:
@@ -205,8 +254,11 @@ class CLI(object):
             except KeyError:
                 warn.append(rf)
         if warn:
-            for rf in sorted(warn):
-                print('config is missing path: {}'.format(rf))
+            print('*** add these path definitions to config:')
+            for sec, group in itertools.groupby(sorted(warn), key=lambda rf: rf.section):
+                print('[paths.{}]'.format(sec))
+                for rf in group:
+                    print('{} = '.format(rf.key))
             print('********** WARNING! Some paths are missing **********')
         for (dep, msg) in OPT_DEPS:
             try:
@@ -278,9 +330,11 @@ class CLI(object):
                 tpls = []
                 sec_key = rf.sec_key()
                 rule = self.recipe.get_rule(sec_key)
-                tpls.append(('Rule:', sec_key, rule.name, concrete_output))
-                for inp in rule.inputs:
-                    tpls.append((' ^input:', inp.sec_key(), '', inp(self.conf, self.cli_args)))
+                rule_name = rule.name if rule is not None else 'input'
+                tpls.append(('Rule:', sec_key, rule_name, concrete_output))
+                if rule is not None:
+                    for inp in rule.inputs:
+                        tpls.append((' ^input:', inp.sec_key(), '', inp(self.conf, self.cli_args)))
                 table_print(tpls)
                 return
         print('No rule to make {}'.format(concrete_output))
@@ -305,11 +359,16 @@ class CLI(object):
                 wait_for_jobs.append(wait_ids[inp])
             if unk_deps:
                 continue
-            output_files = [(output.sec_key(), output(self.conf, self.cli_args))
+            if step.overrides:
+                conf = GridConfig.apply_override(self.conf, step.overrides)
+            else:
+                conf = self.conf
+            output_files = [(output.sec_key(), output(conf, self.cli_args))
                             for output in sorted(step.outputs)]
             job_id = self.platform.schedule(
-                self.recipe, self.conf, step.rule, step.sec_key,
-                output_files, self.cli_args, deps=wait_for_jobs)
+                self.recipe, conf, step.rule, step.sec_key,
+                output_files, self.cli_args, deps=wait_for_jobs,
+                overrides=step.overrides)
             if job_id is None:
                 # not scheduled for some reason
                 continue
@@ -318,35 +377,48 @@ class CLI(object):
             if step.job_id is not None and step.job_id != '-':
                 for output in step.outputs:
                     wait_ids[output] = step.job_id
-            self.platform.post_schedule(
-                job_id, self.recipe, self.conf, step.rule, step.sec_key,
-                output_files, self.cli_args, deps=wait_for_jobs)
+            try:
+                self.platform.post_schedule(
+                    job_id, self.recipe, self.conf, step.rule, step.sec_key,
+                    output_files, self.cli_args, deps=wait_for_jobs,
+                    overrides=step.overrides)
+            except Exception as e:
+                self.log.failed(job_id)
+                raise e
+            except KeyboardInterrupt as ki:
+                self.log.failed(job_id)
+                raise ki
 
-    def make(self, output):
+    def make(self, output, override_str):
+        overrides = parse_override_string(override_str)
         next_steps = self.recipe.get_next_steps_for(
-            outputs=[output], cli_args=self.cli_args)
+            outputs=[output], cli_args=self.cli_args, overrides=overrides)
         concat = next_steps.waiting + next_steps.available
         if len(concat) == 0:
-            #concrete = next_step.outputs[0](self.conf, self.cli_args)
             raise Exception('Cannot start running {}: {}'.format(
                 output, next_steps))
         next_step = concat[0]
         job_id = self.log.outputs.get(
-            next_step.outputs[0](self.conf, self.cli_args), None)
+            next_step.concrete[0], None)
         if job_id is None:
             raise Exception('No scheduled job id for {}'.format(
-                next_step.outputs[0](self.conf, self.cli_args)))
-        self._make_helper(output, next_step, job_id)
+                next_step.concrete[0]))
+        self._make_helper(output, next_step, job_id, overrides=overrides)
 
-    def _make_helper(self, output, next_step, job_id):
+    def _make_helper(self, output, next_step, job_id, overrides=None):
         rule = self.recipe.files.get(next_step.outputs[0], None)
         self.log.started_running(next_step, job_id, rule.name)
-        self.recipe.make_output(output=output, cli_args=self.cli_args)
+        if overrides:
+            conf = GridConfig.apply_override(self.conf, overrides)
+        else:
+            conf = self.conf
+        self.recipe.make_output(output=output, conf=conf, cli_args=self.cli_args)
         self.log.finished_running(next_step, job_id, rule.name)
 
-    def show_next_steps(self, nextsteps, dryrun=False, immediate=False, verbose=False):
+    def show_next_steps(self, nextsteps, dryrun=False, immediate=False, verbose=False, show_all=False):
         # FIXME: don't filter out redundant scheduled?
-        nextsteps = self._remove_redundant(nextsteps, dryrun=dryrun)
+        if not show_all:
+            nextsteps = self._remove_redundant(nextsteps, dryrun=dryrun)
         albl = 'scheduled:'
         if dryrun:
             albl = 'available:'
@@ -357,7 +429,8 @@ class CLI(object):
             if self.args.quiet and step.status == 'done':
                 # suppress done jobs if quiet
                 continue
-            outfile = step.outputs[0](self.conf, self.cli_args)
+            outfile = step.concrete[0]
+            logitem = self.log.get_status_of_output(outfile)
             lbl = step.status + ':'
             tpls.append((
                 lbl, step.job_id, step.sec_key, outfile))
@@ -365,7 +438,7 @@ class CLI(object):
         table_print(tpls, line_before='-')
         tpls = []
         for step in nextsteps.available:
-            outfile = step.outputs[0](self.conf, self.cli_args)
+            outfile = step.concrete[0]
             rclass = step.rule.resource_class
             tpls.append((
                 albl, step.job_id, step.sec_key, step.rule.name, rclass, outfile))
@@ -380,7 +453,8 @@ class CLI(object):
                         '   ^input:', '', inp.sec_key(), '', '', inp(self.conf, self.cli_args)))
         for step in nextsteps.delayed:
             lbl = 'delayed:'
-            outfile = step.outputs[0](self.conf, self.cli_args)
+            rclass = step.rule.resource_class
+            outfile = step.concrete[0]
             tpls.append((
                 lbl, step.job_id, step.sec_key, step.rule.name, rclass, outfile))
         table_print(tpls, line_before='-')
@@ -406,6 +480,7 @@ class CLI(object):
 
     def _filter_by_resource(self, nextsteps, classes):
         result = []
+        removed = set()
         for status in nextsteps:
             result.append([])
             for step in status:
@@ -413,11 +488,31 @@ class CLI(object):
                     # unknown and uninteresting resouce class
                     result[-1].append(step)
                     continue
-                if step.rule.resource_class in classes:
+                if step.rule.resource_class in classes and \
+                        all(inp not in removed for inp in step.inputs):
                     # valid resource class
                     result[-1].append(step)
                     continue
                 # else remove
+                removed.update(step.outputs)
+        return NextSteps(*result)
+
+    def _filter_by_rule(self, nextsteps, rules):
+        result = []
+        removed = set()
+        for status in nextsteps:
+            result.append([])
+            for step in status:
+                if step.rule is None:
+                    # can't match if no name
+                    continue
+                if step.rule.name in rules and \
+                        all(inp not in removed for inp in step.inputs):
+                    # valid Rule
+                    result[-1].append(step)
+                    continue
+                # else remove
+                removed.update(step.outputs)
         return NextSteps(*result)
 
 # keep a log of jobs

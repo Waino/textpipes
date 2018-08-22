@@ -47,16 +47,12 @@ class DummyParamPrintComponent(MonoPipeComponent):
         for line in stream:
             yield line
         yield '{}: {}'.format(self.__class__.__name__, self.name)
-        import time
-        time.sleep(5)
         for param in self.params:
             sec, key = param.split(':')
             yield '{} param {}: {}'.format(
                 self.name, param, config[sec][key])
-            time.sleep(1)
         for ext in self.extra:
             yield '{} extra: {}'.format(self.name, ext)
-            time.sleep(1)
 
 
 class DummyParamPrint(MonoPipe):

@@ -43,10 +43,6 @@ def open_text_file(file_path, mode='r', encoding='utf-8'):
     if encoding != 'utf-8':
         raise Exception('Re-encode your data')
     return file_obj
-    #if 'w' in mode or 'a' in mode:
-    #    return codecs.getwriter(encoding)(file_obj)
-    #else:
-    #    return codecs.getreader(encoding)(file_obj)
 
 
 def external_linecount(file_path):

@@ -15,6 +15,22 @@ MULTISPACE_RE = re.compile(r'\s+')
 # other suggestions:
 # gpu, gpushort, multicore, bigmem, long
 
+def make_override_string(overrides):
+    if not overrides:
+        return ''
+    override_str = ';'.join(
+        '{sec_key}={val}'.format(sec_key=sec_key, val=val)
+        for (sec_key, val) in sorted(overrides.items()))
+    return ' --overrides "{}"'.format(override_str)
+
+def parse_override_string(override_str):
+    overrides = {}
+    if override_str is not None:
+        for pair in override_str.split(';'):
+            sec_key, val = pair.split('=')
+            overrides[sec_key] = val
+    return overrides
+
 class Platform(object):
     def __init__(self, name, conf):
         self.name = name
@@ -24,15 +40,17 @@ class Platform(object):
     def read_log(self, log):
         pass
 
-    def _cmd(self, recipe, conf, sec_key):
-        return 'python {recipe}.py {conf}.ini --make {sec_key} --platform {platform}'.format(
-            recipe=recipe.name, conf=conf.name, sec_key=sec_key, platform=self.name)
+    def _cmd(self, recipe, conf, sec_key, overrides=None):
+        override_str = make_override_string(overrides)
+        return 'python {recipe}.py {conf}.ini --make {sec_key} --platform {platform}{overrides}'.format(
+            recipe=recipe.name, conf=conf.name, sec_key=sec_key,
+            platform=self.name, overrides=override_str)
 
     def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
         # -> job id (or None if not scheduled)
         raise NotImplementedError()
 
-    def post_schedule(self, job_id, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
+    def post_schedule(self, job_id, recipe, conf, rule, sec_key, output_files, cli_args, deps=None, overrides=None):
         pass
 
     def check_job(self, job_id):
@@ -57,14 +75,14 @@ class Local(Platform):
     def read_log(self, log):
         self.job_id = log.last_job_id
 
-    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
+    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None, overrides=None):
         # dummy incremental job_id
         self.job_id += 1
         return str(self.job_id)
 
-    def post_schedule(self, job_id, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
+    def post_schedule(self, job_id, recipe, conf, rule, sec_key, output_files, cli_args, deps=None, overrides=None):
         """Run immediately, instead of scheduling"""
-        r = run(self._cmd(recipe, conf, sec_key))
+        r = run(self._cmd(recipe, conf, sec_key, overrides=overrides))
 
     def check_job(self, job_id):
         return 'local'
@@ -97,11 +115,12 @@ class Slurm(Platform):
         super().__init__(*args, **kwargs)
         self._job_status = {}
 
-    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
+    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None, overrides=None):
         rc_args = self.resource_class(rule.resource_class)
         assert rc_args != 'make_immediately'
-        cmd = self._cmd(recipe, conf, sec_key)
+        cmd = self._cmd(recipe, conf, sec_key, overrides=overrides)
         job_name = '{}:{}'.format(conf.name, sec_key)
+        log_str = 'slurmlogs/{}_{}_%j.out'.format(conf.name, sec_key)
         for i in range(rule.chain_schedule):
             if deps:
                 dep_args = ' --dependency=afterok:' + ':'.join(
@@ -109,8 +128,9 @@ class Slurm(Platform):
             else:
                 dep_args = ''
                 deps = []
-            sbatch = 'sbatch --job-name {name} {rc_args}{dep_args} --wrap="{cmd}"'.format(
-                name=job_name, cmd=cmd, rc_args=rc_args, dep_args=dep_args)
+            sbatch = 'sbatch --job-name {name} {rc_args}{dep_args} -o {log} --wrap="{cmd}"'.format(
+                name=job_name, cmd=cmd.replace('"', r'\"'), rc_args=rc_args,
+                dep_args=dep_args, log=log_str)
             r = run(sbatch)
             try:
                 job_id = str(int(RE_SLURM_SUBMITTED_ID.match(r.std_out).group(1)))
@@ -124,6 +144,7 @@ class Slurm(Platform):
             self._parse_sacct(job_id)
         if job_id in self._job_status:
             (_, _, status, _) = self._job_status[job_id]
+            status = status.split(' ')[0]
             result = SLURM_STATUS_MAP.get(status, status)
             return result
         return 'unknown'

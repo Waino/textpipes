@@ -6,7 +6,7 @@ from setuptools import setup
 main_py = open('textpipes/__init__.py').read()
 metadata = dict(re.findall("__([a-z]+)__ = '([^']+)'", main_py))
 
-requires = ['ftfy', 'tqdm', 'pandas']
+requires = ['ftfy', 'tqdm', 'pandas', 'matplotlib']
 # also requires a newer pybloom than the one in PyPI
 # for optional requirements, see textpipes/cli.py
 

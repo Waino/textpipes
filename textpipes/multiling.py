@@ -149,3 +149,32 @@ class FilterLevenshtein(Filter):
             return left != right
         mean = (lleft + lright) / 2
         return int(dist) > math.ceil(mean * self.ratio)
+
+
+class FilterLevenshteinLongEdits(Filter):
+    def __init__(self, max_len=3, separator='\t', **kwargs):
+        super().__init__(**kwargs)
+        self.max_len = max_len
+        self.separator = separator
+
+    def __call__(self, line, side_fobjs=None):
+        dist, left, right = line.split(self.separator)
+        if len(left) == 0 or len(right) == 0:
+            return False
+        longest = max(self.edit_lengths(left, right))
+        if longest > self.max_len:
+            return True
+        return False
+
+    def remove_irrelevant(self, edits):
+        for edit in edits:
+            if edit[0] in ('replace', 'equal'):
+                continue
+            yield edit
+
+    def edit_lengths(self, left, right):
+        edits = lev.opcodes(left, right)
+        edits = self.remove_irrelevant(edits)
+        for op, ib, ie, jb, je in edits:
+            yield max(ie - ib, je - jb)
+        yield 0

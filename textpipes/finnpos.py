@@ -238,6 +238,7 @@ class ExtractColumn(MonoPipeComponent):
             cols = line.split(self.sep)
             result.append(cols[self.col_i])
 
+# FIXME: move to proper place
 # cluster e.g. lemmas
 class Word2VecCluster(Rule):
     def __init__(self, *args, dims=300, clusters=10000, **kwargs):

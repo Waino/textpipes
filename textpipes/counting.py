@@ -3,11 +3,14 @@ import logging
 import math
 
 from .core.recipe import Rule
-from .components.core import SingleCellComponent, DeadEndPipe, MonoPipe, MonoPipeComponent
+from .components.core import SingleCellComponent, DeadEndPipe, \
+    MonoPipe, MonoPipeComponent, apply_component
 from .components.filtering import Filter
 
 logger = logging.getLogger('textpipes')
 
+def sort_counts(counts):
+    return sorted(counts, key=lambda pair: (-pair[1], pair[0]))
 
 class CountTokensComponent(SingleCellComponent):
     def __init__(self, output, words_only=None, **kwargs):
@@ -28,7 +31,7 @@ class CountTokensComponent(SingleCellComponent):
         fobj = side_fobjs[self.count_file]
         if self.words_file:
             wo_fobj = side_fobjs[self.words_file]
-        for (wtype, count) in self.counts.most_common():
+        for (wtype, count) in sort_counts(self.counts.most_common()):
             fobj.write('{}\t{}\n'.format(count, wtype))
             if self.words_file:
                 wo_fobj.write('{}\n'.format(wtype))
@@ -78,6 +81,7 @@ class CombineCounts(MonoPipe):
         self.words_file = words_only
         # BPE wants word first, followed by count
         self.reverse = reverse
+        self.reversed_input = False
         # scale counts to balance contribution of different inputs
         self.balance = balance
         # minimum unscaled count to include in output
@@ -93,8 +97,16 @@ class CombineCounts(MonoPipe):
             count_sum = 0
             in_fobj = inp.open(conf, cli_args, mode='r')
             for line in in_fobj:
-                count, wtype = line.split('\t')
-                count = int(count)
+                if self.reversed_input:
+                    wtype, count = line.split('\t')
+                else:
+                    count, wtype = line.split('\t')
+                try:
+                    count = int(count)
+                except ValueError:
+                    self.reversed_input = True
+                    wtype, count = line.split('\t')
+                    count = int(count)
                 count_sum += count
                 if count >= self.threshold:
                     counts[wtype] += count
@@ -114,7 +126,7 @@ class CombineCounts(MonoPipe):
         out_fobj = self.count_file.open(conf, cli_args, mode='w')
         if self.words_file:
             wo_fobj = self.words_file.open(conf, cli_args, mode='w')
-        for (wtype, count) in combined_counts.most_common():
+        for (wtype, count) in sort_counts(combined_counts.most_common()):
             pair = (wtype, count) if self.reverse else (count, wtype)
             out_fobj.write('{}\t{}\n'.format(*pair))
             if self.words_file:
@@ -132,9 +144,7 @@ class CombineWordlistsComponent(MonoPipeComponent):
         for word in sorted(words):
             yield word
 
-class CombineWordlists(MonoPipe):
-    def __init__(self, inp, output, **kwargs):
-        super().__init__([CombineWordlistsComponent()], [inp], [output], **kwargs)
+CombineWordlists = apply_component(CombineWordlistsComponent(), auto_concat=True)
 
 
 class FilterCounts(Filter):
@@ -149,10 +159,12 @@ class FilterCounts(Filter):
         return self.filtr(wtype)
 
 
-class RemoveCounts(SingleCellComponent):
+class RemoveCountsComponent(SingleCellComponent):
     def single_cell(self, line):
         count, wtype = line.strip().split()
         return wtype
+
+RemoveCounts = apply_component(RemoveCountsComponent())
 
 
 class SegmentCountsFile(SingleCellComponent):
@@ -182,8 +194,54 @@ class SegmentCountsFile(SingleCellComponent):
         fobj = side_fobjs[self.count_file]
         if self.words_file:
             wo_fobj = side_fobjs[self.words_file]
-        for (wtype, count) in self.counts.most_common():
+        for (wtype, count) in sort_counts(self.counts.most_common()):
             fobj.write('{}\t{}\n'.format(count, wtype))
             if self.words_file:
                 wo_fobj.write('{}\n'.format(wtype))
         del self.counts
+
+
+class TfIdfComponent(SingleCellComponent):
+    def __init__(self, output, parse_func, **kwargs):
+        side_outputs = [output]
+        # must disable multiprocessing
+        super().__init__(side_outputs=side_outputs, mp=False, **kwargs)
+        self.count_file = output
+        self.parse_func = parse_func
+        self.tf_counts = collections.Counter()
+        self.df_counts = collections.Counter()
+        self.total_docs = 0
+        self.docid = None
+        self.seen = set()
+
+    def single_cell(self, line):
+        docid, sentence = self.parse_func(line)
+        if docid != self.docid:
+            # start of new document
+            self.seen = set()
+            self.docid = docid
+            self.total_docs += 1
+        for token in sentence.split():
+            self.tf_counts[token] += 1
+            if token not in self.seen:
+                self.df_counts[token] += 1
+            self.seen.add(token)
+
+    def post_make(self, side_fobjs):
+        fobj = side_fobjs[self.count_file]
+        tf_idf = collections.Counter()
+        for wtype, tf in self.tf_counts.items():
+            df = self.df_counts[wtype]
+            tf_idf[wtype] = math.log(1 + tf) * math.log(self.total_docs / (1 + df))
+        for (wtype, weight) in sort_counts(tf_idf.most_common()):
+            tf = self.tf_counts[wtype]
+            df = self.df_counts[wtype]
+            fobj.write('{}\t{}\t{}\t{}\n'.format(weight, wtype, tf, df))
+        del self.tf_counts
+        del self.df_counts
+
+
+class TfIdf(DeadEndPipe):
+    def __init__(self, inp, output, parse_func, **kwargs):
+        component = TfIdfComponent(output, parse_func=parse_func)
+        super().__init__([component], [inp], **kwargs)

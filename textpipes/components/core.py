@@ -5,23 +5,29 @@ Components are text processing operations expressed as Python generators.
 import re
 import itertools
 
-from ..core.recipe import Rule
+from ..core.recipe import Rule, RecipeFile
 from ..core.utils import safe_zip, progress
 
 
-def apply_component(component, para=False):
+def apply_component(component, para=False, **kwargs):
     """Convenience function for applying a single PipeComponent"""
     if para:
         class WrappedComponent(ParallelPipe):
-            def __init__(self):
+            def __init__(self, inp, out):
                 super().__init__([component], inp, out,
-                                name=component.__class__.__name__)
+                                name=component.__class__.__name__,
+                                **kwargs)
     else:
         assert component._is_mono_pipe_component
         class WrappedComponent(MonoPipe):
             def __init__(self, inp, out):
-                super().__init__([component], [inp], [out],
-                                name=component.__class__.__name__)
+                if not isinstance(inp, list):
+                    inp = [inp]
+                if not isinstance(out, list):
+                    out = [out]
+                super().__init__([component], inp, out,
+                                name=component.__class__.__name__,
+                                **kwargs)
     return WrappedComponent
 
 
@@ -75,9 +81,10 @@ class Pipe(Rule):
         # progress bar
         out = self.main_outputs[0] if len(self.main_outputs) > 0 \
             else self.side_outputs[0]
-        stream = progress(stream, self, conf, 
-                          out(conf, cli_args),
-                          total=self.estimated_lines)
+        # FIXME: progress bar is not seen anyhow
+        #stream = progress(stream, self, conf, 
+        #                  out(conf, cli_args),
+        #                  total=self.estimated_lines)
 
         return stream, side_fobjs
 
@@ -91,23 +98,30 @@ class Pipe(Rule):
 
 
 class MonoPipe(Pipe):
-    def __init__(self, components, *args, **kwargs):
+    def __init__(self, components, main_inputs, main_outputs,
+                 auto_concat=False, **kwargs):
         for component in components:
             if not hasattr(component, '_is_mono_pipe_component'):
                 raise Exception('MonoPipe expected MonoPipeComponent, '
                     'received {}'.format(component))
-        super().__init__(components, *args, **kwargs)
+        if isinstance(main_inputs, RecipeFile):
+            main_inputs = [main_inputs]
+        if isinstance(main_outputs, RecipeFile):
+            main_outputs = [main_outputs]
+        super().__init__(components, main_inputs, main_outputs, **kwargs)
+        self.auto_concat = auto_concat
 
     def make(self, conf, cli_args=None):
-        if len(self.main_inputs) != 1:
+        if len(self.main_inputs) != 1 and not self.auto_concat:
             raise Exception('MonoPipe must have exactly 1 main input. '
                 'Received: {}'.format(self.main_inputs))
         if len(self.main_outputs) != 1:
             raise Exception('MonoPipe must have exactly 1 main output. '
                 'Received: {}'.format(self.main_outputs))
-        # Make a generator that reads from main_input
-        main_in_fobj = self.main_inputs[0].open(conf, cli_args, mode='r')
-        stream = main_in_fobj
+        # Make a tuple of generators that reads from main_inputs
+        readers = [inp.open(conf, cli_args, mode='r')
+                   for inp in self.main_inputs]
+        stream = itertools.chain(*readers)
 
         stream, side_fobjs = self._make_helper(stream, conf, cli_args)
 
@@ -120,8 +134,7 @@ class MonoPipe(Pipe):
         # post_make must be done after draining
         self._post_make(side_fobjs)
         # close all file objects
-        main_in_fobj.close()
-        for fobj in side_fobjs.values():
+        for fobj in readers + list(side_fobjs.values()):
             fobj.close()
 
 
@@ -181,6 +194,9 @@ class DeadEndPipe(MonoPipe):
         super().__init__(components, *args, main_outputs=[], **kwargs)
 
     def make(self, conf, cli_args=None):
+        if len(self.main_inputs) == 0:
+            raise Exception('DeadEndPipe must have at least one main input. '
+                'Received: {}'.format(self.main_inputs))
         if len(self.main_outputs) != 0:
             raise Exception('DeadEndPipe cannot have a main output. '
                 'Received: {}'.format(self.main_outputs))
@@ -400,3 +416,37 @@ class ApplyLexicon(SingleCellComponent):
         return ' '.join(
             self.lexicon.get(token, token)
             for token in sentence.split())
+
+
+class RegexDispatch(MonoPipeComponent):
+    """Dispatch to functions based on regexp match"""
+    def __init__(self, expressions, ignore_case=False, logfile=None):
+        side_outputs = [logfile]
+        super().__init__(side_outputs=side_outputs)
+        flags = re.UNICODE
+        if ignore_case:
+            flags += re.IGNORECASE
+        self.expressions = [(re.compile(exp, flags=flags), func)
+                            for (exp, func) in expressions]
+        self.logfile = logfile
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        logfile = side_fobjs.get(self.logfile, None)
+        for line in stream:
+            line, match = self._dispatch(line)
+            if match:
+                if line is not None:
+                    yield line
+            else:
+                # (add an expression ".*" if you want passthrough)
+                if self.logfile is not None:
+                    print(line, file=logfile)
+
+    def _dispatch(self, line):
+        for (exp, func) in self.expressions:
+            m = exp.match(line)
+            if m:
+                line = func(line, m.groups())
+                return line, True
+        return line, False
