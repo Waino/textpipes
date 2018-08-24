@@ -82,7 +82,7 @@ class Train(Rule):
 
     def resume(self):
         # also includes values outside chosen loop indices
-        idx, model = find_highest_file(self.model_base + r'.*e([0-9]+)\.pt')
+        idx, model = find_highest_file(self.model_base, r'.*e([0-9]+)\.pt')
         if idx is not None:
             return '-train_from {model} -start_epoch {beg}'.format(
                 model=model, beg=idx + 1)
@@ -152,7 +152,7 @@ class TrainShort(Rule):
 
     def resume(self, epochs_per_job=1):
         # also includes values outside chosen loop indices
-        idx, model = find_highest_file(self.model_base + r'.*e([0-9]+)\.pt')
+        idx, model = find_highest_file(self.model_base, r'.*e([0-9]+)\.pt')
         if idx is not None:
             return '-train_from {model} -start_epoch {beg} -epochs {end}'.format(
                 model=model, beg=idx + 1, end = idx + epochs_per_job)

@@ -331,3 +331,56 @@ class EvaluateMultiBleu(Rule):
                 ref=ref,
                 hyp=hyp,
                 out=out))
+
+class EvaluateNoSgm(Rule):
+    def __init__(self,
+                 hyp,
+                 ref,
+                 out_chrF1,
+                 out_chrF2,
+                 out_bleu,
+                 resource_class='make_immediately',
+                 **kwargs):
+        self.hyp = hyp
+        self.ref = ref
+        self.out_chrF1 = out_chrF1
+        self.out_chrF2 = out_chrF2
+        self.out_bleu = out_bleu
+
+        inputs = [hyp, ref]
+        outputs = [out_chrF1, out_chrF2, out_bleu]
+        super().__init__(inputs, outputs,
+                         resource_class=resource_class, **kwargs)
+
+    def make(self, conf, cli_args):
+        hyp = self.hyp(conf, cli_args)
+        ref = self.ref(conf, cli_args)
+
+        # evaluate
+        if self.out_chrF1 is not None:
+            out = self.out_chrF1(conf, cli_args)
+            run('chrF'
+                ' -b 1.0'
+                ' {hyp}'
+                ' {ref}'
+                ' > {out}'.format(
+                    hyp=hyp,
+                    ref=ref,
+                    out=out))
+        if self.out_chrF2 is not None:
+            out = self.out_chrF2(conf, cli_args)
+            run('chrF'
+                ' -b 2.0'
+                ' {hyp}'
+                ' {ref}'
+                ' > {out}'.format(
+                    hyp=hyp,
+                    ref=ref,
+                    out=out))
+        if self.out_bleu is not None:
+            out = self.out_bleu(conf, cli_args)
+            run('multi-bleu.perl'
+                ' {ref} < {hyp} > {out}'.format(
+                    ref=ref,
+                    hyp=hyp,
+                    out=out))
