@@ -50,6 +50,8 @@ class JobStatus(object):
 NextSteps = collections.namedtuple('NextSteps',
     ['done', 'waiting', 'running', 'available', 'delayed'])
 
+OptionalDep = collections.namedtuple('OptionalDep',
+    ['name', 'binary', 'component'])
 
 class Recipe(object):
     """Main class for building experiment recipes"""
@@ -386,14 +388,16 @@ class Recipe(object):
             if rule is not None:
                 all_deps.update(rule.opt_deps)
         grouped = []
-        all_deps = sorted(all_deps, key=lambda x: (x[1], x[0], x[2]))
+        all_deps = sorted(
+            all_deps,
+            key=lambda x: (x.binary, x.name, x.component))
         # group by module/binary, then by name of dep
         for binary, tgroup in itertools.groupby(all_deps,
-                                           key=lambda x: x[1]):
+                                           key=lambda x: x.binary):
             for dep, dgroup in itertools.groupby(tgroup,
-                                                 key=lambda x: x[0]):
+                                                 key=lambda x: x.name):
                 grouped.append(
-                    (dep, binary, [x[2] for x in dgroup]))
+                    (dep, binary, [x.component for x in dgroup]))
         return grouped
 
 
@@ -453,7 +457,7 @@ class Rule(object):
         return False
 
     def add_opt_dep(self, name, binary=False):
-        self._opt_deps.add((name, binary, self.name))
+        self._opt_deps.add(OptionalDep(name, binary, self.name))
 
     @property
     def name(self):

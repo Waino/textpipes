@@ -5,7 +5,7 @@ Components are text processing operations expressed as Python generators.
 import re
 import itertools
 
-from ..core.recipe import Rule, RecipeFile
+from ..core.recipe import Rule, RecipeFile, OptionalDep
 from ..core.utils import safe_zip, progress
 
 
@@ -241,7 +241,7 @@ class PipeComponent(object):
         pass
 
     def add_opt_dep(self, name, binary=False):
-        self.opt_deps.add((name, binary, self.__class__.__name__))
+        self.opt_deps.add(OptionalDep(name, binary, self.__class__.__name__))
 
     @property
     def side_inputs(self):
