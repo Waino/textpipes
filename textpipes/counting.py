@@ -22,6 +22,8 @@ class CountTokensComponent(SingleCellComponent):
         self.count_file = output
         self.words_file = words_only
         self.counts = collections.Counter()
+        self.add_opt_dep('foo', True)
+        self.add_opt_dep('bar', True)
 
     def single_cell(self, sentence):
         for token in sentence.split():
@@ -59,6 +61,8 @@ class ScaleCountsComponent(SingleCellComponent):
     def __init__(self, scale, **kwargs):
         super().__init__(mp=False, **kwargs)
         self.scale = scale
+        self.add_opt_dep('foo', True)
+        self.add_opt_dep('baz', False)
 
     def single_cell(self, line):
         count, wtype = line.strip().split()

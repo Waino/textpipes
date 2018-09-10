@@ -1,5 +1,6 @@
 import collections
 import glob
+import itertools
 import logging
 import os
 import sys
@@ -378,6 +379,23 @@ class Recipe(object):
     def main_outputs(self):
         return sorted(self._main_out)
 
+    @property
+    def opt_deps(self):
+        all_deps = set()
+        for rule in self.files.values():
+            if rule is not None:
+                all_deps.update(rule.opt_deps)
+        grouped = []
+        all_deps = sorted(all_deps, key=lambda x: (x[1], x[0], x[2]))
+        # group by module/binary, then by name of dep
+        for binary, tgroup in itertools.groupby(all_deps,
+                                           key=lambda x: x[1]):
+            for dep, dgroup in itertools.groupby(tgroup,
+                                                 key=lambda x: x[0]):
+                grouped.append(
+                    (dep, binary, [x[2] for x in dgroup]))
+        return grouped
+
 
 class Rule(object):
     """A part of a recipe.
@@ -387,7 +405,9 @@ class Rule(object):
     The object is initialized with RecipeFiles defining
     input and output paths.
     """
-    def __init__(self, inputs, outputs, resource_class='default', chain_schedule=1):
+    def __init__(self, inputs, outputs,
+                 resource_class='default',
+                 chain_schedule=1):
         if isinstance(inputs, RecipeFile):
             self.inputs = (inputs,)
         else:
@@ -403,6 +423,7 @@ class Rule(object):
             assert isinstance(rf, RecipeFile)
             rf.atomic = self.is_atomic(rf)
         self.chain_schedule = max(chain_schedule, 1)
+        self._opt_deps = set()
 
     def make(self, conf, cli_args=None):
         raise NotImplementedError()
@@ -431,9 +452,16 @@ class Rule(object):
         # Subclasses with atomic outputs should override this
         return False
 
+    def add_opt_dep(self, name, binary=False):
+        self._opt_deps.add((name, binary, self.name))
+
     @property
     def name(self):
         return self.__class__.__name__
+
+    @property
+    def opt_deps(self):
+        return self._opt_deps
 
     def __eq__(self, other):
         return (self.name, self.inputs, self.outputs) \

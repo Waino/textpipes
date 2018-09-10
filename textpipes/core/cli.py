@@ -260,16 +260,20 @@ class CLI(object):
                 for rf in group:
                     print('{} = '.format(rf.key))
             print('********** WARNING! Some paths are missing **********')
-        for (dep, msg) in OPT_DEPS:
-            try:
-                importlib.import_module(dep)
-            except ImportError:
-                print('*** Unable to import optional dependency "{}"'.format(dep))
-                print('You will not be able to use {}'.format(msg))
-        for (dep, msg) in OPT_BINS:
-            if run('which ' + dep, allow_fail=True).status_code != 0:
-                print('*** Optional binary "{}" not on PATH'.format(dep))
-                print('You will not be able to use {}'.format(msg))
+        for dep, binary, components in self.recipe.opt_deps:
+            msg = ', '.join(components)
+            if not binary:
+                try:
+                    importlib.import_module(dep)
+                except ImportError:
+                    print('*** Unable to import optional dependency "{}"'.format(dep))
+                    print('You will not be able to use {}'.format(msg))
+            else:
+                if run('which ' + dep, allow_fail=True).status_code != 0:
+                    print('*** Optional binary "{}" not on PATH'.format(dep))
+                    print('You will not be able to use {}'.format(msg))
+        #for (dep, msg) in OPT_DEPS:
+        #for (dep, msg) in OPT_BINS:
 
     def status(self):
         files_by_job_id = collections.defaultdict(list)

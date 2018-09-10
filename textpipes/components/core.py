@@ -96,6 +96,13 @@ class Pipe(Rule):
     def name(self):
         return self._name
 
+    @property
+    def opt_deps(self):
+        all_deps = set()
+        for component in self.components:
+            all_deps.update(component.opt_deps)
+        return all_deps
+
 
 class MonoPipe(Pipe):
     def __init__(self, components, main_inputs, main_outputs,
@@ -223,6 +230,7 @@ class PipeComponent(object):
     def __init__(self, side_inputs=None, side_outputs=None):
         self._side_inputs = side_inputs if side_inputs is not None else ()
         self._side_outputs = side_outputs if side_outputs is not None else ()
+        self.opt_deps = set()
 
     def pre_make(self, side_fobjs):
         """Called before __call__ (or all the single_cell calls)"""
@@ -231,6 +239,9 @@ class PipeComponent(object):
     def post_make(self, side_fobjs):
         """Called after __call__ (or all the single_cell calls)"""
         pass
+
+    def add_opt_dep(self, name, binary=False):
+        self.opt_deps.add((name, binary, self.__class__.__name__))
 
     @property
     def side_inputs(self):
