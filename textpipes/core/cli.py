@@ -398,8 +398,7 @@ class CLI(object):
             raise Exception('Cannot start running {}: {}'.format(
                 output, next_steps))
         next_step = concat[0]
-        job_id = self.log.outputs.get(
-            next_step.concrete[0], None)
+        job_id = self.log.job_id_from_outputs(next_step.concrete)
         if job_id is None:
             raise Exception('No scheduled job id for {}'.format(
                 next_step.concrete[0]))
@@ -619,6 +618,13 @@ class ExperimentLog(object):
     @property
     def last_job_id(self):
         return max([0] + list(int(x) for x in self.outputs.values()))
+
+    def job_id_from_outputs(self, concrete):
+        job_ids = [int(self.outputs[out]) for out in concrete
+                   if out in self.outputs]
+        if len(job_ids) == 0:
+            return None
+        return max(job_ids)
 
     def status(self):
         """Status summary from deeply parsing log"""
