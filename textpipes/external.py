@@ -28,9 +28,11 @@ def simple_external(name, inputs, outputs, template):
     """Helper to make integrating external tools easier"""
     assert '{argstr}' in template
     for inp_name in inputs:
-        assert '{' + inp_name + '}' in template
+        if '{' + inp_name + '}' not in template:
+            raise Exception('{' + inp_name + '} missing from template')
     for out_name in outputs:
-        assert '{' + out_name + '}' in template
+        if '{' + out_name + '}' not in template:
+            raise Exception('{' + out_name + '} missing from template')
     # FIXME: handle forbidding of .gz . fail in --check
 
     class SimpleExternalRule(Rule):
