@@ -26,7 +26,7 @@ def maybe_gz_out(outfile):
 
 def simple_external(name, inputs, outputs, template):
     """Helper to make integrating external tools easier"""
-    assert '{argstr}' in template
+    uses_argstr = '{argstr}' in template
     for inp_name in inputs:
         if '{' + inp_name + '}' not in template:
             raise Exception('{' + inp_name + '} missing from template')
@@ -39,6 +39,8 @@ def simple_external(name, inputs, outputs, template):
     class SimpleExternalRule(Rule):
         def __init__(self, input_rfs, output_rfs, argstr='', **kwargs):
             super().__init__(input_rfs, output_rfs, **kwargs)
+            if not uses_argstr and argstr != '':
+                raise Exception('No {argstr} in template, but argstr given')
             self.argstr = argstr
             self._name = name
             assert len(self.inputs) == len(inputs)
