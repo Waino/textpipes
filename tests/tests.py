@@ -3,6 +3,9 @@ import textpipes as tp
 recipe = tp.Recipe()
 conf = recipe.conf
 
+# this test suite contains a minimal graph to test the components
+# it does NOT represent recommended usage in a preprocessing pipeline
+
 # most external tools (anmt, ) are not tested here
 
 ### individual text input
@@ -11,6 +14,8 @@ ind_rules = (
     # counting.py
     ('count_tokens', tp.counting.CountTokens, {}),
     ('count_chars', tp.counting.CountChars, {}),
+    # truecaser.py
+    ('train_truecaser', tp.truecaser.TrainTrueCaser, {}),
     ### built-in features
     # transparent gzip
     ('gzip', tp.dummy.DummyParamPrint, {'name': 'gzip'}),
@@ -45,7 +50,11 @@ dep_rules = (
          recipe.use_output('outputs', 'count_tokens2')], {'balance': True}),
     # morfessor.py
     ('train_morfessor', tp.morfessor.TrainMorfessor, recipe.use_output('outputs', 'count_tokens'),
-        {'argstr': '--traindata-list -w 0.4'})
+        {'argstr': '--traindata-list -w 0.4'}),
+    # truecaser.py
+    ('truecase', tp.apply_component(tp.truecaser.TrueCase(
+        model_file=recipe.use_output('outputs', 'train_truecaser'))),
+        recipe.add_input('inputs', 'truecase'), {}),
     )
 
 for name, rule, inputs, kwargs in dep_rules:
@@ -57,6 +66,9 @@ dep_rules2 = (
     ('combine_wordlists', tp.counting.CombineWordlists, 
         [recipe.use_output('outputs', 'remove_counts'),
          recipe.use_output('outputs', 'count_tokens2_words')], {}),
+    # truecaser.py
+    ('detruecase', tp.apply_component(tp.truecaser.DeTrueCase()),
+        recipe.use_output('outputs', 'truecase'), {}),
     )
 for name, rule, inputs, kwargs in dep_rules2:
     out = recipe.add_output('outputs', name, main=True)
