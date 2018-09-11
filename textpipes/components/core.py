@@ -11,6 +11,10 @@ from ..core.utils import safe_zip, progress
 
 def apply_component(component, para=False, **kwargs):
     """Convenience function for applying a single PipeComponent"""
+    if isinstance(component, type):
+        raise TypeError(
+            'apply_component takes an instance, got type {}'.format(
+                component))
     if para:
         class WrappedComponent(ParallelPipe):
             def __init__(self, inp, out):

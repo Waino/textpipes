@@ -16,6 +16,7 @@ ind_rules = (
     ('count_chars', tp.counting.CountChars, {}),
     # truecaser.py
     ('train_truecaser', tp.truecaser.TrainTrueCaser, {}),
+    ('lowercase', tp.apply_component(tp.truecaser.LowerCase()), {}),
     ### built-in features
     # transparent gzip
     ('gzip', tp.dummy.DummyParamPrint, {'name': 'gzip'}),

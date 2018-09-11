@@ -169,5 +169,6 @@ class DeTrueCase(SingleCellComponent):
 
 
 class LowerCase(SingleCellComponent):
+    _is_mono_pipe_component = True
     def single_cell(self, sentence):
         return sentence.lower()
