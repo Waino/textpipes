@@ -14,24 +14,6 @@ from .utils import *
 
 logger = logging.getLogger('textpipes')
 
-# optional dependencies and what requires them
-OPT_DEPS = (
-    ('chrF', 'AnalyzeChrF'),
-    ('pandas', 'AnalyzeTranslations'),
-    ('ftfy', 'Clean'),
-    ('pybloom', 'Deduplicate'),
-    ('Levenshtein', 'Levenshtein')  # package python-Levenshtein
-    #('nltk', ''),
-    )
-# external binary optional deps:
-OPT_BINS = (
-    ('ftb-label', 'Finnpos'),
-    ('word2vec', 'Word2VecCluster'),
-    ('anmt', 'anmt'),
-    ('morfessor-segment', 'ApplyMorfessor'),
-    ('fast_align', 'FastAlign'),
-    )
-
 def get_parser(recipe):
     parser = argparse.ArgumentParser(
         description='TextPipes (recipe: {})'.format(recipe.name))
@@ -265,6 +247,7 @@ class CLI(object):
             if not binary:
                 try:
                     importlib.import_module(dep)
+                    print('Module dep {} OK'.format(dep))
                 except ImportError:
                     print('*** Unable to import optional dependency "{}"'.format(dep))
                     print('You will not be able to use {}'.format(msg))
@@ -272,6 +255,8 @@ class CLI(object):
                 if run('which ' + dep, allow_fail=True).status_code != 0:
                     print('*** Optional binary "{}" not on PATH'.format(dep))
                     print('You will not be able to use {}'.format(msg))
+                else:
+                    print('Binary dep {} OK'.format(dep))
         #for (dep, msg) in OPT_DEPS:
         #for (dep, msg) in OPT_BINS:
 

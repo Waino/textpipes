@@ -8,6 +8,7 @@ class MakeVocabularies(Rule):
     def __init__(self, *args, argstr='', **kwargs):
         super().__init__(*args, **kwargs)
         self.argstr = argstr
+        self.add_opt_dep('make_vocabularies.py', binary=True)
 
     def make(self, conf, cli_args):
         src_corpus_file = self.inputs[0](conf, cli_args)
@@ -27,6 +28,7 @@ class PrepareData(Rule):
         super().__init__(*args, **kwargs)
         self.corpus = corpus
         self.argstr = argstr
+        self.add_opt_dep('prepare_data.py', binary=True)
 
     def make(self, conf, cli_args):
         src_corpus_file = self.inputs[0](conf, cli_args)
@@ -69,6 +71,7 @@ class Train(Rule):
         inputs = [shard_file, heldout_src, heldout_trg]
         outputs = self.models + [log_file]
         super().__init__(inputs, outputs, **kwargs)
+        self.add_opt_dep('anmt', binary=True)
 
     def make(self, conf, cli_args):
         # loop index is appended by anmt to given path
@@ -134,6 +137,7 @@ class Translate(Rule):
 
         all_inputs = [model] + inputs
         super().__init__(all_inputs, outputs, **kwargs)
+        self.add_opt_dep('anmt', binary=True)
 
     def make(self, conf, cli_args):
         model = self.model(conf, cli_args)
@@ -195,6 +199,7 @@ class TranslateEnsemble(Rule):
         flat_models = [model for savepoints in self.models for model in savepoints]
         all_inputs = flat_models + inputs
         super().__init__(all_inputs, outputs, **kwargs)
+        self.add_opt_dep('anmt', binary=True)
 
     def make(self, conf, cli_args):
         models = ','.join(':'.join(model(conf, cli_args)
@@ -254,6 +259,8 @@ class Evaluate(Rule):
         outputs = [out_chrF1, out_chrF2, out_bleu]
         super().__init__(inputs, outputs,
                          resource_class=resource_class, **kwargs)
+        self.add_opt_dep('chrF_sgm', binary=True)
+        self.add_opt_dep('mteval-v13a.pl', binary=True)
 
     def make(self, conf, cli_args):
         inp_sgm = self.inp_sgm(conf, cli_args)
@@ -319,6 +326,7 @@ class EvaluateMultiBleu(Rule):
         outputs = [out_bleu]
         super().__init__(inputs, outputs,
                          resource_class=resource_class, **kwargs)
+        self.add_opt_dep('multi-bleu.perl', binary=True)
 
     def make(self, conf, cli_args):
         hyp = self.hyp(conf, cli_args)

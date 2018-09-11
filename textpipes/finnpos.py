@@ -18,6 +18,10 @@ class SingleSurfaceColumn(MonoPipeComponent):
             yield ''
 
 class Finnpos(Rule):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.add_opt_dep('ftb-label', binary=True)
+
     def make(self, conf, cli_args):
         infile = self.inputs[0](conf, cli_args)
         outfile = self.outputs[0](conf, cli_args)
@@ -245,6 +249,7 @@ class Word2VecCluster(Rule):
         super().__init__(*args, **kwargs)
         self.dims = dims
         self.clusters = clusters
+        self.add_opt_dep('word2vec', binary=True)
 
     def make(self, conf, cli_args):
         infile = self.inputs[0](conf, cli_args)

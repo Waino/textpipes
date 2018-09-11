@@ -33,6 +33,7 @@ def simple_external(name, inputs, outputs, template):
     for out_name in outputs:
         if '{' + out_name + '}' not in template:
             raise Exception('{' + out_name + '} missing from template')
+    program, _ = template.split(' ', 1)
     # FIXME: handle forbidding of .gz . fail in --check
 
     class SimpleExternalRule(Rule):
@@ -42,6 +43,7 @@ def simple_external(name, inputs, outputs, template):
             self._name = name
             assert len(self.inputs) == len(inputs)
             assert len(self.outputs) == len(outputs)
+            self.add_opt_dep(program, binary=True)
 
         def make(self, conf, cli_args):
             template_values = {}

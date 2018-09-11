@@ -61,6 +61,7 @@ class FastAlign(Rule):
     def __init__(self, inp, out, base_argstr='-v -d -o ', argstr='', **kwargs):
         super().__init__([inp], [out], **kwargs)
         self.argstr = base_argstr + argstr
+        self.add_opt_dep('fast_align', binary=True)
 
     def make(self, conf, cli_args):
         corpus_file = self.inputs[0](conf, cli_args)
@@ -76,6 +77,7 @@ class Symmetrize(Rule):
     def __init__(self, fwd, rev, out, command='grow-diag-final-and', **kwargs):
         super().__init__([fwd, rev], [out], **kwargs)
         self.command = command
+        self.add_opt_dep('atools', binary=True)
 
     def make(self, conf, cli_args):
         fwd_file = self.inputs[0](conf, cli_args)
@@ -125,6 +127,7 @@ class Levenshtein(SingleCellComponent):
     def __init__(self, separator='\t', **kwargs):
         super().__init__(**kwargs)
         self.separator = separator
+        self.add_opt_dep('Levenshtein', binary=False)
 
     def single_cell(self, line):
         left, right = line.split(self.separator)
@@ -156,6 +159,7 @@ class FilterLevenshteinLongEdits(Filter):
         super().__init__(**kwargs)
         self.max_len = max_len
         self.separator = separator
+        self.add_opt_dep('Levenshtein', binary=False)
 
     def __call__(self, line, side_fobjs=None):
         dist, left, right = line.split(self.separator)

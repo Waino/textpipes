@@ -25,6 +25,7 @@ class Deduplicate(Rule):
         self.dup_proportion = dup_proportion
         # if this many initial chars match, consider it a dup
         self.truncate = truncate
+        self.add_opt_dep('pybloom', binary=False)
 
     def make(self, conf, cli_args):
         estimated_lines = 1.2 * conf.conf['exp'].getint('n_lines', 500000000)

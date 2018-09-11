@@ -20,6 +20,7 @@ class ApplyMorfessor(Rule):
         self.sep = sep
         self.fmt = fmt
         assert no_space_ok or ' ' in self.sep
+        self.add_opt_dep('morfessor-segment', binary=True)
 
     def make(self, conf, cli_args):
         infile = self.inputs[0](conf, cli_args)

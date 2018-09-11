@@ -40,6 +40,7 @@ class Clean(SingleCellComponent):
             'max_decode_length': 1000000}
         self.params.update(kwargs)
         self.maintain_alignment = maintain_alignment
+        self.add_opt_dep('ftfy', binary=False)
 
     def single_cell(self, line):
         line = ftfy.fix_text(line, **self.params)

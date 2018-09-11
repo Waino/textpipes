@@ -12,6 +12,7 @@ class PrepareData(Rule):
         self.opennmt_dir = opennmt_dir
         self.max_shard_size = max_shard_size
         self.argstr = argstr
+        self.add_opt_dep(self.opennmt_dir + '/preprocess.py', binary=True)
 
     def make(self, conf, cli_args):
         src_corpus_file = self.inputs[0](conf, cli_args)
@@ -61,6 +62,7 @@ class Train(Rule):
         inputs = [data_dir]
         outputs = self.models
         super().__init__(inputs, outputs, **kwargs)
+        self.add_opt_dep(self.opennmt_dir + '/train.py', binary=True)
 
     def make(self, conf, cli_args):
         # a lot of stuff is appended to model path
@@ -127,6 +129,7 @@ class TrainShort(Rule):
             inputs.append(prev_model)
         outputs = [self.model]
         super().__init__(inputs, outputs, **kwargs)
+        self.add_opt_dep(self.opennmt_dir + '/train.py', binary=True)
 
     def make(self, conf, cli_args):
         # a lot of stuff is appended to model path
@@ -189,6 +192,7 @@ class Translate(Rule):
 
         all_inputs = [model] + inputs
         super().__init__(all_inputs, outputs, **kwargs)
+        self.add_opt_dep(self.opennmt_dir + '/translate.py', binary=True)
 
     def make(self, conf, cli_args):
         model = self.model(conf, cli_args)
@@ -245,6 +249,7 @@ class TranslateEnsemble(Rule):
 
         all_inputs = models + inputs
         super().__init__(all_inputs, outputs, **kwargs)
+        self.add_opt_dep(self.opennmt_dir + '/ensemble_translate.py', binary=True)
 
     def make(self, conf, cli_args):
         models_str = ' '.join(['-model {}'.format(model(conf, cli_args))

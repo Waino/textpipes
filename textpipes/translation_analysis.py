@@ -31,6 +31,7 @@ class EvaluateChrF(Rule):
             raise Exception('EvaluateChrF got {} output files '
                             'but {} betas'.format(len(outputs), len(betas)))
         self.betas = betas
+        self.add_opt_dep('chrF', binary=False)
 
     def make(self, conf, cli_args=None):
         hyp = self.hyp.open(conf, cli_args, mode='r')
@@ -107,9 +108,11 @@ class AnalyzeTranslations(ParallelPipe):
             (by_chrF1_output, by_chrF2_output, by_bleu_output,
              by_delta_chrF1_output, by_delta_chrF2_output, by_delta_bleu_output,
              by_delta_prod_output,))
+        self.add_opt_dep('pandas', binary=False)
 
     def make(self, conf, cli_args=None):
         try:
+            # heavy import, only do if necessary
             import pandas as pd
         except ImportError:
             # warnings emitted by check in cli
@@ -233,6 +236,7 @@ class AnalyzeChrF(ParallelPipeComponent):
             'sys_chrF1', 'sys_chrF2',
             'delta_chrF1', 'delta_chrF2',
         )
+        self.add_opt_dep('chrF', binary=False)
 
     def _chrf_helper(self, hypothesis, references):
         max_n = 6
