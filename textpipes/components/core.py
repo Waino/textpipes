@@ -234,7 +234,7 @@ class PipeComponent(object):
     def __init__(self, side_inputs=None, side_outputs=None):
         self._side_inputs = side_inputs if side_inputs is not None else ()
         self._side_outputs = side_outputs if side_outputs is not None else ()
-        self.opt_deps = set()
+        self._opt_deps = set()
 
     def pre_make(self, side_fobjs):
         """Called before __call__ (or all the single_cell calls)"""
@@ -245,7 +245,7 @@ class PipeComponent(object):
         pass
 
     def add_opt_dep(self, name, binary=False):
-        self.opt_deps.add(OptionalDep(name, binary, self.__class__.__name__))
+        self._opt_deps.add(OptionalDep(name, binary, self.__class__.__name__))
 
     @property
     def side_inputs(self):
@@ -255,6 +255,9 @@ class PipeComponent(object):
     def side_outputs(self):
         return self._side_outputs
 
+    @property
+    def opt_deps(self):
+        return self._opt_deps
 
 class MonoPipeComponent(PipeComponent):
     def __init__(self, *args, **kwargs):

@@ -4,7 +4,7 @@ import re
 from .core import MonoPipeComponent, ParallelPipeComponent, PipeComponent, apply_component
 from .preprocessing import Clean
 from ..core.utils import safe_zip
-from ..core.recipe import Rule
+from ..core.recipe import Rule, OptionalDep
 
 # used for removal of nonalphabetic content for rough comparisons
 # space and punc intentionally not included: tokenization invariant
@@ -42,6 +42,11 @@ class MonoFilter(MonoPipeComponent):
                 # keep this line
                 yield line
 
+    @property
+    def opt_deps(self):
+        return self.filtr.opt_deps
+
+
 class ParallelFilter(ParallelPipeComponent):
     def __init__(self, filters, logfile=None):
         side_inputs = []
@@ -76,16 +81,30 @@ class ParallelFilter(ParallelPipeComponent):
                 # keep this line
                 yield tpl
 
+    @property
+    def opt_deps(self):
+        all_deps = set()
+        filters = self.filters
+        if isinstance(filters, Filter):
+            filters = [filters]
+        for filtr in filters:
+            all_deps.update(filtr.opt_deps)
+        return all_deps
+
 
 class Filter(object):
     def __init__(self, side_inputs=None, side_outputs=None):
         self.side_inputs = side_inputs if side_inputs is not None else []
         self.side_outputs = side_outputs if side_outputs is not None else []
+        self.opt_deps = set()
 
     """Base class for filter implementations"""
     def __call__(self, line, side_fobjs=None):
         """Returns True if the line should be filtered out"""
         raise NotImplementedError()
+
+    def add_opt_dep(self, name, binary=False):
+        self.opt_deps.add(OptionalDep(name, binary, self.__class__.__name__))
 
 
 class ComparisonFilter(Filter):
