@@ -233,6 +233,8 @@ class CLI(object):
         for rf in self.recipe.files:
             try:
                 fname = rf(self.conf, self.cli_args)
+                if fname == '':
+                    print('empty path: {}:{}'.format(rf.section, rf.key))
             except KeyError:
                 warn.append(rf)
         if warn:
