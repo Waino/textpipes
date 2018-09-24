@@ -10,6 +10,9 @@ TrainMorfessor = simple_external(
     'TrainMorfessor', ['infile'], ['model'],
     'morfessor-train {infile} --save-segmentation {model} {argstr}')
 
+TrainFlatcat = simple_external(
+    'TrainFlatcat', ['infile'], ['model'],
+    'flatcat-train {infile} -s {model} {argstr}')
 
 class ApplyMorfessor(Rule):
     def __init__(self, *args,
@@ -34,6 +37,34 @@ class ApplyMorfessor(Rule):
                 outfile=outfile,
                 sep=self.sep,
                 fmt=self.fmt))
+
+
+class ApplyFlatcat(Rule):
+    def __init__(self, *args,
+                 sep='@@ ', fmt='{analysis}', argstr='',
+                 no_space_ok=False,
+                 **kwargs):
+        super().__init__(*args, **kwargs)
+        self.sep = sep
+        self.fmt = fmt
+        self.argstr = argstr
+        assert no_space_ok or ' ' in self.sep
+        self.add_opt_dep('morfessor-segment', binary=True)
+
+    def make(self, conf, cli_args):
+        infile = self.inputs[0](conf, cli_args)
+        model = self.inputs[1](conf, cli_args)
+        outfile = self.outputs[0](conf, cli_args)
+        run('{prog} {infile} --load-segmentation {model} --output {outfile}'
+            ' --output-format-separator "{sep}" --output-format "{fmt}"'
+            ' --output-newlines {argstr}'.format(
+                prog='flatcat-segment',
+                infile=infile,
+                model=model,
+                outfile=outfile,
+                sep=self.sep,
+                fmt=self.fmt,
+                argstr=self.argstr))
 
 
 class OverrideSegmentationComponent(MonoPipeComponent):
