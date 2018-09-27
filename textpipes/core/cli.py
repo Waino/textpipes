@@ -402,6 +402,7 @@ class CLI(object):
             conf = GridConfig.apply_override(self.conf, overrides)
         else:
             conf = self.conf
+        conf.autolog_for_jobid(job_id, output)
         self.recipe.make_output(output=output, conf=conf, cli_args=self.cli_args)
         self.log.finished_running(next_step, job_id, rule.name)
 

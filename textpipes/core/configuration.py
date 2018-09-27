@@ -12,6 +12,7 @@ class Config(object):
         self.name = name
         self.platform = platform
         self.conf = conf
+        self.current_autolog_path = None
 
     def read(self, main_conf_file, args):
         self.name, _ = os.path.splitext(main_conf_file)
@@ -69,6 +70,11 @@ class Config(object):
             self.pool = NoPool()
 
         return platf
+
+    def autolog_for_jobid(self, job_id, sec_key):
+        self.current_autolog_path = self.platform.autolog_for_jobid(
+            job_id, self, sec_key)
+        return self.current_autolog_path
 
     def __getitem__(self, key):
         return self.conf[key]

@@ -66,6 +66,9 @@ class Platform(object):
             return self.conf['resource_classes']['default']
         return self.conf['resource_classes'][resource_class]
 
+    def autolog_for_jobid(self, job_id, conf, sec_key):
+        return 'slurmlogs/{}_{}_{}.stdout'.format(conf.name, sec_key, job_id)
+
 
 class Local(Platform):
     def __init__(self, *args, **kwargs):
@@ -120,7 +123,7 @@ class Slurm(Platform):
         assert rc_args != 'make_immediately'
         cmd = self._cmd(recipe, conf, sec_key, overrides=overrides)
         job_name = '{}:{}'.format(conf.name, sec_key)
-        log_str = 'slurmlogs/{}_{}_%j.out'.format(conf.name, sec_key)
+        log_str = 'slurmlogs/{}_{}_%j.slurmout'.format(conf.name, sec_key)
         for i in range(rule.chain_schedule):
             if deps:
                 dep_args = ' --dependency=afterok:' + ':'.join(

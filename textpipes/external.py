@@ -24,7 +24,7 @@ def maybe_gz_out(outfile):
     else:
         return 'tee', outfile
 
-def simple_external(name, inputs, outputs, template):
+def simple_external(name, inputs, outputs, template, autolog_stdout=True):
     """Helper to make integrating external tools easier"""
     uses_argstr = '{argstr}' in template
     for inp_name in inputs:
@@ -34,6 +34,8 @@ def simple_external(name, inputs, outputs, template):
         if '{' + out_name + '}' not in template:
             raise Exception('{' + out_name + '} missing from template')
     program, _ = template.split(' ', 1)
+    if autolog_stdout:
+        template += '>> {autolog} 2>&1'
     # FIXME: handle forbidding of .gz . fail in --check
 
     class SimpleExternalRule(Rule):
@@ -54,6 +56,8 @@ def simple_external(name, inputs, outputs, template):
             for out_name, out in safe_zip(outputs, self.outputs):
                 template_values[out_name] = out(conf, cli_args)
             template_values['argstr'] = self.argstr
+            if autolog_stdout:
+                template_values['autolog'] = conf.current_autolog_path
             run(template.format(**template_values))
 
         @property
