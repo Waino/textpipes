@@ -17,6 +17,8 @@ ind_rules = (
     # truecaser.py
     ('train_truecaser', tp.truecaser.TrainTrueCaser, {}),
     ('lowercase', tp.apply_component(tp.truecaser.LowerCase()), {}),
+    # external.py
+    ('reencode', tp.external.ReEncode, {'from_encoding': 'ISO_8859-15'}),
     ### built-in features
     # transparent gzip
     ('gzip', tp.dummy.DummyParamPrint, {'name': 'gzip'}),

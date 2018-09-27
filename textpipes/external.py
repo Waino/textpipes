@@ -71,7 +71,8 @@ def ReEncode(infile, outfile, from_encoding='utf-8', to_encoding='utf-8//IGNORE'
         from_encoding=from_encoding, to_encoding=to_encoding)
     ReEncode = simple_external(
         'ReEncode', ['infile'], ['outfile'],
-        'iconv {argstr} {infile} -o {outfile}')
+        'iconv {argstr} {infile} -o {outfile}',
+        autolog_stdout=False)
     return ReEncode(infile, outfile, argstr=argstr)
 
 class Concatenate(Rule):

@@ -60,7 +60,7 @@ class TrainTrueCaserComponent(SingleCellComponent):
             logger.warning('Saved TrueCaser model was empty')
         # write model serialized into rows
         fobj = side_fobjs[self.model_file]
-        for (word, (best, sure)) in self.words.items():
+        for (word, (best, sure)) in sorted(self.words.items()):
             fobj.write('{}\t{}\t{}\n'.format(word, best, str(sure)))
 
 
