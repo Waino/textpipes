@@ -8,6 +8,55 @@ logger = logging.getLogger('textpipes')
 from ..core.utils import read_lang_file, FIVEDOT
 from .core import SingleCellComponent, RegexSubstitution
 
+# ### pyonmttok tokenizer
+class OnmtTokenize(SingleCellComponent):
+    """Tokenizer from pyonmttok.
+    Similar to SimpleTokenize.
+    Supports a large number of alphabets."""
+    def __init__(self,
+                 bnd_marker=FIVEDOT,
+                 aggressive=True,
+                 joiner_annotate=True,
+                 spacer_annotate=False,
+                 segment_alphabet_change=True,
+                 **kwargs):
+        super().__init__(**kwargs)
+        self.bnd_marker = bnd_marker
+        self.aggressive = aggressive
+        self.joiner_annotate = joiner_annotate
+        self.spacer_annotate = spacer_annotate
+        self.segment_alphabet_change = segment_alphabet_change
+        self.add_opt_dep('pyonmttok', binary=False)
+        self.tok = None
+
+    def pre_make(self, side_fobjs):
+        import pyonmttok
+        self.tok = pyonmttok.Tokenizer(
+            'aggressive' if self.aggressive else 'conservative',
+            joiner=self.bnd_marker,
+            joiner_annotate=self.joiner_annotate,
+            spacer_annotate=self.spacer_annotate,
+            segment_alphabet_change=self.segment_alphabet_change)
+
+    def single_cell(self, sentence):
+        tokens, feats = self.tok.tokenize(sentence)
+        # case feats currently not supported
+        return ' '.join(tokens)
+
+
+class OnmtDeTokenize(SingleCellComponent):
+    def __init__(self, tokenizer, **kwargs):
+        super().__init__(**kwargs)
+        self.tokenizer = tokenizer
+        self.add_opt_dep('pyonmttok', binary=False)
+
+    def pre_make(self, side_fobjs):
+        if self.tokenizer.tok is None:
+            self.tokenizer.pre_make(side_fobjs)
+
+    def single_cell(self, sentence):
+        return self.tokenizer.tok.detokenize(sentence.split(' '))
+
 
 # ### Simple tokenizer
 class SimpleTokenize(SingleCellComponent):
