@@ -326,7 +326,7 @@ class ForEach(ParallelPipeComponent):
     The operation MUST NOT filter out any lines.
     """
     def __init__(self, mono_component, **kwargs):
-        self._is_parallel_pipe_component = True
+        super().__init__(**kwargs)
         self.mono_component = mono_component
 
     def __call__(self, stream, side_fobjs=None,

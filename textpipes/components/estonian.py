@@ -2,7 +2,7 @@ from .filtering import Filter
 
 ACCENT_NOISE = set('/¥°ÇçÐÑÕÖàáâãäêîïòØÙùÎ')
 
-class AccentNoiseFilter(Filter):
+class FilterAccentNoise(Filter):
     """Noise sequences consisting of particular characters"""
     def __call__(self, line, side_fobjs=None):
         """Returns True if the line should be filtered out"""
