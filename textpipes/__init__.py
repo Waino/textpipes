@@ -20,6 +20,7 @@ def get_version():
 # when they are imported.
 
 from .core import *
+from .core.utils import FIVEDOT
 from . import components, check
 from . import finnpos, anmt, wmt_sgm, morfessor, multiling, dummy, opennmt
 from . import anmt_latent

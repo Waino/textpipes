@@ -230,7 +230,9 @@ class CLI(object):
                 print('********** WARNING! No paths.dirs defined')
         # check that output paths are in config
         warn = []
-        for rf in self.recipe.files:
+        for (rf, rule) in self.recipe.files.items():
+            if rule == UNUSED_OUTPUT:
+                print('unused output: {}:{}'.format(rf.section, rf.key))
             try:
                 fname = rf(self.conf, self.cli_args)
                 if fname == '':
@@ -591,7 +593,8 @@ class ExperimentLog(object):
 
     def is_done(self, rf, conf, cli_args=None):
         rf_status = rf.status(conf, cli_args)
-        if rf_status == 'not done':
+        if rf_status in ('not done', 'empty'):
+            # FIXME: add failed to log if empty?
             return False
         elif rf_status == 'done':
             return True
