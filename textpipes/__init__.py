@@ -25,6 +25,7 @@ from . import components, check
 from . import finnpos, anmt, wmt_sgm, morfessor, multiling, dummy, opennmt
 from . import anmt_latent
 from . import translation_analysis
+from . import lmclean
 
 # Most common rules for easy access
 from .dedup import Deduplicate
