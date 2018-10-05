@@ -1,6 +1,5 @@
 from .core.platform import run
 from .core.recipe import Rule, LoopRecipeFile
-from .components.core import DeadEndPipe, SingleCellComponent
 from .external import simple_external
 
 # args: --emb-dim N --hidden-dim N --n-layers N --dropout-p X --learning-rate X
@@ -60,7 +59,7 @@ ScoreLmclean = simple_external(
     'ScoreLmclean', ['model', 'testfile'], ['scorefile'],
     'lmclean-score {model} {testfile} --output {scorefile} {argstr}')
 
-class ChooseModel(DeadEndPipe):
+class ChooseModel(Rule):
     def __init__(self, model_seckey, eval_seckey, outfile, loop_indices,
                  **kwargs):
         self.loop_indices = loop_indices
@@ -69,13 +68,25 @@ class ChooseModel(DeadEndPipe):
         self.evals = LoopRecipeFile.loop_output(
             eval_seckey[0], eval_seckey[1], self.loop_indices)
         self.outfile = outfile
+        inputs = self.models + self.evals
+        super().__init__(inputs, [outfile], **kwargs)
 
-        def ChooseModelComponent(SingleCellComponent):
-            def __call__(self, stream, side_fobjs=None,
-                         config=None, cli_args=None):
-                pass
+    def make(self, conf, cli_args):
+        scores = sorted([(self.parse(ev, conf, cli_args), model)
+                         for (ev, model) in zip(self.evals, self.models)],
+                        key=lambda x: x[0])
+        best = scores[0][1]
+        with open(self.outfile(conf, cli_args), mode='w') as fobj:
+            fobj.write(best(conf, cli_args))
+            fobj.write('\n')
 
-            def post_make(self, side_fobjs):
-                pass
-
-        super().__init__([ChooseModelComponent()], self.evals, **kwargs)
+    def parse(self, ev, conf, cli_args):
+        with open(ev(conf, cli_args), mode='r') as infobj:
+            for line in infobj:
+                fields = line.strip().split('\t')
+                if len(fields) < 3:
+                    continue
+                if fields[0] == 'loss':
+                    continue
+                score = float(fields[0])
+                return score
