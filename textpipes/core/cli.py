@@ -231,8 +231,8 @@ class CLI(object):
         # check that output paths are in config
         warn = []
         for (rf, rule) in self.recipe.files.items():
-            if rule == UNUSED_OUTPUT:
-                print('unused output: {}:{}'.format(rf.section, rf.key))
+            if rule == UNBOUND_OUTPUT:
+                print('unbound output: {}:{}'.format(rf.section, rf.key))
             try:
                 fname = rf(self.conf, self.cli_args)
                 if fname == '':

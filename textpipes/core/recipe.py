@@ -53,8 +53,14 @@ NextSteps = collections.namedtuple('NextSteps',
 OptionalDep = collections.namedtuple('OptionalDep',
     ['name', 'binary', 'component'])
 
-UNUSED_OUTPUT = object()
+class UnboundOutput(object):
+    def __init__(self):
+        self.opt_deps = set()
 
+    def __repr__(self):
+        print('UNBOUND_OUTPUT')
+UNBOUND_OUTPUT = UnboundOutput()
+        
 class Recipe(object):
     """Main class for building experiment recipes"""
     def __init__(self, name=None, argv=None):
@@ -69,7 +75,7 @@ class Recipe(object):
         except AttributeError:
             self.name = name
             assert name is not None
-        # RecipeFile -> Rule, None or UNUSED_OUTPUT
+        # RecipeFile -> Rule, None or UNBOUND_OUTPUT
         self.files = {}
         # Main outputs, for easy CLI access
         self._main_out = set()
@@ -101,7 +107,7 @@ class Recipe(object):
                 raise Exception('There is already a rule for {}'.format(rf))
         if main:
             self._main_out.add(rf)
-        self.files[rf] = UNUSED_OUTPUT
+        self.files[rf] = UNBOUND_OUTPUT
         return rf
 
     def use_output(self, section, key, loop_index=None, **kwargs):
@@ -113,7 +119,7 @@ class Recipe(object):
     def add_rule(self, rule):
         for rf in rule.outputs:
             if rf in self.files:
-                if self.files[rf] == UNUSED_OUTPUT:
+                if self.files[rf] == UNBOUND_OUTPUT:
                     # replacing placeholder with Rule
                     pass
                 elif self.files[rf] is None:
@@ -481,7 +487,7 @@ class Rule(object):
         return self._opt_deps
 
     def __eq__(self, other):
-        if other == UNUSED_OUTPUT:
+        if other == UNBOUND_OUTPUT:
             return False
         return (self.name, self.inputs, self.outputs) \
             == (other.name, other.inputs, other.outputs)
@@ -579,6 +585,7 @@ class LoopRecipeFile(RecipeFile):
     def __init__(self, section, key, loop_index, **kwargs):
         super().__init__(section, key, **kwargs)
         self.loop_index = int(loop_index)
+        self._silence_warn = False
 
     def __call__(self, conf, cli_args=None):
         path = conf.get_path(self.section, self.key)
