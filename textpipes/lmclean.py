@@ -10,16 +10,16 @@ class TrainLmclean(Rule):
     def __init__(self,
                  train_file, dev_file, pipe_file,
                  model_seckey,
-                 save_every=2000, final=40000, argstr='',
+                 save_every=2000, epochs=8, argstr='',
                  **kwargs):
-        self.loop_indices = [x + save_every for x in range(0, final, save_every)]
+        self.loop_indices = [x + 1 for x in range(0, epochs)]
         self.models = LoopRecipeFile.loop_output(
             model_seckey[0], model_seckey[1], self.loop_indices)
         self.train_file = train_file
         self.dev_file = dev_file
         self.pipe_file = pipe_file
         self.save_every = save_every
-        self.final = final
+        self.epochs = epochs
         self.argstr = argstr
 
         inputs = [train_file, dev_file]
@@ -28,7 +28,7 @@ class TrainLmclean(Rule):
         self.add_opt_dep('lmclean-train', binary=True)
 
     def make(self, conf, cli_args):
-        model_base, _ = self.models[0](conf, cli_args).rsplit('.', 1)
+        model_base, _, _ = self.models[0](conf, cli_args).rsplit('.', 2)
         run('lmclean-train'
             ' {model_base} {train_file} {dev_file} --save-every {save_every} {argstr}'
             ' >> {pipe_file} 2>&1'.format(

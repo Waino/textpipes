@@ -658,3 +658,25 @@ class WildcardLoopRecipeFile(LoopRecipeFile):
         """Create a sequence of LoopRecipeFiles with the given indices"""
         return [WildcardLoopRecipeFile(section, key, loop_index)
                 for loop_index in loop_indices]
+
+
+class IndirectRecipeFile(RecipeFile):
+    """A RecipeFile that reads a concrete file name from a separate file
+    """
+    def __call__(self, conf, cli_args=None):
+        link_path = super().__call__(conf, cli_args)
+        if not os.path.exists(link_path):
+            return link_path
+        with open(link_path, 'r') as fobj:
+            target_path = fobj.readline().strip()
+        return target_path
+
+    def status(self, conf, cli_args=None):
+        link_path = super().__call__(conf, cli_args)
+        if not os.path.exists(link_path):
+            # if the link doesn't exist, it can't be done
+            return 'not done'
+        return super().status(conf, cli_args)
+
+    def __repr__(self):
+        return 'IndirectRecipeFile({}, {})'.format(self.section, self.key)
