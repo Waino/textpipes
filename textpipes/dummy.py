@@ -65,8 +65,10 @@ class DummyParamPrint(MonoPipe):
 class Manual(Rule):
     """A hack for including manual processing steps.
     Will throw exception if actually run."""
-    def __init__(self, inputs, outputs):
+    def __init__(self, inputs, outputs, message='Manual'):
         super().__init__(inputs, outputs)
+        self.message = message
+        self.blocks_recursion = True
 
     def make(self, conf, cli_args):
-        raise Exception('Manual should be run manually')
+        raise Exception('Should be run manually: {}'.format(self.message))

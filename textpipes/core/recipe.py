@@ -198,6 +198,8 @@ class Recipe(object):
         seen_done = set()
         # inputs
         missing = set()
+        # jobs that depend on a blocking job
+        blocked = set()
         # JobStatus. informational only
         done = []
         running = []
@@ -298,6 +300,12 @@ class Recipe(object):
                 not_done = tuple(inp for inp in rule.inputs
                                  if inp not in seen_done)
                 concrete = [rf(self.conf, cli_args) for rf in rule.outputs]
+                if rule.blocks_recursion:
+                    blocked.add(cursor)
+                if any(inp in blocked for inp in rule.inputs):
+                    # this job is blocked from running
+                    blocked.add(cursor)
+                    continue
                 if len(not_done) > 0:
                     # must wait for some inputs to be built first
                     delayed.append(JobStatus('delayed',
@@ -447,6 +455,7 @@ class Rule(object):
             rf.atomic = self.is_atomic(rf)
         self.chain_schedule = max(chain_schedule, 1)
         self._opt_deps = set()
+        self.blocks_recursion = False
 
     def make(self, conf, cli_args=None):
         raise NotImplementedError()
