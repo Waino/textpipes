@@ -194,6 +194,10 @@ class CLI(object):
         # exp section is assumed to always exist
         if 'exp' not in self.conf.conf.sections():
             print('********** WARNING! NO "exp" SECTION in conf **********')
+        try:
+            seed = self.conf.conf['exp']['seed']
+        except KeyError:
+            print('exp:seed NOT set, randomness is non-repeatable')
         if 'git' in self.platform.conf:
             if len(self.platform.conf['git']) == 0:
                 print('********** WARNING! EMPTY gitdir list in platform conf **********')

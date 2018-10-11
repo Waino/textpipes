@@ -179,6 +179,10 @@ class Shuffle(PipeComponent):
     def __call__(self, stream, side_fobjs=None,
                  config=None, cli_args=None):
         stream = list(stream)
+        try:
+            random.seed(config['exp']['seed'])
+        except KeyError:
+            pass
         random.shuffle(stream)
         for line in stream:
             yield line

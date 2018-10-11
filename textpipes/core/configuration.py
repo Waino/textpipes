@@ -2,6 +2,7 @@ import configparser
 import io
 import itertools
 import os
+import random
 
 from . import platform
 from .utils import LazyPool, NoPool
@@ -30,6 +31,8 @@ class Config(object):
                             lines = [line.replace(pattern, repl) for line in lines]
                 self.conf.read_file(lines)
         self.force = args.force
+        if 'seed' in self.conf['exp']:
+            random.seed(self.conf['exp']['seed'])
 
     def get_path(self, section, key):
         try:
