@@ -129,7 +129,7 @@ class LearnBPE(Rule):
         # FIXME: would be much better if this would fail in --check
         assert not infile.endswith('.gz')
         assert not outfile.endswith('.gz')
-        run('{prog} --input {infile} --output {outfile}'
+        run('python {prog} --input {infile} --output {outfile}'
             ' --symbols {vocabulary} {wc}'.format(
                 prog=self.program,
                 infile=infile,
@@ -151,7 +151,7 @@ class ApplyBPE(Rule):
         assert not infile.endswith('.gz')
         assert not codes.endswith('.gz')
         assert not outfile.endswith('.gz')
-        run('{prog} --input {infile} --codes {codes} --output {outfile}'
+        run('python {prog} --input {infile} --codes {codes} --output {outfile}'
             ' --separator "{sep}"'.format(
                 prog=os.path.join(WRAPPER_DIR, 'apply_bpe.py'),
                 infile=infile,

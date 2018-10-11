@@ -41,4 +41,5 @@ from .components.preprocessing import *
 from .components.filtering import apply_filter, Filter, \
     MonoFilter, ParallelFilter, FilterByLength
 from .components.tokenizer import Tokenize
+from .components.segmentation import ApplySegmentation
 from .components.core import *
