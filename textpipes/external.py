@@ -120,6 +120,8 @@ class LearnBPE(Rule):
         super().__init__(*args, **kwargs)
         self.vocabulary = vocabulary
         self.wordcounts = wordcounts
+        self.program = os.path.join(WRAPPER_DIR, 'learn_bpe.py')
+        self.add_opt_dep(self.program, binary=True)
 
     def make(self, conf, cli_args):
         infile = self.inputs[0](conf, cli_args)
@@ -129,7 +131,7 @@ class LearnBPE(Rule):
         assert not outfile.endswith('.gz')
         run('{prog} --input {infile} --output {outfile}'
             ' --symbols {vocabulary} {wc}'.format(
-                prog=os.path.join(WRAPPER_DIR, 'learn_bpe.py'),
+                prog=self.program,
                 infile=infile,
                 outfile=outfile,
                 vocabulary=self.vocabulary,
@@ -137,9 +139,9 @@ class LearnBPE(Rule):
                 ))
 
 class ApplyBPE(Rule):
-    def __init__(self, *args, sep='@@', **kwargs):
+    def __init__(self, *args, bnd_marker='@@', **kwargs):
         super().__init__(*args, **kwargs)
-        self.sep = sep
+        self.sep = bnd_marker
 
     def make(self, conf, cli_args):
         infile = self.inputs[0](conf, cli_args)

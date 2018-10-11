@@ -5,7 +5,7 @@ import re
 
 logger = logging.getLogger('textpipes')
 
-FIVEDOT = '\u2059' # 5-dot punctuation
+FIVEDOT = '\u2059' # 5-dot punctuation Default subword-boundary marker.
 LETTERING_BEG = '\u2e2b' # v 3-dot
 LETTERING_MID = '\u2e2c' # ^ 3-dot
 LETTERING_END = '\u2e2d' # + 4-dot
@@ -323,7 +323,7 @@ class ApplyMapping(MonoPipeComponent):
 # apply a segmentation
 # FIXME: there are two different apply components (the other in segmentation.py)
 class ApplySegmentation(ApplyMapping):
-    def __init__(self, map_file, bnd_marker='@@ ', pre_marked=False, no_space_ok=False, **kwargs):
+    def __init__(self, map_file, bnd_marker=FIVEDOT+' ', pre_marked=False, no_space_ok=False, **kwargs):
         super().__init__(map_file, **kwargs)
         self.bnd_marker = bnd_marker
         self.pre_marked = pre_marked
@@ -346,7 +346,7 @@ class ApplySegmentation(ApplyMapping):
 
 
 class SplitNumbers(RegexSubstitution):
-    """ split number-punctuation sequences """
+    """ split number-punctuation sequences using @@ """
     # FIXME: also split long numbers into shorter chunks?
     def __init__(self, **kwargs):
         super().__init__([(r'(\d)([.,/-])(\d)', r'\1@@ \2@@ \3')], **kwargs)

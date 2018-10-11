@@ -3,6 +3,7 @@ import logging
 import math
 
 from .core.recipe import Rule
+from .core.utils import FIVEDOT
 from .components.core import SingleCellComponent, DeadEndPipe, \
     MonoPipe, MonoPipeComponent, apply_component
 from .components.filtering import Filter
@@ -73,7 +74,10 @@ class ScaleCounts(MonoPipe):
 
 
 class CombineCounts(MonoPipe):
-    def __init__(self, inputs, output, reverse=False, words_only=None, balance=False, threshold=0, **kwargs):
+    def __init__(self, inputs, output,
+                 reverse=False, words_only=None, balance=False,
+                 threshold=0, bnd_marker=None,
+                 **kwargs):
         extra_side_outputs = (words_only,) if words_only else ()
         super().__init__([], inputs, [output], extra_side_outputs=extra_side_outputs, **kwargs)
         self.output = output
@@ -86,6 +90,8 @@ class CombineCounts(MonoPipe):
         self.balance = balance
         # minimum unscaled count to include in output
         self.threshold = threshold
+        # strip boundary markers
+        self.bnd_marker = bnd_marker
 
     def make(self, conf, cli_args=None):
         combined_counts = collections.Counter()
@@ -108,6 +114,8 @@ class CombineCounts(MonoPipe):
                     wtype, count = line.split('\t')
                     count = int(count)
                 count_sum += count
+                if self.bnd_marker is not None:
+                    wtype = wtype.strip(self.bnd_marker)
                 if count >= self.threshold:
                     counts[wtype] += count
             in_fobj.close()
@@ -147,6 +155,18 @@ class CombineWordlistsComponent(MonoPipeComponent):
 CombineWordlists = apply_component(CombineWordlistsComponent(), auto_concat=True)
 
 
+class TresholdCounts(Filter):
+    """Remove rare words"""
+    def __init__(self, threshold=0):
+        super().__init__()
+        self.threshold = threshold
+
+    def __call__(self, line, side_fobjs=None):
+        """Returns True if the line should be filtered out"""
+        count, wtype = line.strip().split()
+        return int(count) < self.threshold
+
+
 class FilterCounts(Filter):
     """Apply a filter to counts based on just the token"""
     def __init__(self, filtr):
@@ -165,6 +185,13 @@ class RemoveCountsComponent(SingleCellComponent):
         return wtype
 
 RemoveCounts = apply_component(RemoveCountsComponent())
+
+
+class ReverseCountsComponent(SingleCellComponent):
+    """BPE wants counts reversed"""
+    def single_cell(self, line):
+        count, wtype = line.strip().split()
+        return '{}\t{}'.format(wtype, count)
 
 
 class SegmentCountsFile(SingleCellComponent):
