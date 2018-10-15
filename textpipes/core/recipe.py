@@ -92,7 +92,10 @@ class Recipe(object):
             return LoopRecipeFile(section, key, loop_index, **kwargs)
 
     def add_input(self, section, key, loop_index=None, **kwargs):
-        rf = self._make_rf(section, key, loop_index=loop_index, **kwargs)
+        if isinstance(section, RecipeFile) and key is None:
+            rf = section
+        else:
+            rf = self._make_rf(section, key, loop_index=loop_index, **kwargs)
         rf.atomic = True
         if rf not in self.files:
             self.files[rf] = None
@@ -228,6 +231,8 @@ class Recipe(object):
                 rule = self.files[cursor]
             except KeyError:
                 raise Exception('No rule to build requested output {}'.format(cursor))
+            if rule == UNBOUND_OUTPUT:
+                continue
             # check log for waiting/running jobs
             if rule is not None:
                 concrete = [rf(self.conf, cli_args) for rf in rule.outputs]
