@@ -359,13 +359,13 @@ class Recipe(object):
             mtime = os.path.getmtime(cursor(self.conf, cli_args))
             mtimes[cursor] = mtime
             rule = self.files[cursor]
-            if rule is None:
+            if rule is None or rule == UNBOUND_OUTPUT:
                 continue
             border.update(rule.inputs)
         inversions = []
         for cursor in mtimes:
             rule = self.files[cursor]
-            if rule is None:
+            if rule is None or rule == UNBOUND_OUTPUT:
                 continue
             for inp in rule.inputs:
                 if mtimes.get(inp, 0) > mtimes[cursor]:

@@ -35,7 +35,7 @@ def simple_external(name, inputs, outputs, template, autolog_stdout=True):
             raise Exception('{' + out_name + '} missing from template')
     program, _ = template.split(' ', 1)
     if autolog_stdout:
-        template += '>> {autolog} 2>&1'
+        template += ' >> {autolog} 2>&1'
     # FIXME: handle forbidding of .gz . fail in --check
 
     class SimpleExternalRule(Rule):
