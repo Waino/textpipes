@@ -31,6 +31,12 @@ def parse_override_string(override_str):
             overrides[sec_key] = val
     return overrides
 
+def passthrough_args(conf):
+    result = []
+    if conf.force:
+        result.append(' --force')
+    return ''.join(result)
+
 class Platform(object):
     def __init__(self, name, conf):
         self.name = name
@@ -42,9 +48,11 @@ class Platform(object):
 
     def _cmd(self, recipe, conf, sec_key, overrides=None):
         override_str = make_override_string(overrides)
-        return 'python {recipe}.py {conf}.ini --make {sec_key} --platform {platform}{overrides}'.format(
+        pargs = passthrough_args(conf)
+        return 'python {recipe}.py {conf}.ini --make {sec_key} --platform {platform}{overrides}{pargs}'.format(
             recipe=recipe.name, conf=conf.name, sec_key=sec_key,
-            platform=self.name, overrides=override_str)
+            platform=self.name, overrides=override_str,
+            pargs=pargs)
 
     def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
         # -> job id (or None if not scheduled)

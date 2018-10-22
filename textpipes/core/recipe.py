@@ -259,6 +259,8 @@ class Recipe(object):
                         cursor(self.conf, cli_args),
                         job_fields.status,
                         cursor.status(self.conf, cli_args)))
+                    if self.conf.force:
+                        seen_done.add(cursor)
                 else:
                     seen_done.add(cursor)
                 continue
