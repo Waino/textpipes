@@ -1,9 +1,32 @@
 import random
 
-from .core import PipeComponent
+from .core import PipeComponent, MonoPipeComponent, DeadEndPipe
 from ..core.recipe import Rule
 
+def split_dataset(inputs, train_file,
+                  dev_file=None, test_file=None,
+                  dev_size=0, test_size=0, **kwargs):
+    components = [Shuffle()]
+    used_lines = 0
+    if dev_size:
+        assert dev_file is not None
+        components.append(HeadTee(dev_size, dev_file))
+        used_lines += dev_size
+    if test_size:
+        assert test_file is not None
+        components.append(SliceTee(
+            used_lines, used_lines + test_size, test_file))
+        used_lines += test_size
+    components.append(TailTee(
+        used_lines, train_file))
+    return DeadEndPipe(components, inputs,
+                       name='SplitDataset',
+                       **kwargs)
+
+
 class Head(PipeComponent):
+    """Removes from the stream everything except for
+    the specified number of lines/tuples from the begining"""
     def __init__(self, limit):
         super().__init__()
         self.limit = int(limit)
@@ -19,6 +42,8 @@ class Head(PipeComponent):
             yield line
 
 class Tail(PipeComponent):
+    """Removes from the stream everything except for
+    the specified number of lines/tuples from the end"""
     def __init__(self, skip):
         super().__init__()
         self.skip = int(skip)
@@ -31,6 +56,61 @@ class Tail(PipeComponent):
         for (i, line) in enumerate(stream):
             if i < self.skip:
                 continue
+            yield line
+
+class HeadTee(MonoPipeComponent):
+    """Passes the stream unchanged, while copying
+    the specified number of lines from the begining
+    to sub_file"""
+    def __init__(self, limit, sub_file):
+        super().__init__(side_outputs=[sub_file])
+        self.sub_file = sub_file
+        self.limit = int(limit)
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        writer = side_fobjs[self.sub_file]
+        for (i, line) in enumerate(stream):
+            if i < self.limit:
+                writer.write(line)
+                writer.write('\n')
+            yield line
+
+class SliceTee(MonoPipeComponent):
+    """Passes the stream unchanged, while copying
+    the specified number of lines from the middle
+    to sub_file"""
+    def __init__(self, start, end, sub_file):
+        super().__init__(side_outputs=[sub_file])
+        self.sub_file = sub_file
+        self.start = int(start)
+        self.end = int(end)
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        writer = side_fobjs[self.sub_file]
+        for (i, line) in enumerate(stream):
+            if self.start <= i < self.end:
+                writer.write(line)
+                writer.write('\n')
+            yield line
+
+class TailTee(MonoPipeComponent):
+    """Passes the stream unchanged, while copying
+    the specified number of lines from the end
+    to sub_file"""
+    def __init__(self, skip, sub_file):
+        super().__init__(side_outputs=[sub_file])
+        self.sub_file = sub_file
+        self.skip = int(skip)
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        writer = side_fobjs[self.sub_file]
+        for (i, line) in enumerate(stream):
+            if i >= self.skip:
+                writer.write(line)
+                writer.write('\n')
             yield line
 
 # for backwards compatibility
@@ -99,6 +179,10 @@ class Shuffle(PipeComponent):
     def __call__(self, stream, side_fobjs=None,
                  config=None, cli_args=None):
         stream = list(stream)
+        try:
+            random.seed(config['exp']['seed'])
+        except KeyError:
+            pass
         random.shuffle(stream)
         for line in stream:
             yield line

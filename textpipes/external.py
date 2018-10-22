@@ -24,7 +24,7 @@ def maybe_gz_out(outfile):
     else:
         return 'tee', outfile
 
-def simple_external(name, inputs, outputs, template):
+def simple_external(name, inputs, outputs, template, autolog_stdout=True):
     """Helper to make integrating external tools easier"""
     uses_argstr = '{argstr}' in template
     for inp_name in inputs:
@@ -34,6 +34,8 @@ def simple_external(name, inputs, outputs, template):
         if '{' + out_name + '}' not in template:
             raise Exception('{' + out_name + '} missing from template')
     program, _ = template.split(' ', 1)
+    if autolog_stdout:
+        template += ' >> {autolog} 2>&1'
     # FIXME: handle forbidding of .gz . fail in --check
 
     class SimpleExternalRule(Rule):
@@ -54,6 +56,8 @@ def simple_external(name, inputs, outputs, template):
             for out_name, out in safe_zip(outputs, self.outputs):
                 template_values[out_name] = out(conf, cli_args)
             template_values['argstr'] = self.argstr
+            if autolog_stdout:
+                template_values['autolog'] = conf.current_autolog_path
             run(template.format(**template_values))
 
         @property
@@ -67,7 +71,8 @@ def ReEncode(infile, outfile, from_encoding='utf-8', to_encoding='utf-8//IGNORE'
         from_encoding=from_encoding, to_encoding=to_encoding)
     ReEncode = simple_external(
         'ReEncode', ['infile'], ['outfile'],
-        'iconv {argstr} {infile} -o {outfile}')
+        'iconv {argstr} {infile} -o {outfile}',
+        autolog_stdout=False)
     return ReEncode(infile, outfile, argstr=argstr)
 
 class Concatenate(Rule):
@@ -115,6 +120,8 @@ class LearnBPE(Rule):
         super().__init__(*args, **kwargs)
         self.vocabulary = vocabulary
         self.wordcounts = wordcounts
+        self.program = os.path.join(WRAPPER_DIR, 'learn_bpe.py')
+        self.add_opt_dep(self.program, binary=True)
 
     def make(self, conf, cli_args):
         infile = self.inputs[0](conf, cli_args)
@@ -122,9 +129,9 @@ class LearnBPE(Rule):
         # FIXME: would be much better if this would fail in --check
         assert not infile.endswith('.gz')
         assert not outfile.endswith('.gz')
-        run('{prog} --input {infile} --output {outfile}'
+        run('python {prog} --input {infile} --output {outfile}'
             ' --symbols {vocabulary} {wc}'.format(
-                prog=os.path.join(WRAPPER_DIR, 'learn_bpe.py'),
+                prog=self.program,
                 infile=infile,
                 outfile=outfile,
                 vocabulary=self.vocabulary,
@@ -132,9 +139,9 @@ class LearnBPE(Rule):
                 ))
 
 class ApplyBPE(Rule):
-    def __init__(self, *args, sep='@@', **kwargs):
+    def __init__(self, *args, bnd_marker='@@', **kwargs):
         super().__init__(*args, **kwargs)
-        self.sep = sep
+        self.sep = bnd_marker
 
     def make(self, conf, cli_args):
         infile = self.inputs[0](conf, cli_args)
@@ -144,7 +151,7 @@ class ApplyBPE(Rule):
         assert not infile.endswith('.gz')
         assert not codes.endswith('.gz')
         assert not outfile.endswith('.gz')
-        run('{prog} --input {infile} --codes {codes} --output {outfile}'
+        run('python {prog} --input {infile} --codes {codes} --output {outfile}'
             ' --separator "{sep}"'.format(
                 prog=os.path.join(WRAPPER_DIR, 'apply_bpe.py'),
                 infile=infile,

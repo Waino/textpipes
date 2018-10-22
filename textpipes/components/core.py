@@ -2,6 +2,7 @@
 Components are text processing operations expressed as Python generators.
 """
 
+import collections
 import re
 import itertools
 
@@ -326,7 +327,7 @@ class ForEach(ParallelPipeComponent):
     The operation MUST NOT filter out any lines.
     """
     def __init__(self, mono_component, **kwargs):
-        self._is_parallel_pipe_component = True
+        super().__init__(**kwargs)
         self.mono_component = mono_component
 
     def __call__(self, stream, side_fobjs=None,
@@ -410,30 +411,51 @@ class RegexSubstitution(SingleCellComponent):
         return line
 
 
-class ApplyLexicon(SingleCellComponent):
+class ApplyMapping(MonoPipeComponent):
     """Substitutes words with replacements defined in a lexicon.
 
     Note that the source form must be a single word (no internal spaces),
     but the replacement string is arbitrary.
     If you need to replace multiwords, use e.g. RegexSubstitution instead.
+
+    OOV words missing from the lexicon are passed through unmodified,
+    and optionally logged into a file.
     """
-    def __init__(self, lexicon_file, **kwargs):
-        super().__init__(side_inputs=[lexicon_file], **kwargs)
-        self.lexicon_file = lexicon_file
-        self.lexicon = {}
+    def __init__(self, map_file, log=None, **kwargs):
+        side_outputs = [log] if log is not None else []
+        super().__init__(side_inputs=[map_file], side_outputs=side_outputs, **kwargs)
+        self.map_file = map_file
+        self.mapping = {}
+        self.log = log
+        self.missing = collections.Counter()
 
     def pre_make(self, side_fobjs):
-        fobj = side_fobjs[self.lexicon_file]
-        for line in fobj:
+        for line in side_fobjs[self.map_file]:
             # lexicon file should contain two columns
             # words in the first are mapped to the second
-            exp, repl = line.strip().split('\t', 1)
-            self.lexicon[exp] = repl
+            src, tgt = line.rstrip('\n').split('\t', 1)
+            self.mapping[src] = tgt
 
-    def single_cell(self, sentence):
-        return ' '.join(
-            self.lexicon.get(token, token)
-            for token in sentence.split())
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        for line in stream:
+            result = []
+            for token in line.split():
+                mapped = self.lookup_mapping(token)
+                result.append(mapped)
+            yield ' '.join(result)
+
+    def lookup_mapping(self, token):
+        if self.log is not None:
+            if token not in self.mapping:
+                self.missing[token] += 1
+        return self.mapping.get(token, token)
+
+    def post_make(self, side_fobjs):
+        if self.log is not None:
+            fobj = side_fobjs[self.log]
+            for word, count in self.missing.most_common():
+                fobj.write('{}\t{}\n'.format(count, word))
 
 
 class RegexDispatch(MonoPipeComponent):

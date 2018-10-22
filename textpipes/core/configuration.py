@@ -2,6 +2,7 @@ import configparser
 import io
 import itertools
 import os
+import random
 
 from . import platform
 from .utils import LazyPool, NoPool
@@ -12,6 +13,7 @@ class Config(object):
         self.name = name
         self.platform = platform
         self.conf = conf
+        self.current_autolog_path = None
 
     def read(self, main_conf_file, args):
         self.name, _ = os.path.splitext(main_conf_file)
@@ -29,6 +31,8 @@ class Config(object):
                             lines = [line.replace(pattern, repl) for line in lines]
                 self.conf.read_file(lines)
         self.force = args.force
+        if 'seed' in self.conf['exp']:
+            random.seed(self.conf['exp']['seed'])
 
     def get_path(self, section, key):
         try:
@@ -69,6 +73,11 @@ class Config(object):
             self.pool = NoPool()
 
         return platf
+
+    def autolog_for_jobid(self, job_id, sec_key):
+        self.current_autolog_path = self.platform.autolog_for_jobid(
+            job_id, self, sec_key)
+        return self.current_autolog_path
 
     def __getitem__(self, key):
         return self.conf[key]

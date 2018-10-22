@@ -53,6 +53,14 @@ NextSteps = collections.namedtuple('NextSteps',
 OptionalDep = collections.namedtuple('OptionalDep',
     ['name', 'binary', 'component'])
 
+class UnboundOutput(object):
+    def __init__(self):
+        self.opt_deps = set()
+
+    def __repr__(self):
+        print('UNBOUND_OUTPUT')
+UNBOUND_OUTPUT = UnboundOutput()
+        
 class Recipe(object):
     """Main class for building experiment recipes"""
     def __init__(self, name=None, argv=None):
@@ -67,7 +75,7 @@ class Recipe(object):
         except AttributeError:
             self.name = name
             assert name is not None
-        # RecipeFile -> Rule or None
+        # RecipeFile -> Rule, None or UNBOUND_OUTPUT
         self.files = {}
         # Main outputs, for easy CLI access
         self._main_out = set()
@@ -84,7 +92,10 @@ class Recipe(object):
             return LoopRecipeFile(section, key, loop_index, **kwargs)
 
     def add_input(self, section, key, loop_index=None, **kwargs):
-        rf = self._make_rf(section, key, loop_index=loop_index, **kwargs)
+        if isinstance(section, RecipeFile) and key is None:
+            rf = section
+        else:
+            rf = self._make_rf(section, key, loop_index=loop_index, **kwargs)
         rf.atomic = True
         if rf not in self.files:
             self.files[rf] = None
@@ -99,6 +110,7 @@ class Recipe(object):
                 raise Exception('There is already a rule for {}'.format(rf))
         if main:
             self._main_out.add(rf)
+        self.files[rf] = UNBOUND_OUTPUT
         return rf
 
     def use_output(self, section, key, loop_index=None, **kwargs):
@@ -110,7 +122,10 @@ class Recipe(object):
     def add_rule(self, rule):
         for rf in rule.outputs:
             if rf in self.files:
-                if self.files[rf] is None:
+                if self.files[rf] == UNBOUND_OUTPUT:
+                    # replacing placeholder with Rule
+                    pass
+                elif self.files[rf] is None:
                     raise Exception(
                         'Not adding rule {}. '
                         '{} already defined as input.'.format(rule, rf))
@@ -128,7 +143,7 @@ class Recipe(object):
 
     def _rf(self, output, check=True):
         if isinstance(output, RecipeFile):
-            rf = output 
+            rf = output
         else:
             sec_key = output.split(':')
             if len(sec_key) == 2:
@@ -166,7 +181,7 @@ class Recipe(object):
     def get_next_steps_for(self, outputs=None, cli_args=None, recursive=False,
                            overrides=None):
         # -> [JobStatus]
-        outputs = outputs 
+        outputs = outputs
         if not outputs:
             outputs = self.main_outputs
         else:
@@ -186,6 +201,8 @@ class Recipe(object):
         seen_done = set()
         # inputs
         missing = set()
+        # jobs that depend on a blocking job
+        blocked = set()
         # JobStatus. informational only
         done = []
         running = []
@@ -214,6 +231,8 @@ class Recipe(object):
                 rule = self.files[cursor]
             except KeyError:
                 raise Exception('No rule to build requested output {}'.format(cursor))
+            if rule == UNBOUND_OUTPUT:
+                continue
             # check log for waiting/running jobs
             if rule is not None:
                 concrete = [rf(self.conf, cli_args) for rf in rule.outputs]
@@ -235,8 +254,11 @@ class Recipe(object):
             if cursor.exists(self.conf, cli_args):
                 known.add(cursor)
                 if not self.log.is_done(cursor, self.conf, cli_args):
-                    logger.warning('"{}" exists, but is neither running nor done ({})'.format(
-                        cursor(self.conf, cli_args), job_fields.status))
+                    logger.warning('"{}" exists, '
+                        'but is neither running nor done ({}/{})'.format(
+                        cursor(self.conf, cli_args),
+                        job_fields.status,
+                        cursor.status(self.conf, cli_args)))
                     if self.conf.force:
                         seen_done.add(cursor)
                 else:
@@ -257,7 +279,7 @@ class Recipe(object):
             border.update(rule.inputs)
             needed.add(cursor)
 
-        if len(missing) > 0: 
+        if len(missing) > 0:
             if self.conf.force:
                 known.update(missing)
             else:
@@ -285,6 +307,12 @@ class Recipe(object):
                 not_done = tuple(inp for inp in rule.inputs
                                  if inp not in seen_done)
                 concrete = [rf(self.conf, cli_args) for rf in rule.outputs]
+                if rule.blocks_recursion:
+                    blocked.add(cursor)
+                if any(inp in blocked for inp in rule.inputs):
+                    # this job is blocked from running
+                    blocked.add(cursor)
+                    continue
                 if len(not_done) > 0:
                     # must wait for some inputs to be built first
                     delayed.append(JobStatus('delayed',
@@ -333,13 +361,13 @@ class Recipe(object):
             mtime = os.path.getmtime(cursor(self.conf, cli_args))
             mtimes[cursor] = mtime
             rule = self.files[cursor]
-            if rule is None:
+            if rule is None or rule == UNBOUND_OUTPUT:
                 continue
             border.update(rule.inputs)
         inversions = []
         for cursor in mtimes:
             rule = self.files[cursor]
-            if rule is None:
+            if rule is None or rule == UNBOUND_OUTPUT:
                 continue
             for inp in rule.inputs:
                 if mtimes.get(inp, 0) > mtimes[cursor]:
@@ -351,7 +379,7 @@ class Recipe(object):
 
     def make_output(self, output, conf=None, cli_args=None):
         if conf is None:
-            conf = self.conf 
+            conf = self.conf
         rf = self._rf(output)
         if rf not in self.files:
             raise Exception('No rule to make target {}'.format(output))
@@ -365,7 +393,11 @@ class Recipe(object):
             os.makedirs(subdir, exist_ok=True)
         return rule.make(conf, cli_args)
 
-    def add_main_outputs(self, outputs):
+    def add_main_outputs(self, outputs=None):
+        if outputs is None:
+            # set all outputs to main
+            outputs = [rf for (rf, val) in self.files.items()
+                       if val is not None]
         for out in outputs:
             if not isinstance(out, RecipeFile):
                 raise Exception('output {} is not a RecipeFile'.format(out))
@@ -430,6 +462,7 @@ class Rule(object):
             rf.atomic = self.is_atomic(rf)
         self.chain_schedule = max(chain_schedule, 1)
         self._opt_deps = set()
+        self.blocks_recursion = False
 
     def make(self, conf, cli_args=None):
         raise NotImplementedError()
@@ -470,6 +503,8 @@ class Rule(object):
         return self._opt_deps
 
     def __eq__(self, other):
+        if other == UNBOUND_OUTPUT:
+            return False
         return (self.name, self.inputs, self.outputs) \
             == (other.name, other.inputs, other.outputs)
 
@@ -487,12 +522,13 @@ class RecipeFile(object):
     """A RecipeFile is a file template
     that points to a concrete file when given conf and cli_args
     """
-    def __init__(self, section, key, exact_linecount=None):
+    def __init__(self, section, key, exact_linecount=None, allow_empty=False):
         self.section = section
         self.key = key
         # set if exact expected linecount is known
         self.exact_linecount = exact_linecount
         self.atomic = False
+        self.allow_empty = allow_empty
 
     def __call__(self, conf, cli_args=None):
         path = conf.get_path(self.section, self.key)
@@ -518,12 +554,13 @@ class RecipeFile(object):
                             path, lc, self.exact_linecount))
                 return 'unknown'
         # check for emptiness
-        if os.path.isdir(path):
-            if dir_is_empty(path):
-                return 'not done'
-        else:
-            if os.stat(path).st_size == 0:
-                return 'not done'
+        if not self.allow_empty:
+            if os.path.isdir(path):
+                if dir_is_empty(path):
+                    return 'empty'
+            else:
+                if os.stat(path).st_size == 0:
+                    return 'empty'
         if self.atomic:
             # aready checked that it exists
             return 'done'
@@ -564,6 +601,7 @@ class LoopRecipeFile(RecipeFile):
     def __init__(self, section, key, loop_index, **kwargs):
         super().__init__(section, key, **kwargs)
         self.loop_index = int(loop_index)
+        self._silence_warn = False
 
     def __call__(self, conf, cli_args=None):
         path = conf.get_path(self.section, self.key)
@@ -636,3 +674,25 @@ class WildcardLoopRecipeFile(LoopRecipeFile):
         """Create a sequence of LoopRecipeFiles with the given indices"""
         return [WildcardLoopRecipeFile(section, key, loop_index)
                 for loop_index in loop_indices]
+
+
+class IndirectRecipeFile(RecipeFile):
+    """A RecipeFile that reads a concrete file name from a separate file
+    """
+    def __call__(self, conf, cli_args=None):
+        link_path = super().__call__(conf, cli_args)
+        if not os.path.exists(link_path):
+            return link_path
+        with open(link_path, 'r') as fobj:
+            target_path = fobj.readline().strip()
+        return target_path
+
+    def status(self, conf, cli_args=None):
+        link_path = super().__call__(conf, cli_args)
+        if not os.path.exists(link_path):
+            # if the link doesn't exist, it can't be done
+            return 'not done'
+        return super().status(conf, cli_args)
+
+    def __repr__(self):
+        return 'IndirectRecipeFile({}, {})'.format(self.section, self.key)

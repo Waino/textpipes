@@ -20,10 +20,13 @@ def get_version():
 # when they are imported.
 
 from .core import *
+from .core.utils import FIVEDOT
 from . import components, check
 from . import finnpos, anmt, wmt_sgm, morfessor, multiling, dummy, opennmt
 from . import anmt_latent
 from . import translation_analysis
+from . import lmclean
+from . import sorting
 
 # Most common rules for easy access
 from .dedup import Deduplicate
@@ -39,4 +42,5 @@ from .components.preprocessing import *
 from .components.filtering import apply_filter, Filter, \
     MonoFilter, ParallelFilter, FilterByLength
 from .components.tokenizer import Tokenize
+from .components.segmentation import ApplySegmentation
 from .components.core import *

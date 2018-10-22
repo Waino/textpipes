@@ -21,6 +21,7 @@ class PrepareData(Rule):
         trg_dev_file = self.inputs[3](conf, cli_args)
         out_dir = self.outputs[0](conf, cli_args)
         pipe_file = self.outputs[1](conf, cli_args)
+        os.makedirs(out_dir, exist_ok=True)
         run('{opennmt_dir}/preprocess.py'
             ' -train_src {src_corpus_file}' \
             ' -train_tgt {trg_corpus_file}' \

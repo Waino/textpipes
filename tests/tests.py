@@ -8,6 +8,8 @@ conf = recipe.conf
 
 # most external tools (anmt, ) are not tested here
 
+onmt_tokenize = tp.components.tokenizer.OnmtTokenize()
+
 ### individual text input
 
 ind_rules = (
@@ -17,6 +19,12 @@ ind_rules = (
     # truecaser.py
     ('train_truecaser', tp.truecaser.TrainTrueCaser, {}),
     ('lowercase', tp.apply_component(tp.truecaser.LowerCase()), {}),
+    # external.py
+    ('reencode', tp.external.ReEncode, {'from_encoding': 'ISO_8859-15'}),
+    # components/tokenizer.py
+    ('onmt_tokenize', tp.apply_component(onmt_tokenize), {}),
+    ('simple_tokenize', tp.apply_component(tp.components.tokenizer.SimpleTokenize()), {}),
+    ('old_tokenize', tp.apply_component(tp.components.tokenizer.Tokenize('fi')), {}),
     ### built-in features
     # transparent gzip
     ('gzip', tp.dummy.DummyParamPrint, {'name': 'gzip'}),
@@ -56,6 +64,13 @@ dep_rules = (
     ('truecase', tp.apply_component(tp.truecaser.TrueCase(
         model_file=recipe.use_output('outputs', 'train_truecaser'))),
         recipe.add_input('inputs', 'truecase'), {}),
+    # components/tokenizer.py
+    ('onmt_detokenize', tp.apply_component(tp.components.tokenizer.OnmtDeTokenize(onmt_tokenize)),
+        recipe.use_output('outputs', 'onmt_tokenize'), {}),
+    ('simple_detokenize', tp.apply_component(tp.components.tokenizer.SimpleDeTokenize()),
+        recipe.use_output('outputs', 'simple_tokenize'), {}),
+    ('old_detokenize', tp.apply_component(tp.components.tokenizer.DeTokenize('fi')),
+        recipe.use_output('outputs', 'old_tokenize'), {}),
     )
 
 for name, rule, inputs, kwargs in dep_rules:

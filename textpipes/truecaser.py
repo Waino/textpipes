@@ -20,7 +20,8 @@ LANG_DIR = os.path.join(
     os.path.dirname(__file__), 'langs')
 
 class TrainTrueCaserComponent(SingleCellComponent):
-    def __init__(self, model_file, sure_thresh=.6, min_count=2):
+    def __init__(self, model_file,
+                 sure_thresh=.6, min_count=2, bnd_marker=None):
         # sure_thresh: truecase also within sentence if common enough
         super().__init__(mp=False, side_outputs=[model_file])
         self.model_file = model_file
@@ -30,10 +31,13 @@ class TrainTrueCaserComponent(SingleCellComponent):
         # punctuation that resets seen_first
         # note that this is a smaller set than tokenizer punctuation
         self.punctuation_re = CASE_PUNC_RE
+        self.bnd_marker = bnd_marker
 
     def single_cell(self, sentence):
         seen_first = False
         for token in sentence.split():
+            if self.bnd_marker is not None:
+                token = token.strip(self.bnd_marker)
             if not seen_first:
                 # skip fully nonalnum tokens in beginning
                 if ALNUM_RE.search(token):
@@ -60,21 +64,25 @@ class TrainTrueCaserComponent(SingleCellComponent):
             logger.warning('Saved TrueCaser model was empty')
         # write model serialized into rows
         fobj = side_fobjs[self.model_file]
-        for (word, (best, sure)) in self.words.items():
+        for (word, (best, sure)) in sorted(self.words.items()):
             fobj.write('{}\t{}\t{}\n'.format(word, best, str(sure)))
 
 
 class TrainTrueCaser(DeadEndPipe):
     """Convenience Rule allowing easy training of truecaser
     from multiple corpora files."""
-    def __init__(self, inputs, model_file, sure_thresh=.6, **kwargs):
-        component = TrainTrueCaserComponent(model_file, sure_thresh)
+    def __init__(self, inputs, model_file,
+                 sure_thresh=.6, min_count=2, bnd_marker=None, **kwargs):
+        component = TrainTrueCaserComponent(
+            model_file, sure_thresh=sure_thresh, min_count=min_count,
+            bnd_marker=bnd_marker)
         super().__init__([component], inputs, **kwargs)
 
 
 class TrueCase(SingleCellComponent):
     def __init__(self, model_file,
-                 titlecase_thresh=.5, lc_unseen_first=False, **kwargs):
+                 titlecase_thresh=.5, lc_unseen_first=False,
+                 bnd_marker=None, **kwargs):
         # sure_thresh: truecase also within sentence if common enough
         super().__init__(side_inputs=[model_file], **kwargs)
         self.model_file = model_file
@@ -84,6 +92,7 @@ class TrueCase(SingleCellComponent):
         # punctuation that resets seen_first
         # note that this is a smaller set than tokenizer punctuation
         self.punctuation_re = CASE_PUNC_RE
+        self.bnd_marker = bnd_marker
 
     def pre_make(self, side_fobjs):
         self.counts = None
@@ -103,6 +112,12 @@ class TrueCase(SingleCellComponent):
         result = []
         seen_first = False
         tokens = sentence.split()
+        if self.bnd_marker is not None:
+            leading_markers = [token.startswith(self.bnd_marker)
+                               for token in tokens]
+            trailing_markers = [token.endswith(self.bnd_marker)
+                                for token in tokens]
+            tokens = [token.strip(self.bnd_marker) for token in tokens]
         lowered = [token.lower() for token in tokens]
         n_cased = sum(token != lower
                       for (token, lower)
@@ -136,6 +151,16 @@ class TrueCase(SingleCellComponent):
                 seen_first = True
             elif self.punctuation_re.match(token):
                 seen_first = False
+        if self.bnd_marker is not None:
+            readded = []
+            for (leading, token, trailing) in zip(leading_markers,
+                                                  result,
+                                                  trailing_markers):
+                readded.append('{}{}{}'.format(
+                    self.bnd_marker if leading else '',
+                    token,
+                    self.bnd_marker if trailing else ''))
+            result = readded
         return ' '.join(result)
 
 

@@ -14,3 +14,5 @@ from . import preprocessing
 from . import segmentation
 from . import subsampling
 from . import tokenizer
+
+from .subsampling import Shuffle

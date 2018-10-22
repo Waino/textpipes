@@ -194,6 +194,10 @@ class CLI(object):
         # exp section is assumed to always exist
         if 'exp' not in self.conf.conf.sections():
             print('********** WARNING! NO "exp" SECTION in conf **********')
+        try:
+            seed = self.conf.conf['exp']['seed']
+        except KeyError:
+            print('exp:seed NOT set, randomness is non-repeatable')
         if 'git' in self.platform.conf:
             if len(self.platform.conf['git']) == 0:
                 print('********** WARNING! EMPTY gitdir list in platform conf **********')
@@ -230,7 +234,9 @@ class CLI(object):
                 print('********** WARNING! No paths.dirs defined')
         # check that output paths are in config
         warn = []
-        for rf in self.recipe.files:
+        for (rf, rule) in self.recipe.files.items():
+            if rule == UNBOUND_OUTPUT:
+                print('unbound output: {}:{}'.format(rf.section, rf.key))
             try:
                 fname = rf(self.conf, self.cli_args)
                 if fname == '':
@@ -402,6 +408,7 @@ class CLI(object):
             conf = GridConfig.apply_override(self.conf, overrides)
         else:
             conf = self.conf
+        conf.autolog_for_jobid(job_id, output)
         self.recipe.make_output(output=output, conf=conf, cli_args=self.cli_args)
         self.log.finished_running(next_step, job_id, rule.name)
 
@@ -590,7 +597,8 @@ class ExperimentLog(object):
 
     def is_done(self, rf, conf, cli_args=None):
         rf_status = rf.status(conf, cli_args)
-        if rf_status == 'not done':
+        if rf_status in ('not done', 'empty'):
+            # FIXME: add failed to log if empty?
             return False
         elif rf_status == 'done':
             return True
