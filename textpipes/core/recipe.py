@@ -237,6 +237,8 @@ class Recipe(object):
                 if not self.log.is_done(cursor, self.conf, cli_args):
                     logger.warning('"{}" exists, but is neither running nor done ({})'.format(
                         cursor(self.conf, cli_args), job_fields.status))
+                    if self.conf.force:
+                        seen_done.add(cursor)
                 else:
                     seen_done.add(cursor)
                 continue

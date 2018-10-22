@@ -3,6 +3,7 @@ import subprocess
 
 from .core.recipe import Rule
 from .core.platform import run
+from .core.utils import FOURDOT
 from .components.core import MonoPipeComponent, MonoPipe
 from .external import simple_external
 
@@ -12,7 +13,7 @@ TrainMorfessor = simple_external(
 
 TrainFlatcat = simple_external(
     'TrainFlatcat', ['infile'], ['model'],
-    'flatcat-train {infile} -s {model} {argstr}')
+    'flatcat-train {infile} -s {model} --category-separator ' + FOURDOT + ' {argstr}')
 
 class ApplyMorfessor(Rule):
     def __init__(self, *args,
@@ -55,15 +56,16 @@ class ApplyFlatcat(Rule):
         infile = self.inputs[0](conf, cli_args)
         model = self.inputs[1](conf, cli_args)
         outfile = self.outputs[0](conf, cli_args)
-        run('{prog} {infile} --load-segmentation {model} --output {outfile}'
-            ' --output-format-separator "{sep}" --output-format "{fmt}"'
-            ' --output-newlines {argstr}'.format(
+        run('{prog} {model} {infile} --output {outfile}'
+            ' --output-construction-separator "{sep}" --output-format "{fmt}"'
+            ' --output-newlines {argstr} --category-separator {catsep}'.format(
                 prog='flatcat-segment',
                 infile=infile,
                 model=model,
                 outfile=outfile,
                 sep=self.sep,
                 fmt=self.fmt,
+                catsep=FOURDOT,
                 argstr=self.argstr))
 
 
