@@ -1,0 +1,7 @@
+ftfy
+matplotlib
+pandas
+pyonmttok
+tqdm
+git+https://github.com/Waino/chrF
+git+https://github.com/jaybaird/python-bloomfilter

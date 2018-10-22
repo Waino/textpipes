@@ -8,7 +8,7 @@ metadata = dict(re.findall("__([a-z]+)__ = '([^']+)'", main_py))
 
 requires = ['ftfy', 'tqdm', 'pandas', 'matplotlib']
 # also requires a newer pybloom than the one in PyPI
-# for optional requirements, see textpipes/cli.py
+# for optional requirements, see requirements.opt
 
 setup(name='textpipes',
       version=metadata['version'],
