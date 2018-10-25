@@ -3,6 +3,7 @@ import codecs
 import gzip
 import itertools
 import logging
+import lzma
 import os
 import re
 import subprocess
@@ -38,6 +39,10 @@ def open_text_file(file_path, mode='r', encoding='utf-8'):
         file_obj = gzip.open(file_path, mode)
     elif file_path.endswith('.bz2'):
         file_obj = bz2.BZ2File(file_path, mode)
+    elif file_path.endswith('.xz'):
+        if 't' not in mode:
+            mode += 't'
+        file_obj = lzma.open(file_path, mode)
     else:
         file_obj = open(file_path, mode)
     if encoding != 'utf-8':
