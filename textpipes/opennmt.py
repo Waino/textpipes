@@ -61,7 +61,7 @@ class Train(Rule):
         self.opennmt_dir = opennmt_dir
 
         inputs = [data_dir]
-        outputs = self.models
+        outputs = self.models + [pipe_file]
         super().__init__(inputs, outputs, **kwargs)
         self.add_opt_dep(self.opennmt_dir + '/train.py', binary=True)
 
