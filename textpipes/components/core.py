@@ -490,3 +490,12 @@ class RegexDispatch(MonoPipeComponent):
                 line = func(line, m.groups())
                 return line, True
         return line, False
+
+
+class NewlinesIntroduced(MonoPipeComponent):
+    """The previous component added newlines. Re-segment the stream"""
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        for line in stream:
+            parts = line.split('\n')
+            yield from parts

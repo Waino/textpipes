@@ -284,7 +284,7 @@ class JoinVertical(MonoPipeComponent):
         for line in stream:
             line = line.strip()
             if line == self.end_marker:
-                yield ' '.join(result)
+                yield ' '.join(result).strip()
                 result = []
             else:
                 result.append(line)
