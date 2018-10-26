@@ -270,6 +270,29 @@ class StripXml(MonoPipeComponent):
                 yield result
 
 
+class JoinVertical(MonoPipeComponent):
+    """Converts from (stripped) vertical format,
+    i.e. one token per line, to full sentences.
+    An end marker is required, e.g. blank lines."""
+    def __init__(self, end_marker=''):
+        super().__init__()
+        self.end_marker = end_marker
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        result = []
+        for line in stream:
+            line = line.strip()
+            if line == self.end_marker:
+                yield ' '.join(result)
+                result = []
+            else:
+                result.append(line)
+        if len(result) > 0:
+            yield ' '.join(result)
+            result = []
+
+
 class NormalizeContractions(RegexSubstitution):
     """replace contractions with normalized form"""
 

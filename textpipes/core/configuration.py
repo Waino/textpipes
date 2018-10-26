@@ -3,9 +3,23 @@ import io
 import itertools
 import os
 import random
+import re
 
 from . import platform
 from .utils import LazyPool, NoPool
+
+RE_RANGE = re.compile(r'^\[(\d+):(\d+)\]$')
+
+def range_replace(lines, pattern, start, end):
+    result = []
+    vals = range(int(start), int(end) + 1)
+    for line in lines:
+        if pattern in line:
+            for val in vals:
+                result.append(line.replace(pattern, str(val)))
+        else:
+            result.append(line)
+    return result
 
 
 class Config(object):
@@ -28,10 +42,14 @@ class Config(object):
                     if key in self.conf['subconf.template']:
                         for pair in self.conf['subconf.template'][key].split(';'):
                             pattern, repl = pair.split('=')
-                            lines = [line.replace(pattern, repl) for line in lines]
+                            m = RE_RANGE.match(repl)
+                            if m:
+                                lines = range_replace(lines, pattern, *m.groups())
+                            else:
+                                lines = [line.replace(pattern, repl) for line in lines]
                 self.conf.read_file(lines)
         self.force = args.force
-        if 'seed' in self.conf['exp']:
+        if 'exp' in self.conf and 'seed' in self.conf['exp']:
             random.seed(self.conf['exp']['seed'])
 
     def get_path(self, section, key):
