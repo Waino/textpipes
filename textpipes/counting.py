@@ -106,7 +106,7 @@ class CombineCounts(MonoPipe):
                 if self.reversed_input:
                     wtype, count = line.split('\t')
                 else:
-                    count, wtype = line.split('\t')
+                    count, wtype = line.split('\t', 1)
                 try:
                     count = int(count)
                 except ValueError:
