@@ -246,7 +246,7 @@ classes = {
 class Command(object):
     def __init__(self, cmd):
         parts = shlex.split(cmd, posix=True)
-        if '|' in cmd or '>' in parts:
+        if '|' in parts or '>' in parts:
             # subshell args should not be split
             self.cmd = cmd
             self.subshell = True
