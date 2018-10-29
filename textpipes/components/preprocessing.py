@@ -210,7 +210,7 @@ class StripRareChars(SingleCellComponent):
 
     def pre_make(self, side_fobjs):
         for line in side_fobjs[self.char_counts]:
-            count, char = line.lstrip().rstrip('\n').split('\t')
+            count, char = line.lstrip().rstrip('\n').split('\t', 1)
             count = int(count)
             if count >= self.min_count:
                 self.keep.add(char)
