@@ -5,7 +5,9 @@ from ..core.recipe import Rule
 
 def split_dataset(inputs, train_file,
                   dev_file=None, test_file=None,
-                  dev_size=0, test_size=0, **kwargs):
+                  dev_size=0, test_size=0,
+                  resource_class='make_immediately',
+                  **kwargs):
     components = [Shuffle()]
     used_lines = 0
     if dev_size:
@@ -21,6 +23,7 @@ def split_dataset(inputs, train_file,
         used_lines, train_file))
     return DeadEndPipe(components, inputs,
                        name='SplitDataset',
+                       resource_class=resource_class,
                        **kwargs)
 
 
