@@ -117,6 +117,8 @@ SLURM_STATUS_MAP = {
     'TIMEOUT': 'failed',
     'CANC': 'failed',
     'CANCELLED': 'failed',
+    'OUT_OF_ME+': 'failed',
+    'OUT_OF_MEMORY': 'failed',
     }
 RE_SLURM_SUBMITTED_ID = re.compile(r'Submitted batch job (\d*)')
 
