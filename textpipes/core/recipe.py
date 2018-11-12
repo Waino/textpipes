@@ -56,6 +56,8 @@ OptionalDep = collections.namedtuple('OptionalDep',
 class UnboundOutput(object):
     def __init__(self):
         self.opt_deps = set()
+        self.name = 'unbound output'
+        self.inputs = []
 
     def __repr__(self):
         print('UNBOUND_OUTPUT')
