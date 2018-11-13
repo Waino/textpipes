@@ -96,6 +96,7 @@ class Recipe(object):
         self.cli = cli.CLI(self, argv)
         self.conf = self.cli.conf
         self.log = self.cli.log
+        self.status_of = FileStatusCache(self.log, self.conf.platform)
 
     @classmethod
     def _make_rf(cls, section, key, loop_index=None, **kwargs):
@@ -225,7 +226,7 @@ class Recipe(object):
         delayed = []
 
         for rf in outputs:
-            if self.log.is_done(rf, self.conf, cli_args):
+            if self.status_of(rf, self.conf, cli_args) == DONE:
                 done.append(JobStatus('done',
                                       [rf],
                                       concrete=[rf(self.conf, cli_args)],
@@ -249,41 +250,36 @@ class Recipe(object):
             # check log for waiting/running jobs
             if rule is not None:
                 concrete = [rf(self.conf, cli_args) for rf in rule.outputs]
+                job_id = self.log.job_id_from_outputs(concrete)
             else:
                 concrete = []
-            job_fields = self.log.get_status_of_output(
-                cursor(self.conf, cli_args))
-            if job_fields.status == 'running':
-                if not self.log.is_done(cursor, self.conf, cli_args):
-                    # must wait for non-atomic files until job stops running
-                    # also wait for an atomic file that doesn't yet exist
-                    running.append(JobStatus('running',
-                                             [cursor],
-                                             job_id=job_fields.job_id,
-                                             concrete=concrete,
-                                             overrides=overrides))
-                    known.add(cursor)
-                    continue
-            if cursor.exists(self.conf, cli_args):
+                job_id = None
+
+            job_status = self.status_of(rf, self.conf, cli_args)
+            print(job_status, rf)
+            if FileStatusCache.wait(job_status):
+                print(job_status, rf)
+                if job_status == SCHEDULED:
+                    tmp = waiting
+                    js_status = 'waiting'
+                elif job_status == RUNNING:
+                    tmp = running
+                    js_status = 'running'
+                tmp.append(JobStatus(js_status,
+                                     [cursor],
+                                     job_id=job_id,
+                                     concrete=concrete,
+                                     overrides=overrides))
                 known.add(cursor)
-                if not self.log.is_done(cursor, self.conf, cli_args):
-                    logger.warning('"{}" exists, '
-                        'but is neither running nor done ({}/{})'.format(
-                        cursor(self.conf, cli_args),
-                        job_fields.status,
-                        cursor.status(self.conf, cli_args)))
-                    if self.conf.force:
-                        seen_done.add(cursor)
-                else:
-                    seen_done.add(cursor)
                 continue
-            if job_fields.status == 'scheduled':
-                waiting.append(JobStatus('waiting',
-                                         [cursor],
-                                         job_id=job_fields.job_id,
-                                         concrete=concrete,
-                                         overrides=overrides))
+            elif FileStatusCache.continue_next(job_status):
                 known.add(cursor)
+                seen_done.add(cursor)
+                continue
+            elif FileStatusCache.error(job_status):
+                known.add(cursor)
+                if self.conf.force:
+                    seen_done.add(cursor)
                 continue
             if rule is None:
                 # an original input, but failed the exists check above
@@ -556,6 +552,7 @@ class RecipeFile(object):
     def check_length(self, conf, cli_args=None):
         # assumes existence has been checked already
         status = DONE
+        lc = None
         path = self(conf, cli_args)
         # check for emptiness
         if not self.allow_empty:
@@ -731,11 +728,13 @@ class FileStatusCache(object):
         """True if the status indicates an error"""
         return status in (EMPTY, FAILED, TOO_SHORT)
 
-    def status(self, rf, conf, cli_args=None):
-        tpl = (rf, conf, cli_args)
-        if tpl not in self._cache:
-            self._cache[tpl] = self._status(self, rf, conf, cli_args)
-        result = self._cache[tpl]
+    def clear(self):
+        self._cache = {}
+
+    def __call__(self, rf, conf, cli_args=None):
+        if rf not in self._cache:
+            self._cache[rf] = self._status(rf, conf, cli_args)
+        result = self._cache[rf]
         assert result in (NO_FILE, SCHEDULED, RUNNING, DONE,
                           EMPTY, FAILED, CONTINUE, TOO_SHORT)
         return result
@@ -747,11 +746,12 @@ class FileStatusCache(object):
                 return DONE
             else:
                 # not atomic
-                true_status = self._get_true_status(rf, conf, cli_args)
+                true_status = self._get_true_status(rf, conf, cli_args, exists=True)
                 if true_status == SCHEDULED:
                     self.warn(rf, conf, cli_args, true_status,
                               'Non-atomic output of scheduled job '
                               'already exists')
+                    return true_status
                 elif true_status == RUNNING:
                     return true_status
                 elif true_status == DONE:
@@ -775,6 +775,11 @@ class FileStatusCache(object):
                         # can not continue
                         self.warn(rf, conf, cli_args, true_status,
                                   'Partial output of FAILED job')
+                    return FAILED
+                elif true_status == 'unknown':
+                    # let's be optimistic
+                    return DONE
+                return true_status
         else:
             # file doesn't exist
             if self.log.was_scheduled(rf(conf, cli_args)):
@@ -790,12 +795,16 @@ class FileStatusCache(object):
             else:
                 # has not been scheduled
                 return NO_FILE
+        raise Exception('problem in FileStatusCache if-tree'
+            ' {} {}'.format(rf, rf(conf, cli_args)))
 
-    def _get_true_status(self, rf, conf, cli_args=None):
+    def _get_true_status(self, rf, conf, cli_args=None, exists=False):
         job_fields = self.log.get_status_of_output(rf(conf, cli_args))
         expected = job_fields.status
         if expected == FAILED:
             return FAILED
+        if expected == DONE and exists:
+            return DONE
         true_status = self.platform.check_job(job_fields.job_id)
         if true_status == 'local':
             true_status = expected
@@ -806,7 +815,7 @@ class FileStatusCache(object):
     def warn(self, rf, conf, cli_args, status, message):
         path = rf(conf, cli_args)
         job_fields = self.log.get_status_of_output(path)
-        logger.warning('{msg} ({sec_key} {job_id} {status} {path})'.format(
+        logger.warning('{msg}: {sec_key} {job_id} {status} {path}'.format(
             msg=message,
             sec_key=rf.sec_key(),
             job_id=job_fields.job_id,

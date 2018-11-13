@@ -572,7 +572,8 @@ class ExperimentLog(object):
     def was_scheduled(self, outfile):
         """Returns True if this output was ever scheduled"""
         assert not isinstance(outfile, RecipeFile)
-        return outfile in self.outputs
+        job_id = self.outputs.get(outfile, None)
+        return job_id is not None
 
     def get_status_of_output(self, outfile):
         # outfile: a concrete file path
@@ -590,7 +591,10 @@ class ExperimentLog(object):
         return logitem
 
     def update_status(self, platform_status, job_id, rf, conf, cli_args):
-        if platform_status in ('unknown', 'local', 'done'):
+        if platform_status in ('unknown', 'local'):
+            return
+        if platform_status == 'done':
+            self.missed_finish(job_id)
             return
         if platform_status != 'failed':
             print('WARNING: unknown platform_status {}'.format(platform_status))
@@ -643,6 +647,7 @@ class ExperimentLog(object):
                     exp = m.group(3)
                     status = m.group(4)
                     job_id = m.group(5)
+                    status = 'done' if status == 'finished' else status
                     if status not in STATUSES:
                         print('unknown status {} in {}'.format(status, m.groups()))
                     if not job_id == '-':
@@ -670,9 +675,9 @@ class ExperimentLog(object):
 
     def _parse_combined_log(self):
         self._parse_log(self.log_file_to_jobid_current)
-        date_cursor = self.now
+        date_cursor = self.log_horizon
         for _ in range(self.history_days):
-            date_cursor -= timedelta(days=1)
+            date_cursor += timedelta(days=1)
             logfile = os.path.join('logs', 'file_to_jobid.{date}.log'.format(
                 date=date_cursor.strftime(LOG_HISTORY)))
             self._parse_log(logfile)
@@ -776,6 +781,25 @@ class ExperimentLog(object):
             rule=fields.rule,)
         self._append_item(log_item, logfile=logfile)
         return log_item
+
+    def missed_finish(self, job_id):
+        logfile = self._job_log_file(job_id)
+        if job_id in self.parsed_job_logs:
+            fields = self.parsed_job_logs[job_id]
+        else:
+            fields = ITEM_UNKNOWN
+        timestamp = datetime.min.strftime(TIMESTAMP)
+        log_item = LogItem(
+            time=timestamp,
+            recipe=self.recipe.name,
+            exp=fields.exp,
+            status='done',
+            job_id=job_id,
+            sec_key=fields.sec_key,
+            rule=fields.rule)
+        self._append_item(log_item, logfile=logfile)
+        return log_item
+
 
     def _append_item(self, log_item, logfile=None):
         self._append(LOG_FMT.format(**log_item._asdict()), logfile=logfile)

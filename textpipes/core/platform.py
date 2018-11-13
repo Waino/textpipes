@@ -153,6 +153,8 @@ class Slurm(Platform):
         return job_id
 
     def check_job(self, job_id):
+        if job_id == '-':
+            return 'unknown'
         if job_id not in self._job_status:
             self._parse_sacct(job_id)
         if job_id in self._job_status:
@@ -163,6 +165,7 @@ class Slurm(Platform):
         return 'unknown'
 
     def _parse_sacct(self, job_id):
+        print('***************** running sacct!')
         r = run('sacct -j "{}" -Pno jobid,elapsed,start,state'.format(job_id))
         for (i, line) in enumerate(r.std_out.split('\n')):
             if len(line.strip()) == 0:
