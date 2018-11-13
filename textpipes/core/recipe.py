@@ -529,8 +529,12 @@ class RecipeFile(object):
         self.key = key
         # set if exact expected linecount is known
         self.exact_linecount = exact_linecount
+        # non-atomic files grow line by line
         self.atomic = False
+        # is an empty file indicative of an error?
         self.allow_empty = allow_empty
+        # can a partial result be continued by rescheduling?
+        self.can_continue = False
 
     def __call__(self, conf, cli_args=None):
         path = conf.get_path(self.section, self.key)
@@ -698,3 +702,96 @@ class IndirectRecipeFile(RecipeFile):
 
     def __repr__(self):
         return 'IndirectRecipeFile({}, {})'.format(self.section, self.key)
+
+
+NO_FILE = 'no file'
+SCHEDULED = 'scheduled'
+RUNNING = 'running'
+DONE = 'done'
+EMPTY = 'empty'
+FAILED = 'failed'
+CONTINUE = 'can continue'
+TOO_SHORT = 'too short'
+
+class FileStatusCache(object):
+    def __init__(self, log, platform):
+        self.log = log
+        self.platform = platform
+        self._cache = {}
+
+    def status(self, rf, conf, cli_args=None):
+        tpl = (rf, conf, cli_args)
+        if tpl not in self._cache:
+            self._cache[tpl] = self._status(self, rf, conf, cli_args)
+        result = self._cache[tpl]
+        assert result in (NO_FILE, SCHEDULED, RUNNING, DONE,
+                          EMPTY, FAILED, CONTINUE, TOO_SHORT)
+        return result
+
+    def _status(self, rf, conf, cli_args=None):
+        if rf.exists(conf, cli_args):
+            if rf.atomic:
+                # if atomic file exists, it is done
+                return DONE
+            else:
+                # not atomic
+                true_status = self._get_true_status(rf, conf, cli_args)
+                if true_status == SCHEDULED:
+                    self.warn(rf, conf, cli_args, true_status,
+                              'Non-atomic output of scheduled job '
+                              'already exists')
+                elif true_status == RUNNING:
+                    return true_status
+                elif true_status == DONE:
+                    true_status, true_length, expected_length = \
+                        rf.check_length(conf, cli_args)
+                    if true_status == TOO_SHORT:
+                        self.warn(rf, conf, cli_args, true_status,
+                                  '{} lines, shorter than expected {}'.format(
+                                        true_length, expected_length))
+                    elif true_length > expected_length:
+                        self.warn(rf, conf, cli_args, true_status,
+                                  '{} lines, longer than expected {}'.format(
+                                        true_length, expected_length))
+                    return true_status
+                elif true_status == FAILED:
+                    if rf.can_continue:
+                        self.warn(rf, conf, cli_args, true_status,
+                                  'Reschedule to continue')
+                        return CONTINUE
+                    else:
+                        # can not continue
+                        self.warn(rf, conf, cli_args, true_status,
+                                  'Partial output of FAILED job')
+        else:
+            # file doesn't exist
+            if self.was_scheduled(rf, conf, cli_args):
+                # was scheduled at some point
+                true_status = self._get_true_status(rf, conf, cli_args)
+                if true_status == FAILED:
+                    self.warn(rf, conf, cli_args, true_status,
+                              'This job failed earlier, '
+                              'but output file does not exist (anymore)')
+                    # failing without output doesn't prevent relaunch
+                    return NO_FILE
+                return true_status
+            else:
+                # has not been scheduled
+                return NO_FILE
+
+    def was_scheduled(self, rf, conf, cli_args=None):
+        pass
+
+    def _get_true_status(self, rf, conf, cli_args=None):
+        job_fields = self.log.get_status_of_output(rf(conf, cli_args))
+        expected = job_fields.status
+        if expected == FAILED:
+            return FAILED
+        true_status = self.platform.check_job(job_fields.job_id)
+        if expected != true_status:
+            self.log.update_status(job_fields.job_id, rf, conf, cli_args)
+        return true_status
+
+    def warn(self, rf, conf, cli_args, status, message):
+        #logger.warning('')
+        pass
