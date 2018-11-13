@@ -546,7 +546,7 @@ LOG_RE = re.compile(r'([0-9\.]+ [0-9:]+) ([^ ]+) ([^ ]+) : status ([^ ]+) ([^ ]+
 FILE_RE = re.compile(r'([0-9\.]+ [0-9:]+) ([^ ]+) ([^ ]+) : output ([^ ]+) ([^ ]+) (.*)')
 END_RE = re.compile(r'([0-9\.]+ [0-9:]+) ([^ ]+) ([^ ]+) : experiment ended')
 
-STATUSES = ('scheduled', 'running', 'finished', 'failed')
+STATUSES = ('scheduled', 'running', 'done', 'failed')
 
 class ExperimentLog(object):
     def __init__(self, recipe, conf, platform, history_days=15):
@@ -569,6 +569,11 @@ class ExperimentLog(object):
     #    return [job_id for (job_id, job_status) in self.job_statuses.items()
     #            if job_status == status]
 
+    def was_scheduled(self, outfile):
+        """Returns True if this output was ever scheduled"""
+        assert not isinstance(outfile, RecipeFile)
+        return outfile in self.outputs
+
     def get_status_of_output(self, outfile):
         # outfile: a concrete file path
         # status: a string from STATUSES
@@ -581,19 +586,16 @@ class ExperimentLog(object):
             job_logfile = os.path.join('logs', 'job.{}.{}.log'.format(
                 self.recipe.name, job_id))
             self._parse_log(job_logfile)
-            logitem = self.parsed_job_logs.get(job_id, None)
-            if logitem is None:
-                return ITEM_UNKNOWN
-            expected_status = logitem.status
-            if expected_status in ('scheduled', 'running'):
-                platform_status = self.platform.check_job(job_id)
-                if platform_status not in ('unknown', 'local'):
-                    if platform_status != expected_status:
-                        if platform_status == 'failed':
-                            logitem = self.failed(job_id)
-                            self.parsed_job_logs[job_id] = logitem
         logitem = self.parsed_job_logs.get(job_id, ITEM_UNKNOWN)
         return logitem
+
+    def update_status(self, platform_status, job_id, rf, conf, cli_args):
+        if platform_status in ('unknown', 'local', 'done'):
+            return
+        if platform_status != 'failed':
+            print('WARNING: unknown platform_status {}'.format(platform_status))
+        logitem = self.failed(job_id)
+        self.parsed_job_logs[job_id] = logitem
 
     def is_done(self, rf, conf, cli_args=None):
         rf_status = rf.status(conf, cli_args)
@@ -612,7 +614,7 @@ class ExperimentLog(object):
             return True
         # don't know based on just the file
         logitem = self.get_status_of_output(rf(conf, cli_args))
-        return logitem.status == 'finished'
+        return logitem.status == 'done'
 
     @property
     def last_job_id(self):
@@ -677,23 +679,6 @@ class ExperimentLog(object):
         #self._parse_log(os.path.join('logs', 'job.{}.local.log'.format(
         #        self.recipe.name)))
 
-
-    #def consolidate_finished(self, job_id):
-    #    timestamp = datetime.now().strftime(TIMESTAMP)
-    #    if job_id in self.parsed_job_logs:
-    #        fields = self.parsed_job_logs[job_id]
-    #    else:
-    #        fields = LogItem(*['-'] * len(LogItem._fields))
-
-    #    self._append(LOG_FMT.format(
-    #        time=timestamp,
-    #        recipe=self.recipe.name,
-    #        exp=fields.exp,
-    #        status='finished',
-    #        job=job_id,
-    #        sec_key=fields.sec_key,
-    #        rule=fields.rule,
-    #        ))
 
     # the status updates are written to job log file
 
@@ -766,7 +751,7 @@ class ExperimentLog(object):
             time=timestamp,
             recipe=self.recipe.name,
             exp=self.conf,
-            status='finished',
+            status='done',
             job_id=job_id,
             sec_key=step.sec_key,
             rule=rule)

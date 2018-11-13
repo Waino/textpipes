@@ -62,7 +62,18 @@ class UnboundOutput(object):
     def __repr__(self):
         print('UNBOUND_OUTPUT')
 UNBOUND_OUTPUT = UnboundOutput()
-        
+
+# RecipeFile statuses
+NO_FILE = 'no file'
+SCHEDULED = 'scheduled'
+RUNNING = 'running'
+DONE = 'done'
+EMPTY = 'empty'
+FAILED = 'failed'
+CONTINUE = 'can continue'
+TOO_SHORT = 'too short'
+
+
 class Recipe(object):
     """Main class for building experiment recipes"""
     def __init__(self, name=None, argv=None):
@@ -542,35 +553,23 @@ class RecipeFile(object):
             path = path.format(**cli_args)
         return path
 
-    def status(self, conf, cli_args=None):
+    def check_length(self, conf, cli_args=None):
+        # assumes existence has been checked already
+        status = DONE
         path = self(conf, cli_args)
-        if not self.exists(conf, cli_args):
-            # if it doesn't exist, it can't be done
-            return 'not done'
-        if self.exact_linecount is not None:
-            lc = external_linecount(path)
-            if lc == self.exact_linecount:
-                return 'done'
-            else:
-                # linecount doesn't match expected, so not done
-                if lc > self.exact_linecount:
-                    # shouldn't be longer than expected
-                    logger.warning(
-                        'File "{}" is {} lines, longer than expected {}'.format(
-                            path, lc, self.exact_linecount))
-                return 'unknown'
         # check for emptiness
         if not self.allow_empty:
             if os.path.isdir(path):
                 if dir_is_empty(path):
-                    return 'empty'
+                    return EMPTY
             else:
                 if os.stat(path).st_size == 0:
-                    return 'empty'
-        if self.atomic:
-            # aready checked that it exists
-            return 'done'
-        return 'unknown'
+                    return EMPTY
+        if self.exact_linecount is not None:
+            lc = external_linecount(path)
+            if lc < self.exact_linecount:
+                status = TOO_SHORT
+        return status, lc, self.exact_linecount
 
     def exists(self, conf, cli_args=None):
         return os.path.exists(self(conf, cli_args))
@@ -704,20 +703,33 @@ class IndirectRecipeFile(RecipeFile):
         return 'IndirectRecipeFile({}, {})'.format(self.section, self.key)
 
 
-NO_FILE = 'no file'
-SCHEDULED = 'scheduled'
-RUNNING = 'running'
-DONE = 'done'
-EMPTY = 'empty'
-FAILED = 'failed'
-CONTINUE = 'can continue'
-TOO_SHORT = 'too short'
-
 class FileStatusCache(object):
     def __init__(self, log, platform):
         self.log = log
         self.platform = platform
         self._cache = {}
+
+    @staticmethod
+    def continue_this(status):
+        """True if the status indicates that this output
+           could be scheduled"""
+        return status in (NO_FILE, CONTINUE)
+
+    @staticmethod
+    def continue_next(status):
+        """True if the status indicates that a job depending on this output
+           could be scheduled"""
+        return status == DONE
+
+    @staticmethod
+    def wait(status):
+        """True if the status indicates that you should wait"""
+        return status in (SCHEDULED, RUNNING)
+
+    @staticmethod
+    def error(status):
+        """True if the status indicates an error"""
+        return status in (EMPTY, FAILED, TOO_SHORT)
 
     def status(self, rf, conf, cli_args=None):
         tpl = (rf, conf, cli_args)
@@ -749,7 +761,7 @@ class FileStatusCache(object):
                         self.warn(rf, conf, cli_args, true_status,
                                   '{} lines, shorter than expected {}'.format(
                                         true_length, expected_length))
-                    elif true_length > expected_length:
+                    elif expected_length is not None and true_length > expected_length:
                         self.warn(rf, conf, cli_args, true_status,
                                   '{} lines, longer than expected {}'.format(
                                         true_length, expected_length))
@@ -765,7 +777,7 @@ class FileStatusCache(object):
                                   'Partial output of FAILED job')
         else:
             # file doesn't exist
-            if self.was_scheduled(rf, conf, cli_args):
+            if self.log.was_scheduled(rf(conf, cli_args)):
                 # was scheduled at some point
                 true_status = self._get_true_status(rf, conf, cli_args)
                 if true_status == FAILED:
@@ -779,19 +791,24 @@ class FileStatusCache(object):
                 # has not been scheduled
                 return NO_FILE
 
-    def was_scheduled(self, rf, conf, cli_args=None):
-        pass
-
     def _get_true_status(self, rf, conf, cli_args=None):
         job_fields = self.log.get_status_of_output(rf(conf, cli_args))
         expected = job_fields.status
         if expected == FAILED:
             return FAILED
         true_status = self.platform.check_job(job_fields.job_id)
-        if expected != true_status:
-            self.log.update_status(job_fields.job_id, rf, conf, cli_args)
+        if true_status == 'local':
+            true_status = expected
+        elif expected != true_status:
+            self.log.update_status(true_status, job_fields.job_id, rf, conf, cli_args)
         return true_status
 
     def warn(self, rf, conf, cli_args, status, message):
-        #logger.warning('')
-        pass
+        path = rf(conf, cli_args)
+        job_fields = self.log.get_status_of_output(path)
+        logger.warning('{msg} ({sec_key} {job_id} {status} {path})'.format(
+            msg=message,
+            sec_key=rf.sec_key(),
+            job_id=job_fields.job_id,
+            status=status,
+            path=path))
