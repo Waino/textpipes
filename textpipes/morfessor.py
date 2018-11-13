@@ -3,26 +3,38 @@ import subprocess
 
 from .core.recipe import Rule
 from .core.platform import run
-from .core.utils import FOURDOT
+from .core.utils import FOURDOT, FIVEDOT
 from .components.core import MonoPipeComponent, MonoPipe
 from .external import simple_external
 
 TrainMorfessor = simple_external(
     'TrainMorfessor', ['infile'], ['model', 'params', 'lexicon'],
-    'morfessor-train {infile} --save-segmentation {model} '
-    '--save-parameters {params} --lexicon {lexicon} {argstr}')
+    'morfessor-train {infile} --save-segmentation {model}'
+    ' --save-parameters {params} --lexicon {lexicon} {argstr}')
 
 TrainMorfessorSimple = simple_external(
     'TrainMorfessor', ['infile'], ['model'],
     'morfessor-train {infile} --save-segmentation {model} {argstr}')
 
+TrainMorfessorSemisup = simple_external(
+    'TrainMorfessorSemisup',
+    ['infile', 'annots', 'dev'], ['model', 'params', 'lexicon'],
+    'morfessor-train {infile} --annotations {annots} --develset {dev}'
+    ' --save-segmentation {model}'
+    ' --save-parameters {params} --lexicon {lexicon} {argstr}')
+
 TrainFlatcat = simple_external(
     'TrainFlatcat', ['infile'], ['model'],
     'flatcat-train {infile} -s {model} --category-separator ' + FOURDOT + ' {argstr}')
 
+TrainFlatcatSemisup = simple_external(
+    'TrainFlatcat', ['infile', 'annots'], ['model'],
+    'flatcat-train {infile} --annotations {annots}'
+    ' -s {model} --category-separator ' + FOURDOT + ' {argstr}')
+
 class ApplyMorfessor(Rule):
     def __init__(self, *args,
-                 sep='@@ ', fmt='{analysis}',
+                 sep=FIVEDOT + ' ', fmt='{analysis}',
                  no_space_ok=False,
                  **kwargs):
         super().__init__(*args, **kwargs)
@@ -47,15 +59,16 @@ class ApplyMorfessor(Rule):
 
 class ApplyFlatcat(Rule):
     def __init__(self, *args,
-                 sep='@@ ', fmt='{analysis}', argstr='',
+                 sep=FIVEDOT + ' ', fmt='{analysis}', catsep=FOURDOT, argstr='',
                  no_space_ok=False,
                  **kwargs):
         super().__init__(*args, **kwargs)
         self.sep = sep
         self.fmt = fmt
+        self.catsep = catsep
         self.argstr = argstr
         assert no_space_ok or ' ' in self.sep
-        self.add_opt_dep('morfessor-segment', binary=True)
+        self.add_opt_dep('flatcat-segment', binary=True)
 
     def make(self, conf, cli_args):
         infile = self.inputs[0](conf, cli_args)
@@ -70,13 +83,13 @@ class ApplyFlatcat(Rule):
                 outfile=outfile,
                 sep=self.sep,
                 fmt=self.fmt,
-                catsep=FOURDOT,
+                catsep=self.catsep,
                 argstr=self.argstr))
 
 
 class OverrideSegmentationComponent(MonoPipeComponent):
     """combine overlapping segmentation maps, so that the side input has preference"""
-    def __init__(self, override_file, bnd_marker='@@', **kwargs):
+    def __init__(self, override_file, bnd_marker=FIVEDOT, **kwargs):
         super().__init__(side_inputs=[override_file], **kwargs)
         self.override_file = override_file
         self.bnd_marker = bnd_marker

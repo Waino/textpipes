@@ -7,7 +7,7 @@ from .core.utils import find_highest_file
 from .components.core import SingleCellComponent
 
 class PrepareData(Rule):
-    def __init__(self, *args, opennmt_dir='.', max_shard_size=262144, argstr='', **kwargs):
+    def __init__(self, *args, opennmt_dir='.', max_shard_size=1000000, argstr='', **kwargs):
         super().__init__(*args, **kwargs)
         self.opennmt_dir = opennmt_dir
         self.max_shard_size = max_shard_size
@@ -28,7 +28,7 @@ class PrepareData(Rule):
             ' -valid_src {src_dev_file}' \
             ' -valid_tgt {trg_dev_file}' \
             ' -save {out_dir}/sharded' \
-            ' -max_shard_size {max_shard_size}'
+            ' -shard_size {max_shard_size}'
             ' {argstr}'
             ' >> {pipe_file} 2>&1'.format(
                 opennmt_dir=self.opennmt_dir,
@@ -51,9 +51,12 @@ class Train(Rule):
                  model_base,
                  argstr='',
                  opennmt_dir='.',
+                 save_every=5000,
                  **kwargs):
+        assert all(x % save_every == 0 for x in loop_indices)
         self.models = WildcardLoopRecipeFile.loop_output(
             model_seckey[0], model_seckey[1], loop_indices)
+        self.save_every = save_every
         self.data_dir = data_dir
         self.pipe_file = pipe_file
         self.model_base = model_base
@@ -65,6 +68,7 @@ class Train(Rule):
         super().__init__(inputs, outputs, **kwargs)
         self.add_opt_dep(self.opennmt_dir + '/train.py', binary=True)
 
+    # FIXME: use num training steps to finish
     def make(self, conf, cli_args):
         # a lot of stuff is appended to model path
         assert self.models[0](conf, cli_args).startswith(self.model_base)
@@ -72,12 +76,14 @@ class Train(Rule):
         run('{opennmt_dir}/train.py'
             ' -data {data_dir}/sharded'
             ' -save_model {model_base}'
+            ' -save_checkpoint_steps {save_every}'
             ' {resume}'
-            ' -gpuid 0 '
+            ' -gpu_ranks 0 '
             ' {argstr}'
             ' >> {pipe_file} 2>&1'.format(
                 opennmt_dir=self.opennmt_dir,
                 model_base=self.model_base,
+                save_every=self.save_every,
                 resume=resume_str,
                 data_dir=self.data_dir(conf, cli_args),
                 argstr=self.argstr,
@@ -85,10 +91,9 @@ class Train(Rule):
 
     def resume(self):
         # also includes values outside chosen loop indices
-        idx, model = find_highest_file(self.model_base, r'.*e([0-9]+)\.pt')
+        idx, model = find_highest_file(self.model_base, r'_step_([0-9]+)\.pt')
         if idx is not None:
-            return '-train_from {model} -start_epoch {beg}'.format(
-                model=model, beg=idx + 1)
+            return '-train_from {model}'.format(model=model)
         # nothing to resume
         return ''
 

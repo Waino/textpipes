@@ -57,9 +57,6 @@ dep_rules = (
     ('combine_counts_balance', tp.counting.CombineCounts,
         [recipe.use_output('outputs', 'count_tokens'),
          recipe.use_output('outputs', 'count_tokens2')], {'balance': True}),
-    # morfessor.py
-    ('train_morfessor', tp.morfessor.TrainMorfessor, recipe.use_output('outputs', 'count_tokens'),
-        {'argstr': '--traindata-list -w 0.4'}),
     # truecaser.py
     ('truecase', tp.apply_component(tp.truecaser.TrueCase(
         model_file=recipe.use_output('outputs', 'train_truecaser'))),
@@ -76,6 +73,14 @@ dep_rules = (
 for name, rule, inputs, kwargs in dep_rules:
     out = recipe.add_output('outputs', name, main=True)
     recipe.add_rule(rule(inputs, out, **kwargs))
+
+# morfessor.py
+recipe.add_rule(tp.morfessor.TrainMorfessor(
+    recipe.use_output('outputs', 'count_tokens'),
+    [recipe.add_output('outputs', 'train_morfessor', main=True),
+     recipe.add_output('outputs', 'morfessor.params'),
+     recipe.add_output('outputs', 'morfessor.lexicon')],
+    argstr='--traindata-list -w 0.4'))
 
 #### dep on previous steps, second iteration
 dep_rules2 = (
