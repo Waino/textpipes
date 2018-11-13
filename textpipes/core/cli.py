@@ -63,6 +63,9 @@ def get_parser(recipe):
     parser.add_argument('--fail-running', default=False, action='store_true',
                         help='Mark all running jobs as failed. '
                         '(to kill zombies in exceptional cases)')
+    parser.add_argument('--ingest-manual', default=False, action='store_true',
+                        help='Mark all files of unknown origin as ok. '
+                        '(if logs are out of sync for some reason)')
 
     parser.add_argument('--make', default=None, type=str, metavar='OUTPUT',
                         help='Output to make, in section:key format. '
@@ -601,32 +604,16 @@ class ExperimentLog(object):
         logitem = self.failed(job_id)
         self.parsed_job_logs[job_id] = logitem
 
-    def is_done(self, rf, conf, cli_args=None):
-        rf_status = rf.status(conf, cli_args)
-        if rf_status in ('not done', 'empty'):
-            # FIXME: add failed to log if empty?
-            return False
-        elif rf_status == 'done':
-            return True
-        if conf.force:
-            # force flag causes failures to be ignored
-            return True
-        mtime = os.path.getmtime(rf(conf, cli_args))
-        mdatetime = datetime.fromtimestamp(mtime)
-        if mdatetime < self.log_horizon:
-            # assume that old files are done
-            return True
-        # don't know based on just the file
-        logitem = self.get_status_of_output(rf(conf, cli_args))
-        return logitem.status == 'done'
-
     @property
     def last_job_id(self):
-        return max([0] + list(int(x) for x in self.outputs.values()))
+        return max([0] + list(int(x) for x in self.outputs.values()
+                              if x != 'IngestedManual'))
 
     def job_id_from_outputs(self, concrete):
-        job_ids = [int(self.outputs[out]) for out in concrete
+        job_ids = [self.outputs[out] for out in concrete
                    if out in self.outputs]
+        job_ids = [int(x) for x in job_ids 
+                   if x not in ('-', 'IngestedManual')]
         if len(job_ids) == 0:
             return None
         return max(job_ids)
@@ -800,6 +787,18 @@ class ExperimentLog(object):
         self._append_item(log_item, logfile=logfile)
         return log_item
 
+    def ingest_manual(self, rf, config, cli_args):
+        timestamp = datetime.now().strftime(TIMESTAMP)
+        output = rf(config, cli_args)
+        self._append(FILE_FMT.format(
+            time=timestamp,
+            recipe=self.recipe.name,
+            exp=self.conf,
+            job='IngestedManual',
+            sec_key=rf.sec_key(),
+            filename=output
+            ))
+        self.outputs[output] = 'IngestedManual'
 
     def _append_item(self, log_item, logfile=None):
         self._append(LOG_FMT.format(**log_item._asdict()), logfile=logfile)

@@ -49,6 +49,7 @@ class Config(object):
                                 lines = [line.replace(pattern, repl) for line in lines]
                 self.conf.read_file(lines)
         self.force = args.force
+        self.ingest_manual = args.ingest_manual
         if 'exp' in self.conf and 'seed' in self.conf['exp']:
             random.seed(self.conf['exp']['seed'])
 

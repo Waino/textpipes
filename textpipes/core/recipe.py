@@ -60,7 +60,7 @@ class UnboundOutput(object):
         self.inputs = []
 
     def __repr__(self):
-        print('UNBOUND_OUTPUT')
+        return 'UNBOUND_OUTPUT'
 UNBOUND_OUTPUT = UnboundOutput()
 
 # RecipeFile statuses
@@ -255,10 +255,8 @@ class Recipe(object):
                 concrete = []
                 job_id = None
 
-            job_status = self.status_of(rf, self.conf, cli_args)
-            print(job_status, rf)
+            job_status = self.status_of(cursor, self.conf, cli_args)
             if FileStatusCache.wait(job_status):
-                print(job_status, rf)
                 if job_status == SCHEDULED:
                     tmp = waiting
                     js_status = 'waiting'
@@ -332,8 +330,10 @@ class Recipe(object):
                         overrides=overrides))
                     continue
                 # implicit else: ready for scheduling
-                not_done_outputs = [out for out in rule.outputs
-                                    if not self.log.is_done(out, self.conf, cli_args)]
+                not_done_outputs = [
+                    out for out in rule.outputs
+                    if self.status_of(cursor, self.conf, cli_args) != DONE]
+
                 if len(not_done_outputs) == 0:
                     raise Exception('tried to schedule job '
                         'even though all outputs exist: {}'.format(rule))
@@ -735,8 +735,9 @@ class FileStatusCache(object):
         if rf not in self._cache:
             self._cache[rf] = self._status(rf, conf, cli_args)
         result = self._cache[rf]
-        assert result in (NO_FILE, SCHEDULED, RUNNING, DONE,
-                          EMPTY, FAILED, CONTINUE, TOO_SHORT)
+        if result not in (NO_FILE, SCHEDULED, RUNNING, DONE,
+                          EMPTY, FAILED, CONTINUE, TOO_SHORT):
+            raise Exception('unknown status "{}"'.format(result))
         return result
 
     def _status(self, rf, conf, cli_args=None):
@@ -779,6 +780,19 @@ class FileStatusCache(object):
                 elif true_status == 'unknown':
                     # let's be optimistic
                     return DONE
+                elif true_status == 'not scheduled':
+                    # logs contain no explanation
+                    # for the existence of this file
+                    if conf.ingest_manual:
+                        self.log.ingest_manual(rf, conf, cli_args)
+                        return DONE
+                    elif conf.force:
+                        return DONE
+                    else:
+                        self.warn(rf, conf, cli_args, true_status,
+                                'The origin of this file is unkown '
+                                '(use --force or --ingest-manual to fix)')
+                        return FAILED
                 return true_status
         else:
             # file doesn't exist
