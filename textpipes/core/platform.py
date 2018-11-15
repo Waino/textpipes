@@ -165,7 +165,7 @@ class Slurm(Platform):
         return 'unknown'
 
     def _parse_sacct(self, job_id):
-        print('***************** running sacct!')
+        print('***************** running sacct!', job_id)
         r = run('sacct -j "{}" -Pno jobid,elapsed,start,state'.format(job_id))
         for (i, line) in enumerate(r.std_out.split('\n')):
             if len(line.strip()) == 0:

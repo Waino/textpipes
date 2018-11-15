@@ -468,7 +468,7 @@ class Rule(object):
             assert isinstance(rf, RecipeFile)
         for rf in self.outputs:
             assert isinstance(rf, RecipeFile)
-            rf.atomic = self.is_atomic(rf)
+            rf.atomic = rf.atomic or self.is_atomic(rf)
         self.chain_schedule = max(chain_schedule, 1)
         self._opt_deps = set()
         self.blocks_recursion = False
@@ -804,6 +804,8 @@ class FileStatusCache(object):
                               'This job failed earlier, '
                               'but output file does not exist (anymore)')
                     # failing without output doesn't prevent relaunch
+                    return NO_FILE
+                elif true_status == 'unknown':
                     return NO_FILE
                 return true_status
             else:
