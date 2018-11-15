@@ -393,7 +393,7 @@ class CLI(object):
         overrides = parse_override_string(override_str)
         next_steps = self.recipe.get_next_steps_for(
             outputs=[output], cli_args=self.cli_args, overrides=overrides)
-        concat = next_steps.waiting + next_steps.available
+        concat = next_steps.waiting + next_steps.running + next_steps.available
         if len(concat) == 0:
             raise Exception('Cannot start running {}: {}'.format(
                 output, next_steps))
@@ -594,7 +594,7 @@ class ExperimentLog(object):
         return logitem
 
     def update_status(self, platform_status, job_id, rf, conf, cli_args):
-        if platform_status in ('unknown', 'local'):
+        if platform_status in ('unknown', 'local', 'running'):
             return
         if platform_status == 'done':
             self.missed_finish(job_id)
