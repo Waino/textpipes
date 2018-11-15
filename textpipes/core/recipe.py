@@ -735,6 +735,7 @@ class FileStatusCache(object):
         if rf not in self._cache:
             self._cache[rf] = self._status(rf, conf, cli_args)
         result = self._cache[rf]
+        result = DONE if result == 'finished' else result   # FIXME tmp
         if result not in (NO_FILE, SCHEDULED, RUNNING, DONE,
                           EMPTY, FAILED, CONTINUE, TOO_SHORT):
             raise Exception('unknown status "{}"'.format(result))
@@ -817,8 +818,11 @@ class FileStatusCache(object):
         expected = job_fields.status
         if expected == FAILED:
             return FAILED
-        if expected == DONE and exists:
-            return DONE
+        if expected == DONE:
+            if exists:
+                return DONE
+            else:
+                return NO_FILE
         true_status = self.platform.check_job(job_fields.job_id)
         if true_status == 'local':
             true_status = expected
