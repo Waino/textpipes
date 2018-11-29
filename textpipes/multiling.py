@@ -92,9 +92,10 @@ class Symmetrize(Rule):
 
 
 class WordPairs(Rule):
-    def __init__(self, alignment, src, trg, out, min_freq=2, **kwargs):
+    def __init__(self, alignment, src, trg, out, min_freq=2, bnd_marker=None, **kwargs):
         super().__init__([alignment, src, trg], [out], **kwargs)
         self.min_freq = min_freq
+        self.bnd_marker = bnd_marker
 
     def make(self, conf, cli_args):
         # Make a tuple of generators that reads from main_inputs
@@ -109,6 +110,9 @@ class WordPairs(Rule):
             aligns = aligns.split()
             aligns = [x.split('-') for x in aligns]
             aligns = [(int(x) for x in pair) for pair in aligns]
+            if self.bnd_marker is not None:
+                src = src.replace(self.bnd_marker, '')
+                trg = trg.replace(self.bnd_marker, '')
             src = src.split()
             trg = trg.split()
             for src_i, trg_i in aligns:
