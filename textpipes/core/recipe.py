@@ -558,10 +558,10 @@ class RecipeFile(object):
         if not self.allow_empty:
             if os.path.isdir(path):
                 if dir_is_empty(path):
-                    return EMPTY
+                    return EMPTY, lc, self.exact_linecount
             else:
                 if os.stat(path).st_size == 0:
-                    return EMPTY
+                    return EMPTY, lc, self.exact_linecount
         if self.exact_linecount is not None:
             lc = external_linecount(path)
             if lc < self.exact_linecount:
