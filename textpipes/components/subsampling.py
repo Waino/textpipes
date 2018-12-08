@@ -31,9 +31,9 @@ def split_dataset_para(recipe,
                        inputs, tmp_files, train_files, dev_files,
                        dev_size=0,
                        **kwargs):
-    recipe.add_rule(apply_component(Shuffle(), **kwargs)(inputs, tmp_files))
-    recipe.add_rule(apply_component(Head(dev_size), **kwargs)(tmp_files, dev_files))
-    recipe.add_rule(apply_component(Tail(dev_size), **kwargs)(tmp_files, train_files))
+    recipe.add_rule(apply_component(Shuffle(), para=True, **kwargs)(inputs, tmp_files))
+    recipe.add_rule(apply_component(Head(dev_size), para=True, **kwargs)(tmp_files, dev_files))
+    recipe.add_rule(apply_component(Tail(dev_size), para=True, **kwargs)(tmp_files, train_files))
 
 
 class Head(PipeComponent):
