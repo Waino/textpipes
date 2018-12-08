@@ -1,6 +1,7 @@
 import random
 
-from .core import PipeComponent, MonoPipeComponent, DeadEndPipe
+from .core import PipeComponent, MonoPipeComponent, DeadEndPipe, \
+                  apply_component
 from ..core.recipe import Rule
 
 def split_dataset(inputs, train_file,
@@ -25,6 +26,14 @@ def split_dataset(inputs, train_file,
                        name='SplitDataset',
                        resource_class=resource_class,
                        **kwargs)
+
+def split_dataset_para(recipe,
+                       inputs, tmp_files, train_files, dev_files,
+                       dev_size=0,
+                       **kwargs):
+    recipe.add_rule(apply_component(Shuffle(), **kwargs)(inputs, tmp_files))
+    recipe.add_rule(apply_component(Head(dev_size), **kwargs)(tmp_files, dev_files))
+    recipe.add_rule(apply_component(Tail(dev_size), **kwargs)(tmp_files, train_files))
 
 
 class Head(PipeComponent):
