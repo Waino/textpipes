@@ -301,6 +301,7 @@ class Recipe(object):
         # iteratively sort needed
         while len(needed) > 0:
             remaining = set()
+            not_yet = {}
             for cursor in needed:
                 if cursor in known:
                     # don't reschedule
@@ -309,6 +310,7 @@ class Recipe(object):
                 if any(inp not in known for inp in rule.inputs):
                     # has inputs that are not yet part of the plan
                     remaining.add(cursor)
+                    not_yet[cursor] = [inp not in known for inp in rule.inputs]
                     continue
                 known.update(rule.outputs)
                 not_done = tuple(inp for inp in rule.inputs
@@ -343,7 +345,10 @@ class Recipe(object):
                     concrete=concrete,
                     overrides=overrides))
             if len(remaining) == len(needed):
-                raise Exception('unmet dependencies: {}'.format(remaining))
+                err_str = ['\n'.join('{} depends on: {}'.format(
+                    cursor, not_yet[cursor]))
+                    for cursor in remaining]
+                raise Exception('unmet dependencies:\n{}'.format(err_str))
             needed = remaining
 
         delayed = delayed if recursive else []
