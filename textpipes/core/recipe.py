@@ -350,8 +350,8 @@ class Recipe(object):
                 #    cursor, not_yet[cursor])
                 #    for cursor in remaining])
                 cursor, closure = self._detect_circles(not_yet)
-                err_str = '{} has circular dep: {}'.format(
-                    cursor, closure)
+                err_str = '{} has circular dep:\n{}'.format(
+                    cursor, '\n'.join(str(x) for x in closure))
                 raise Exception('unmet dependencies:\n{}'.format(err_str))
             needed = remaining
 
@@ -365,6 +365,7 @@ class Recipe(object):
             closure[cursor].update(deps)
         for _ in range(50):
             for cursor, deps in list(closure.items()):
+                deps = set(deps)
                 for dep in deps:
                     closure[cursor].update(closure[dep])
                     if cursor in closure[cursor]:
