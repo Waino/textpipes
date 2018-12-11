@@ -345,14 +345,30 @@ class Recipe(object):
                     concrete=concrete,
                     overrides=overrides))
             if len(remaining) == len(needed):
-                err_str = ['\n'.join('{} depends on: {}'.format(
-                    cursor, not_yet[cursor]))
-                    for cursor in remaining]
+                #err_str = ['\n'.join('{} depends on: {}'.format(
+                #    cursor, not_yet[cursor]))
+                #    for cursor in remaining]
+                cursor, closure = self._detect_circles(not_yet)
+                err_str = '{} has circular dep: {}'.format(
+                    cursor, closure)
                 raise Exception('unmet dependencies:\n{}'.format(err_str))
             needed = remaining
 
         delayed = delayed if recursive else []
         return NextSteps(done, waiting, running, available, delayed)
+
+    @staticmethod
+    def _detect_circles(not_yet):
+        closure = collections.defaultdict(set)
+        for cursor, deps in not_yet.items():
+            closure[cursor].update(deps)
+        for _ in range(50):
+            for cursor, deps in list(closure.items()):
+                for dep in deps:
+                    closure[cursor].update(closure[dep])
+                    if cursor in closure[cursor]:
+                        return cursor, closure[cursor]
+        return None, set()
 
     def check_mtime_inversions(self, outputs=None, cli_args=None):
         if not outputs:
