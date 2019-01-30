@@ -34,6 +34,11 @@ class Config(object):
         self.platform = self.platform_config(args)
         self.conf = configparser.ConfigParser(
             interpolation=configparser.ExtendedInterpolation())
+        self.force = args.force
+        self.ingest_manual = args.ingest_manual
+        if main_conf_file == '_empty.ini':
+            # magic empty conf doesn't need to exist
+            return
         self.conf.read_file(open(main_conf_file, 'r'))
         if 'subconf' in self.conf:
             for (key, subconf) in self.conf['subconf'].items():
@@ -48,8 +53,6 @@ class Config(object):
                             else:
                                 lines = [line.replace(pattern, repl) for line in lines]
                 self.conf.read_file(lines)
-        self.force = args.force
-        self.ingest_manual = args.ingest_manual
         if 'exp' in self.conf and 'seed' in self.conf['exp']:
             random.seed(self.conf['exp']['seed'])
 
