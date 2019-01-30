@@ -47,6 +47,16 @@ out = recipe.add_output('outputs', name, main=True)
 words = recipe.add_output('outputs', 'count_tokens2_words', main=True)
 recipe.add_rule(tp.counting.CountTokens(inp, out, words_only=words))
 
+# ApplySegmentation with logging of missing
+name = 'apply_segmentation'
+inp = recipe.add_input('inputs', name)
+seg = recipe.add_input('inputs', name + '_seg')
+out = recipe.add_output('outputs', name, main=True)
+missing = recipe.add_output('outputs', name + '_missing', main=True)
+component = tp.apply_component(
+    tp.ApplySegmentation(seg, bnd_marker=tp.FIVEDOT + ' ', pre_marked=False, log=missing))
+recipe.add_rule(component(inp, out))
+
 #### dep on previous steps
 dep_rules = (
     ('remove_counts', tp.counting.RemoveCounts, recipe.use_output('outputs', 'count_tokens'), {}),
