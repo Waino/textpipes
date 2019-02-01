@@ -9,6 +9,7 @@ from . import estonian
 from . import filtering
 from . import newscorpus
 #from . import nltk
+from . import noise
 from . import opensubtitles
 from . import preprocessing
 from . import segmentation

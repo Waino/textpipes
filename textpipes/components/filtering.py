@@ -93,18 +93,34 @@ class ParallelFilter(ParallelPipeComponent):
 
 
 class Filter(object):
+    """Base class for filter implementations"""
     def __init__(self, side_inputs=None, side_outputs=None):
         self.side_inputs = side_inputs if side_inputs is not None else []
         self.side_outputs = side_outputs if side_outputs is not None else []
         self.opt_deps = set()
 
-    """Base class for filter implementations"""
     def __call__(self, line, side_fobjs=None):
         """Returns True if the line should be filtered out"""
         raise NotImplementedError()
 
     def add_opt_dep(self, name, binary=False):
         self.opt_deps.add(OptionalDep(name, binary, self.__class__.__name__))
+
+class FilterOovs(Filter):
+    def __init__(self, vocabulary):
+        super().__init__(side_inputs=[vocabulary])
+        self.vocabulary = vocabulary
+        self._vocab = None
+
+    def _read_vocab(self, side_fobjs):
+        self._vocab = set()
+        for line in side_fobjs[self.vocabulary]:
+            self._vocab.add(line.strip())
+
+    def __call__(self, line, side_fobjs):
+        if self._vocab is None:
+            self._read_vocab(side_fobjs)
+        return any(line.strip().split() not in self._vocab)
 
 
 class ComparisonFilter(Filter):
