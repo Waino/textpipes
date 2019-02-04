@@ -24,6 +24,7 @@ ind_rules = (
     # components/noise.py
     ('drop_tokens', tp.apply_component(tp.components.noise.DropTokens()), {}),
     ('peturb_order', tp.apply_component(tp.components.noise.PeturbOrder()), {}),
+    ('seg_peturb_order', tp.apply_component(tp.components.noise.SegmentationAwarePeturbOrder()), {}),
     # components/tokenizer.py
     ('onmt_tokenize', tp.apply_component(onmt_tokenize), {}),
     ('simple_tokenize', tp.apply_component(tp.components.tokenizer.SimpleTokenize()), {}),
