@@ -40,7 +40,7 @@ class PeturbOrder(SingleCellComponent):
 
     def single_cell(self, line):
         tokens = self._split(line.strip())
-        indices = [(i + random.uniform(-self.max_dist, self.max_dist), token)
+        indices = [(i + random.uniform(0, self.max_dist), token)
                    for (i, token) in enumerate(tokens)]
         indices.sort()
         return ' '.join(token for (i, token) in indices)

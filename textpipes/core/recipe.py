@@ -335,7 +335,7 @@ class Recipe(object):
                 # implicit else: ready for scheduling
                 not_done_outputs = [
                     out for out in rule.outputs
-                    if self.status_of(cursor, self.conf, cli_args) != DONE]
+                    if self.status_of(out, self.conf, cli_args) != DONE]
 
                 if len(not_done_outputs) == 0:
                     raise Exception('tried to schedule job '

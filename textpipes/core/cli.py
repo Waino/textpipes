@@ -440,8 +440,9 @@ class CLI(object):
         for step in nextsteps.available:
             outfile = step.concrete[0]
             rclass = step.rule.resource_class
+            sec_key = step.outputs[0].sec_key()
             tpls.append((
-                albl, step.job_id, step.sec_key, step.rule.name, rclass, outfile))
+                albl, step.job_id, sec_key, step.rule.name, rclass, outfile))
             if verbose:
                 # also show other outputs
                 for out in step.outputs[1:]:
