@@ -1,3 +1,4 @@
+import collections
 import random
 
 from .core import PipeComponent, MonoPipeComponent, DeadEndPipe, \
@@ -54,8 +55,8 @@ class Head(PipeComponent):
             yield line
 
 class Tail(PipeComponent):
-    """Removes from the stream everything except for
-    the specified number of lines/tuples from the end"""
+    """Skips the specified number of lines/tuples from the
+    beginning, then outputs the rest."""
     def __init__(self, skip):
         super().__init__()
         self.skip = int(skip)
@@ -69,6 +70,25 @@ class Tail(PipeComponent):
             if i < self.skip:
                 continue
             yield line
+
+class RealTail(PipeComponent):
+    """Removes from the stream everything except for
+    the specified number of lines/tuples from the end"""
+    def __init__(self, keep):
+        super().__init__()
+        self.keep = int(keep)
+        self.deque = collections.deque(maxlen=self.keep)
+        # does not care if the data is mono or parallel
+        self._is_mono_pipe_component = True
+        self._is_parallel_pipe_component = True
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        for line in stream:
+            self.deque.append(line)
+        for line in self.deque:
+            yield line
+        del self.deque
 
 class HeadTee(MonoPipeComponent):
     """Passes the stream unchanged, while copying
