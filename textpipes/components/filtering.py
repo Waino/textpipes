@@ -210,19 +210,24 @@ class FilterByLength(Filter):
 
 class ComparisonFilterByLengthRatio(ComparisonFilter):
     def __init__(self, min_ratio, max_ratio=None, threshold=10,
-                 only_alpha=False):
+                 only_alpha=False, tokens=False):
         super().__init__()
         self.min_ratio = min_ratio
         self.max_ratio = max_ratio if max_ratio is not None \
             else 1. / min_ratio
         self.threshold = threshold
         self.only_alpha = only_alpha
+        self.tokens = tokens
+        assert not tokens and only_alpha
 
     def __call__(self, tpl, side_fobjs=None):
         left, right = tpl
         if self.only_alpha:
             left = ''.join([x for x in left.lower() if x in FILTER_ALPHA])
             right = ''.join([x for x in right.lower() if x in FILTER_ALPHA])
+        if self.tokens:
+            left = left.split()
+            right = right.split()
         llen = float(len(left))
         rlen = float(len(right))
         if llen < self.threshold and rlen < self.threshold:
