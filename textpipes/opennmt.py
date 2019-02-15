@@ -7,10 +7,9 @@ from .core.utils import find_highest_file
 from .components.core import SingleCellComponent
 
 class PrepareData(Rule):
-    def __init__(self, *args, opennmt_dir='.', max_shard_size=1000000, argstr='', **kwargs):
+    def __init__(self, *args, opennmt_dir='.', argstr='', **kwargs):
         super().__init__(*args, **kwargs)
         self.opennmt_dir = opennmt_dir
-        self.max_shard_size = max_shard_size
         self.argstr = argstr
         self.add_opt_dep(self.opennmt_dir + '/preprocess.py', binary=True)
 
@@ -28,7 +27,6 @@ class PrepareData(Rule):
             ' -valid_src {src_dev_file}' \
             ' -valid_tgt {trg_dev_file}' \
             ' -save {out_dir}/sharded' \
-            ' -shard_size {max_shard_size}'
             ' {argstr}'
             ' >> {pipe_file} 2>&1'.format(
                 opennmt_dir=self.opennmt_dir,
@@ -38,7 +36,6 @@ class PrepareData(Rule):
                 trg_dev_file=trg_dev_file,
                 out_dir=out_dir,
                 pipe_file=pipe_file,
-                max_shard_size=self.max_shard_size,
                 argstr=self.argstr))
 
 
