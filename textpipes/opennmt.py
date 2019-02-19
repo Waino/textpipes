@@ -26,7 +26,7 @@ class PrepareData(Rule):
             ' -train_tgt {trg_corpus_file}' \
             ' -valid_src {src_dev_file}' \
             ' -valid_tgt {trg_dev_file}' \
-            ' -save {out_dir}/sharded' \
+            ' -save_data {out_dir}/sharded' \
             ' {argstr}'
             ' >> {pipe_file} 2>&1'.format(
                 opennmt_dir=self.opennmt_dir,
