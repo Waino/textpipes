@@ -220,6 +220,23 @@ class Shuffle(PipeComponent):
             yield line
 
 
+class Upsample(PipeComponent):
+    """Repeats each line in the data n times.
+    """
+    def __init__(self, n):
+        super().__init__()
+        self.n = n
+        # does not care if the data is mono or parallel
+        self._is_mono_pipe_component = True
+        self._is_parallel_pipe_component = True
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        for line in stream:
+            for _ in range(self.n):
+                yield line
+
+
 class ChunkSplit(Rule):
     def __init__(self, inp, outputs, lines_per_chunk):
         super().__init__([inp], outputs)
