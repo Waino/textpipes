@@ -350,6 +350,9 @@ class CLI(object):
         for step in nextsteps.available + nextsteps.delayed:
             wait_for_jobs = []
             unk_deps = False
+            if step.rule.blocks_recursion:
+                print('Not scheduling manual job "{}"'.format(step))
+                continue
             for inp in step.inputs:
                 if inp not in wait_ids:
                     if not self.platform.make_immediately:
