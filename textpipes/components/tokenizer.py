@@ -306,3 +306,33 @@ class DeTokenize(SingleCellComponent):
         for (exp, repl) in self.expressions:
             val = exp.sub(repl, val)
         return val.strip()
+
+
+NUMONLY_RE = re.compile(r'^[0-9][0-9]*$')
+
+class ForceTokenizeLongNumbers(SingleCellComponent):
+    def __init__(self, min_len=4, tok_len=3, bnd_marker=FIVEDOT, **kwargs):
+        super().__init__(**kwargs)
+        self.min_len = min_len
+        self.tok_len = tok_len
+        self.bnd_marker = bnd_marker
+
+    def single_cell(self, sentence):
+        return ' '.join(self._token(token) for token in sentence.split())
+
+    def _token(self, token):
+        m = NUMONLY_RE.match(token)
+        if not m:
+            return token
+        else:
+            if len(token) <= 4:
+                return token
+            return self.fseg(token)
+
+    def fseg(self, token):
+        out = []
+        while len(token) > 3:
+            out.append(token[:3] + self.bnd_marker)
+            token = token[3:]
+        out.append(token)
+        return ' '.join(out)
