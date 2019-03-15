@@ -123,6 +123,26 @@ class FilterOovs(Filter):
         return any(line.strip().split() not in self._vocab)
 
 
+class FilterForeignChars(Filter):
+    def __init__(self, foreign, allow_max=5):
+        super().__init__(side_inputs=[foreign])
+        self.foreign = foreign
+        self.allow_max = allow_max
+        self._foreign = None
+
+    def _read_foreign(self, side_fobjs):
+        self._foreign = set()
+        for line in side_fobjs[self.foreign]:
+            self._foreign.update(line.strip())
+
+    def __call__(self, line, side_fobjs):
+        if self._foreign is None:
+            self._read_foreign(side_fobjs)
+        hits = sum(1 for char in line
+                   if char in self._foreign)
+        return hits > self.allow_max
+
+
 class ComparisonFilter(Filter):
     """Takes a tuple of lines instead of a single line"""
     pass
