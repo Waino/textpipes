@@ -25,10 +25,13 @@ ind_rules = (
     ('drop_tokens', tp.apply_component(tp.components.noise.DropTokens()), {}),
     ('peturb_order', tp.apply_component(tp.components.noise.PeturbOrder()), {}),
     ('seg_peturb_order', tp.apply_component(tp.components.noise.SegmentationAwarePeturbOrder()), {}),
+    # components/preprocessing.py
+    ('truncate_words', tp.apply_component(tp.components.preprocessing.TruncateWords()), {}),
     # components/tokenizer.py
     ('onmt_tokenize', tp.apply_component(onmt_tokenize), {}),
     ('simple_tokenize', tp.apply_component(tp.components.tokenizer.SimpleTokenize()), {}),
     ('old_tokenize', tp.apply_component(tp.components.tokenizer.Tokenize('fi')), {}),
+    ('force_tok_long_num', tp.apply_component(tp.components.tokenizer.ForceTokenizeLongNumbers()), {}),
     ### built-in features
     # transparent gzip
     ('gzip', tp.dummy.DummyParamPrint, {'name': 'gzip'}),

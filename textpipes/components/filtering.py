@@ -218,7 +218,7 @@ class ComparisonFilterByLengthRatio(ComparisonFilter):
         self.threshold = threshold
         self.only_alpha = only_alpha
         self.tokens = tokens
-        assert not tokens and only_alpha
+        assert not (tokens and only_alpha)
 
     def __call__(self, tpl, side_fobjs=None):
         left, right = tpl

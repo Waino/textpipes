@@ -358,3 +358,19 @@ class NormalizeLongSounds(RegexSubstitution):
             (r'(.)\1\1+', r'\1\1\1'),
             ]
         super().__init__(expressions, **kwargs)
+
+
+class TruncateWords(SingleCellComponent):
+    def __init__(self, length=5, prefix=True, **kwargs):
+        super().__init__(**kwargs)
+        self.length = length
+        self.prefix = prefix
+
+    def single_cell(self, line):
+        return ' '.join(self._truncate(token) for token in line.split())
+
+    def _truncate(self, token):
+        if self.prefix:
+            return token[:self.length]
+        else:
+            return token[-self.length:]
