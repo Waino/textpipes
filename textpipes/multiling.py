@@ -9,11 +9,13 @@ except ImportError:
     # warnings emitted by check in cli
     pass
 
-from .components.core import SingleCellComponent
+from .components.core import SingleCellComponent, apply_component
 from .components.filtering import FILTER_ALPHA, Filter
+from .components.preprocessing import TruncateWords
+from .tabular import PasteColumns
 from .core.platform import run
 from .core.recipe import Rule
-from .core.utils import safe_zip, progress
+from .core.utils import safe_zip, progress, FIVEDOT
 
 # Rule, not Component (input pairs not synchronous)
 class TriangulateParallel(Rule):
@@ -186,3 +188,85 @@ class FilterLevenshteinLongEdits(Filter):
         for op, ib, ie, jb, je in edits:
             yield max(ie - ib, je - jb)
         yield 0
+
+
+def train_lexical_match(recipe,
+                        inp_src, inp_trg,
+                        tmp_trunc_src, tmp_trunc_trg,
+                        tmp_pasted, tmp_fwd, tmp_rev, tmp_sym,
+                        out_pairs):
+    truncator = TruncateWords()
+    truncate_words = apply_component(truncator)
+    recipe.add_rule(truncate_words(inp_src, tmp_trunc_src))
+    recipe.add_rule(truncate_words(inp_trg, tmp_trunc_trg))
+    recipe.add_rule(PasteColumns(
+        [tmp_trunc_src, tmp_trunc_trg], tmp_pasted, delimiter=' ||| '))
+
+    recipe.add_rule(FastAlign(
+        tmp_pasted, tmp_fwd))
+    recipe.add_rule(FastAlign(
+        tmp_pasted, tmp_rev, argstr='-r'))
+    recipe.add_rule(Symmetrize(
+        tmp_fwd, tmp_rev, tmp_sym, command='grow-diag-final-and'))
+    recipe.add_rule(WordPairs(
+        tmp_sym, tmp_trunc_src, tmp_trunc_trg, out_pairs, bnd_marker=FIVEDOT))
+    return truncator
+
+
+class LexicalMatchScore(Rule):
+    def __init__(self, inp_src, inp_trg, pairs, scores, truncator, **kwargs):
+        super().__init__([inp_src, inp_trg, pairs], [scores], **kwargs)
+        self.inp_src = inp_src
+        self.inp_trg = inp_trg
+        self.pairs = pairs
+        self.truncator = truncator
+
+    def make(self, conf, cli_args):
+        # read in pairs
+        fwd_map = collections.defaultdict(set)
+        rev_map = collections.defaultdict(set)
+        reader = self.pairs.open(conf, cli_args, mode='r')
+        for line in reader:
+            src, trg = line.strip().split('\t')
+            fwd_map[src].add(trg)
+            rev_map[trg].add(src)
+        reader.close()
+
+        # Make a tuple of generators that reads from main_inputs
+        readers = [self.inp_src.open(conf, cli_args, mode='r'),
+                   self.inp_trg.open(conf, cli_args, mode='r')]
+        # writer for scores
+        fobj = self.outputs[0].open(conf, cli_args, mode='w')
+        # read one line from each and yield it as a tuple
+        stream = safe_zip(*readers)
+
+        #stream = progress(stream, self, conf, '(multi)')
+        for (i, tpl) in enumerate(stream):
+            src, trg = tpl
+            src_tokens = self.truncator.single_cell(src).split()
+            trg_tokens = self.truncator.single_cell(trg).split()
+            hits = 0
+            total = 0
+            for src_token in src_tokens:
+                if src_token in trg_tokens:
+                    # accept prefix-cognates
+                    hits += 1
+                elif any(trg_token in fwd_map[src_token]
+                       for trg_token in trg_tokens):
+                    # accept translations from map
+                    hits += 1
+                total += 1
+            for trg_token in trg_tokens:
+                if trg_token in src_tokens:
+                    hits += 1
+                elif any(src_token in rev_map[trg_token]
+                       for src_token in src_tokens):
+                    hits += 1
+                total += 1
+            # negated for compatibility with
+            # components.filtering.FilterUsingLmScore
+            score = -hits / total
+            fobj.write('{}\n'.format(score))
+        for reader in readers:
+            reader.close()
+        fobj.close()
