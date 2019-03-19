@@ -7,7 +7,7 @@ from ..core.recipe import Rule
 
 def split_dataset(inputs, train_file,
                   dev_file=None, test_file=None,
-                  dev_size=0, test_size=0,
+                  dev_size=0, test_size=0, train_size=None,
                   resource_class='make_immediately',
                   **kwargs):
     components = [Shuffle()]
@@ -21,8 +21,14 @@ def split_dataset(inputs, train_file,
         components.append(SliceTee(
             used_lines, used_lines + test_size, test_file))
         used_lines += test_size
-    components.append(TailTee(
-        used_lines, train_file))
+    if train_size:
+        components.append(SliceTee(
+            used_lines, used_lines + train_size, train_file))
+        used_lines += test_size
+    else:
+        # use all remaining lines for train
+        components.append(TailTee(
+            used_lines, train_file))
     return DeadEndPipe(components, inputs,
                        name='SplitDataset',
                        resource_class=resource_class,

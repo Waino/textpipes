@@ -66,6 +66,9 @@ def simple_external(name, inputs, outputs, template, autolog_stdout=True):
 
     return SimpleExternalRule
 
+Copy = simple_external('Copy', ['inp'], ['out'],
+                       'cp --no-clobber {inp} {out}',  autolog_stdout=False)
+
 def ReEncode(infile, outfile, from_encoding='utf-8', to_encoding='utf-8//IGNORE'):
     argstr = '-f {from_encoding} -t {to_encoding}'.format(
         from_encoding=from_encoding, to_encoding=to_encoding)
