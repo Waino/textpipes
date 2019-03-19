@@ -25,10 +25,13 @@ ind_rules = (
     ('drop_tokens', tp.apply_component(tp.components.noise.DropTokens()), {}),
     ('peturb_order', tp.apply_component(tp.components.noise.PeturbOrder()), {}),
     ('seg_peturb_order', tp.apply_component(tp.components.noise.SegmentationAwarePeturbOrder()), {}),
+    # components/preprocessing.py
+    ('truncate_words', tp.apply_component(tp.components.preprocessing.TruncateWords()), {}),
     # components/tokenizer.py
     ('onmt_tokenize', tp.apply_component(onmt_tokenize), {}),
     ('simple_tokenize', tp.apply_component(tp.components.tokenizer.SimpleTokenize()), {}),
     ('old_tokenize', tp.apply_component(tp.components.tokenizer.Tokenize('fi')), {}),
+    ('force_tok_long_num', tp.apply_component(tp.components.tokenizer.ForceTokenizeLongNumbers()), {}),
     ### built-in features
     # transparent gzip
     ('gzip', tp.dummy.DummyParamPrint, {'name': 'gzip'}),
@@ -60,6 +63,13 @@ missing = recipe.add_output('outputs', name + '_missing', main=True)
 component = tp.apply_component(
     tp.ApplySegmentation(seg, bnd_marker=tp.FIVEDOT + ' ', pre_marked=False, log=missing))
 recipe.add_rule(component(inp, out))
+
+name = 'foreign'
+inp = recipe.add_input('inputs', name)
+foreign = recipe.add_input('inputs', name + '_foreign')
+out = recipe.add_output('outputs', name, main=True)
+recipe.add_rule(
+    tp.apply_filter(tp.components.filtering.FilterForeignChars(foreign))(inp, out))
 
 #### dep on previous steps
 dep_rules = (

@@ -123,6 +123,26 @@ class FilterOovs(Filter):
         return any(line.strip().split() not in self._vocab)
 
 
+class FilterForeignChars(Filter):
+    def __init__(self, foreign, allow_max=5):
+        super().__init__(side_inputs=[foreign])
+        self.foreign = foreign
+        self.allow_max = allow_max
+        self._foreign = None
+
+    def _read_foreign(self, side_fobjs):
+        self._foreign = set()
+        for line in side_fobjs[self.foreign]:
+            self._foreign.update(line.strip())
+
+    def __call__(self, line, side_fobjs):
+        if self._foreign is None:
+            self._read_foreign(side_fobjs)
+        hits = sum(1 for char in line
+                   if char in self._foreign)
+        return hits > self.allow_max
+
+
 class ComparisonFilter(Filter):
     """Takes a tuple of lines instead of a single line"""
     pass
@@ -218,7 +238,7 @@ class ComparisonFilterByLengthRatio(ComparisonFilter):
         self.threshold = threshold
         self.only_alpha = only_alpha
         self.tokens = tokens
-        assert not tokens and only_alpha
+        assert not (tokens and only_alpha)
 
     def __call__(self, tpl, side_fobjs=None):
         left, right = tpl
@@ -322,8 +342,14 @@ class FilterLongUntranslated(ParallelPipeComponent):
 
 
 # a Component, not a Filter! uses a synchronous side input used multiple times
-# can be used as both Mono and Parallel PipeComponent
 class FilterUsingLmScore(PipeComponent):
+    """Filters out lines or tuples
+    (can be used as both Mono and Parallel PipeComponent)
+    if the score (read from a separate file) is above a threshold.
+    Alternatively a fixed number of best entries can be kept
+    (dynamically sets the threshold to achieve this).
+    Can also be used with other scores than Language Model.
+    """
     def __init__(self, scores, threshold=None, keep=None, logfile=None):
         super().__init__(side_inputs=[scores], side_outputs=[logfile])
         assert sum(x is None for x in (threshold, keep)) == 1
