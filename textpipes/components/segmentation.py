@@ -1,4 +1,4 @@
-from .core import RegexSubstitution, ApplyMapping, MonoPipeComponent
+from .core import RegexSubstitution, ApplyMapping, MonoPipeComponent, SingleCellComponent
 from ..core.utils import FIVEDOT
 
 class SplitHyphens(RegexSubstitution):
@@ -115,3 +115,74 @@ class MissingSegmentations(MonoPipeComponent):
                     # only yield once
                     yield word
                 self.missing.add(word)
+
+
+# only space as bnd_marker
+class MappingToSegmentation(SingleCellComponent):
+    require_match = set('abcdefghijklmnopqrstuvxyzåäö')
+
+    def __init__(self, normalize, non_concatenative, **kwargs):
+        self.normalize = normalize
+        self.non_concatenative = non_concatenative
+        self._nconc_tmp = []
+        super().__init__(side_outputs=[non_concatenative], **kwargs)
+
+    def single_cell(self, line):
+        src, tgt = line.rstrip('\n').split('\t', 1)
+        tgt_norm = self.normalize(src, tgt)
+        tgt_conc = tgt_norm.replace(' ', '')
+        if tgt_conc != src:
+            self._nconc_tmp.append((src, tgt, tgt_norm))
+            # src atleast concatenates to src
+            return src
+        return tgt_norm
+
+    def post_make(self, side_fobjs):
+        non_concatenative = side_fobjs[self.non_concatenative]
+        for tpl in self._nconc_tmp:
+            non_concatenative.write('\t'.join(tpl))
+            non_concatenative.write('\n')
+
+    @classmethod
+    def omorfi_normalize(cls, src, tgt):
+        out = []
+        i = 0
+        j = 0
+        src_lower = src.lower()
+        tgt = tgt.lower()
+        while i < len(src):
+            if j >= len(tgt):
+                # trailing removed
+                out.append(src[i])
+                i += 1
+                continue
+            if src_lower[i] == tgt[j]:
+                # happy path: matching char
+                out.append(src[i])
+                i += 1
+                j += 1
+                continue
+            if tgt[j] == ' ':
+                # happy path: boundary
+                out.append(' ')
+                j += 1
+                continue
+            src_req = src_lower[i] in cls.require_match
+            tgt_req = tgt[j] in cls.require_match
+            if src_req and tgt_req:
+                # failure to normalize
+                return tgt
+            if src_req:
+                # skip over added noise
+                j += 1
+                continue
+            if tgt_req:
+                # re-add removed stuff
+                out.append(src[i])
+                i += 1
+                continue
+            # assume mapped char
+            out.append(src[i])
+            i += 1
+            j += 1
+        return ''.join(out)

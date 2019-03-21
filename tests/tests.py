@@ -71,6 +71,16 @@ out = recipe.add_output('outputs', name, main=True)
 recipe.add_rule(
     tp.apply_filter(tp.components.filtering.FilterForeignChars(foreign))(inp, out))
 
+name = 'omorfi_normalize'
+inp = recipe.add_input('inputs', name)
+out = recipe.add_output('outputs', name, main=True)
+nonconc = recipe.add_output('outputs', name + '_nonconc')
+recipe.add_rule(
+    tp.apply_component(tp.components.segmentation.MappingToSegmentation(
+        tp.components.segmentation.MappingToSegmentation.omorfi_normalize,
+        nonconc))(inp, out))
+
+
 #### dep on previous steps
 dep_rules = (
     ('remove_counts', tp.counting.RemoveCounts, recipe.use_output('outputs', 'count_tokens'), {}),
