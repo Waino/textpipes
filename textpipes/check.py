@@ -110,7 +110,10 @@ class LineCount(SummaryColumn):
         pass
 
     def line_count(self, i):
-            self.counter = i
+        self.counter = i
+
+    def new_file(self, file_name):
+        self.counter = 0
 
     @property
     def summary(self):
@@ -316,7 +319,8 @@ def summarize_files(file_paths, columns=DEFAULT_COLUMNS):
         for column in columns:
             column.new_file(file_path)
         # process the lines
-        ext_lc = False
+        ext_lc = None
+        i = -1 
         for (i, line) in enumerate(open_text_file(file_path,
                                                   mode='r',
                                                   encoding='utf-8')):
@@ -331,7 +335,7 @@ def summarize_files(file_paths, columns=DEFAULT_COLUMNS):
                     ext_lc = subprocess.check_output(['wc', '-l', file_path]).split()[0]
                 ext_lc = int(ext_lc.decode('utf-8'))
                 break
-        if ext_lc:
+        if ext_lc is not None:
             i = ext_lc
         else:
             i += 1  # 0 based enumerrate
