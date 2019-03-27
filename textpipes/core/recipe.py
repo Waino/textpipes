@@ -350,8 +350,12 @@ class Recipe(object):
                 #    cursor, not_yet[cursor])
                 #    for cursor in remaining])
                 cursor, closure = self._detect_circles(not_yet)
-                err_str = '{} has circular dep:\n{}'.format(
-                    cursor, '\n'.join(str(x) for x in closure))
+                if cursor is not None:
+                    err_str = '{} has circular dep:\n{}'.format(
+                        cursor, '\n'.join(str(x) for x in closure))
+                else:
+                    err_str = 'no circular dep found. {}'.format(
+                        '\n'.join(str(x) for x in not_yet))
                 raise Exception('unmet dependencies:\n{}'.format(err_str))
             needed = remaining
 
@@ -445,7 +449,8 @@ class Recipe(object):
 
     @property
     def main_outputs(self):
-        return sorted(self._main_out)
+        return sorted(rf for rf in self._main_out
+                      if self.files[rf] is not UNBOUND_OUTPUT)
 
     @property
     def opt_deps(self):
