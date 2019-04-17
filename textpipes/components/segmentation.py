@@ -121,10 +121,11 @@ class MissingSegmentations(MonoPipeComponent):
 class MappingToSegmentation(SingleCellComponent):
     require_match = set('abcdefghijklmnopqrstuvxyzåäö')
 
-    def __init__(self, normalize, non_concatenative, **kwargs):
+    def __init__(self, normalize, non_concatenative, postp=None, **kwargs):
         self.normalize = normalize
         self.non_concatenative = non_concatenative
         self._nconc_tmp = []
+        self.postp = postp
         super().__init__(side_outputs=[non_concatenative], **kwargs)
 
     def single_cell(self, line):
@@ -135,6 +136,8 @@ class MappingToSegmentation(SingleCellComponent):
             self._nconc_tmp.append((src, tgt, tgt_norm))
             # src atleast concatenates to src
             return src
+        if self.postp is not None:
+            tgt_norm = self.postp(tgt_norm)
         return tgt_norm
 
     def post_make(self, side_fobjs):

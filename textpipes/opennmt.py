@@ -252,17 +252,18 @@ class TranslateEnsemble(Rule):
 
         all_inputs = models + inputs
         super().__init__(all_inputs, outputs, **kwargs)
-        self.add_opt_dep(self.opennmt_dir + '/ensemble_translate.py', binary=True)
+        self.add_opt_dep(self.opennmt_dir + '/translate.py', binary=True)
 
     def make(self, conf, cli_args):
-        models_str = ' '.join(['-model {}'.format(model(conf, cli_args))
+        # now uses nargs='+' format, with flag -model only once
+        models_str = ' '.join([model(conf, cli_args)
                                for model in self.models])
         # no support for translating multiple
         inputs = self.translation_inputs[0](conf, cli_args)
         outputs = self.outputs[0](conf, cli_args)
 
-        run('{opennmt_dir}/ensemble_translate.py'
-            ' {models}'
+        run('{opennmt_dir}/translate.py'
+            ' -model {models}'
             ' -src {inp}'
             ' -output {out}'
             ' -n_best {nbest}'

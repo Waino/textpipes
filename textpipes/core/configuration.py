@@ -28,6 +28,8 @@ class Config(object):
         self.platform = platform
         self.conf = conf
         self.current_autolog_path = None
+        self.force = False
+        self.ingest_manual = False
 
     def read(self, main_conf_file, args):
         self.name, _ = os.path.splitext(main_conf_file)
