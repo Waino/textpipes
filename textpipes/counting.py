@@ -196,8 +196,8 @@ class ReverseCountsComponent(SingleCellComponent):
 
 class SegmentCountsFile(SingleCellComponent):
     def __init__(self, segmenters, output, words_only=None, reverse=False, **kwargs):
-        assert all(isinstance(segmenter, SingleCellComponent) for segmenter in segmenters)
         self.segmenters = segmenters
+        # should be ApplySegmentation, ApplyMapping or something similar
         side_inputs = []
         for segmenter in segmenters:
             side_inputs.extend(segmenter._side_inputs)
@@ -211,6 +211,11 @@ class SegmentCountsFile(SingleCellComponent):
         self.counts = collections.Counter()
         self.rev = reverse
 
+    def pre_make(self, side_fobjs):
+        """Called before __call__ (or all the single_cell calls)"""
+        for segmenter in self.segmenters:
+            segmenter.pre_make(side_fobjs)
+
     def single_cell(self, line):
         count, word = line.split(None, 1)
         if self.rev:
@@ -218,7 +223,7 @@ class SegmentCountsFile(SingleCellComponent):
         count = int(count)
         modified = word
         for segmenter in self.segmenters:
-            modified = segmenter.single_cell(modified)
+            modified = segmenter.lookup_mapping(modified)
         parts = modified.split()
         for part in parts:
             self.counts[part] += count
