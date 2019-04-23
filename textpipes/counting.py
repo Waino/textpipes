@@ -198,11 +198,14 @@ class SegmentCountsFile(SingleCellComponent):
     def __init__(self, segmenters, output, words_only=None, reverse=False, **kwargs):
         assert all(isinstance(segmenter, SingleCellComponent) for segmenter in segmenters)
         self.segmenters = segmenters
+        side_inputs = []
+        for segmenter in segmenters:
+            side_inputs.extend(segmenter._side_inputs)
         side_outputs = [output]
         if words_only:
             side_outputs.append(words_only)
         # must disable multiprocessing
-        super().__init__(side_outputs=side_outputs, mp=False, **kwargs)
+        super().__init__(side_inputs=side_inputs, side_outputs=side_outputs, mp=False, **kwargs)
         self.count_file = output
         self.words_file = words_only
         self.counts = collections.Counter()
