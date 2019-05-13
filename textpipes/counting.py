@@ -187,6 +187,25 @@ class RemoveCountsComponent(SingleCellComponent):
 RemoveCounts = apply_component(RemoveCountsComponent())
 
 
+class DampenCounts(SingleCellComponent):
+    def __init__(self, dampening):
+        if dampening == 'none':
+            self.dampfunc = lambda x: x
+        elif dampening == 'log':
+            self.dampfunc = lambda x: int(round(math.log(x + 1, 2)))
+        elif dampening == 'ones':
+            self.dampfunc = lambda x: 1
+        else:
+            self.dampfunc = dampening
+        super().__init__()
+
+    def single_cell(self, line):
+        count, wtype = line.strip().split()
+        count = int(count)
+        count = self.dampfunc(count)
+        return '{}\t{}'.format(count, wtype)
+
+
 class ReverseCountsComponent(SingleCellComponent):
     """BPE wants counts reversed"""
     def single_cell(self, line):
