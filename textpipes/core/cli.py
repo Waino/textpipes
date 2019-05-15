@@ -221,7 +221,7 @@ class CLI(object):
                 if rf.exists(self.conf, self.cli_args):
                     print('input OK:  {}'.format(fname))
                 else:
-                    print('MISSING:   {}'.format(fname))
+                    print('MISSING:   {} = {}'.format(rf.sec_key(), fname))
                     warn = True
             except KeyError:
                 print(    'UNDEFINED: {}'.format(rf.sec_key()))
