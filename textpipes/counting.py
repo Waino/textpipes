@@ -212,6 +212,8 @@ class ReverseCountsComponent(SingleCellComponent):
         count, wtype = line.strip().split()
         return '{}\t{}'.format(wtype, count)
 
+ReverseCounts = apply_component(ReverseCountsComponent())
+
 
 class SegmentCountsFile(SingleCellComponent):
     def __init__(self, segmenters, output, words_only=None, reverse=False, **kwargs):

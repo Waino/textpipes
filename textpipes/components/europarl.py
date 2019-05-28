@@ -5,7 +5,12 @@ from .filtering import Filter, FilterRegex, ParallelFilter, NoFilter
 
 class RemoveLanguageTags(RegexSubstitution):
     def __init__(self, **kwargs):
-        super().__init__([(r'^([\.-] )*\([A-Za-z][A-Za-z]\) ', '')], **kwargs)
+        prefix = r'^([\.,-] )*'
+        suffix = r' *([\.,-] )*\([A-Za-z][A-Za-z]\) '
+        words = ['', 'kirjallinen', 'esittelijä', 'in writing', 'rapporteur']
+        patterns = [(prefix + word + suffix, '')
+                    for word in words]
+        super().__init__(patterns, **kwargs)
 
 
 class FilterContractions(FilterRegex):
