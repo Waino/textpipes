@@ -5,8 +5,8 @@ from .filtering import Filter, FilterRegex, ParallelFilter, NoFilter
 
 class RemoveLanguageTags(RegexSubstitution):
     def __init__(self, **kwargs):
-        prefix = r'^([\.,-] )*'
-        suffix = r' *([\.,-] )*\([A-Za-z][A-Za-z]\) '
+        prefix = r'^([ \.,-])*'
+        suffix = r' *([ \.,-])*\([A-Za-z][A-Za-z]\) '
         words = ['', 'kirjallinen', 'esittelijä', 'in writing', 'rapporteur']
         patterns = [(prefix + word + suffix, '')
                     for word in words]

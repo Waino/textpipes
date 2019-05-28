@@ -21,6 +21,8 @@ ind_rules = (
     ('lowercase', tp.apply_component(tp.truecaser.LowerCase()), {}),
     # external.py
     ('reencode', tp.external.ReEncode, {'from_encoding': 'ISO_8859-15'}),
+    # components/europarl.py
+    ('remove_language_tags', tp.apply_component(tp.components.europarl.RemoveLanguageTags()), {}),
     # components/noise.py
     ('drop_tokens', tp.apply_component(tp.components.noise.DropTokens()), {}),
     ('peturb_order', tp.apply_component(tp.components.noise.PeturbOrder()), {}),
