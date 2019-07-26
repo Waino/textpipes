@@ -320,7 +320,7 @@ class CLI(object):
             for cursor, inp, invtype in inversions:
                 print('{}\t\t\t{} {}'.format(
                     cursor(self.conf, self.cli_args),
-                    'is newer than' if invtype == 'inversion' else 'orphan of',
+                    'is older than' if invtype == 'inversion' else 'orphan of',
                     inp(self.conf, self.cli_args)))
 
     def blame(self, concrete_output):

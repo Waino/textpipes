@@ -39,14 +39,16 @@ def simple_external(name, inputs, outputs, template, autolog_stdout=True):
     # FIXME: handle forbidding of .gz . fail in --check
 
     class SimpleExternalRule(Rule):
-        def __init__(self, input_rfs, output_rfs, argstr='', **kwargs):
-            super().__init__(input_rfs, output_rfs, **kwargs)
+        def __init__(self, input_rfs, output_rfs, argstr='', extra_out=None, **kwargs):
+            extra_out = [] if extra_out is None else extra_out
+            # extra_out are output files that are not specified on the command line
+            super().__init__(input_rfs, output_rfs + extra_out, **kwargs)
             if not uses_argstr and argstr != '':
                 raise Exception('No {argstr} in template, but argstr given')
             self.argstr = argstr
             self._name = name
             assert len(self.inputs) == len(inputs)
-            assert len(self.outputs) == len(outputs)
+            assert len(self.outputs) == len(outputs) + len(extra_out)
             self.add_opt_dep(program, binary=True)
 
         def make(self, conf, cli_args):
