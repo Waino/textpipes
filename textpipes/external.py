@@ -91,7 +91,9 @@ class Concatenate(Rule):
         elif all(not infile.endswith('.gz') for infile in infiles):
             catcmd = 'cat'
         else:
-            raise Exception('trying to concatenate gzipped and plain files')
+            print('SLOW: concatenating gzipped and plain files')
+            self._mixed_concat(conf, cli_args)
+            return
         zipcmd, outfile = maybe_gz_out(self.outputs[0](conf, cli_args))
         run('{catcmd} {infiles} | {zipcmd} > {outfile}'.format(
                 catcmd=catcmd,
@@ -99,7 +101,15 @@ class Concatenate(Rule):
                 zipcmd=zipcmd,
                 outfile=outfile)
             )
-
+    
+    def _mixed_concat(self, conf, cli_args):
+        with self.outputs[0].open(conf, cli_args, mode='w') as fobj:
+            for inp in self.inputs:
+                reader = inp.open(conf, cli_args, mode='r')
+                for line in reader:
+                    fobj.write(line)
+                    fobj.write('\n')
+                reader.close()
 
 class MosesTokenize(Rule):
     def __init__(self, *args, lang, **kwargs):
