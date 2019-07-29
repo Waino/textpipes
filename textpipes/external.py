@@ -24,7 +24,7 @@ def maybe_gz_out(outfile):
     else:
         return 'tee', outfile
 
-def simple_external(name, inputs, outputs, template, autolog_stdout=True):
+def simple_external(name, inputs, outputs, template, autolog_stdout=True, mapping=None):
     """Helper to make integrating external tools easier"""
     uses_argstr = '{argstr}' in template
     for inp_name in inputs:
@@ -36,6 +36,7 @@ def simple_external(name, inputs, outputs, template, autolog_stdout=True):
     program, _ = template.split(' ', 1)
     if autolog_stdout:
         template += ' >> {autolog} 2>&1'
+    mapping = {} if mapping is None else mapping
     # FIXME: handle forbidding of .gz . fail in --check
 
     class SimpleExternalRule(Rule):
@@ -56,9 +57,15 @@ def simple_external(name, inputs, outputs, template, autolog_stdout=True):
         def make(self, conf, cli_args):
             template_values = {}
             for inp_name, inp in safe_zip(inputs, self.inputs):
-                template_values[inp_name] = inp(conf, cli_args)
+                val = inp(conf, cli_args)
+                if inp_name in mapping:
+                    val = mapping[inp_name](val)
+                template_values[inp_name] = val
             for out_name, out in safe_zip(outputs, self.outputs):
-                template_values[out_name] = out(conf, cli_args)
+                val = out(conf, cli_args)
+                if out_name in mapping:
+                    val = mapping[out_name](val)
+                template_values[out_name] = val
             template_values['argstr'] = self.argstr
             if autolog_stdout:
                 template_values['autolog'] = conf.current_autolog_path

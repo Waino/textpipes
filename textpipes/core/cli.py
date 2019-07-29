@@ -24,6 +24,8 @@ def get_parser(recipe):
                         help='Output(s) to schedule, in section:key format')
     parser.add_argument('--check', default=False, action='store_true',
                         help='Perform validity check')
+    parser.add_argument('--dump-paths', default=False, action='store_true',
+                        help='Print (templated) paths when performing validity check')
     parser.add_argument('--status', default=False, action='store_true',
                         help='Status of ongoing experiments')
     parser.add_argument('--mtimes', default=False, action='store_true',
@@ -270,6 +272,13 @@ class CLI(object):
                     print('Binary dep {} OK'.format(dep))
         #for (dep, msg) in OPT_DEPS:
         #for (dep, msg) in OPT_BINS:
+        if self.args.dump_paths:
+            for section in self.conf.conf.sections():
+                if not section.startswith('paths.'):
+                    continue
+                print('[{}]'.format(section))
+                for key in self.conf.conf[section]:
+                    print('{} = {}'.format(key, self.conf.conf[section][key]))
 
     def status(self):
         files_by_job_id = collections.defaultdict(list)
