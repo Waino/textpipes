@@ -1,7 +1,7 @@
 import os
 import subprocess
 
-from .core.recipe import Rule
+from .core.recipe import Rule, RecipeFile
 from .core.platform import run
 from .core.utils import safe_zip
 
@@ -40,6 +40,8 @@ def simple_external(name, inputs, outputs, template, autolog_stdout=True):
 
     class SimpleExternalRule(Rule):
         def __init__(self, input_rfs, output_rfs, argstr='', extra_out=None, **kwargs):
+            if isinstance(output_rfs, RecipeFile):
+                output_rfs = [output_rfs]
             extra_out = [] if extra_out is None else extra_out
             # extra_out are output files that are not specified on the command line
             super().__init__(input_rfs, output_rfs + extra_out, **kwargs)
