@@ -196,9 +196,9 @@ class CLI(object):
         # check validity of interpolations in conf
         for section in self.conf.conf.sections():
             for key in self.conf.conf[section]:
-                self.conf.conf[section][key]
+                val = self.conf.conf[section][key]
                 if not 'subconf' in section:
-                    for tmpl in RE_TEMPLATE.findall(self.conf.conf[section][key]):
+                    for tmpl in RE_TEMPLATE.findall(val):
                         print('UNFILLED TEMPLATE: {}:{} contains {}'.format(section, key, tmpl))
         print('Config interpolations OK')
         # exp section is assumed to always exist
@@ -242,6 +242,19 @@ class CLI(object):
                     os.makedirs(subdir, exist_ok=True)
             else:
                 print('********** WARNING! No paths.dirs defined')
+        # check for self-clobbering outputs
+        rev_paths = collections.defaultdict(set)
+        for rf in self.recipe.all_outputs:
+            try:
+                fname = rf(self.conf, self.cli_args)
+                rev_paths[fname].add((section, key))
+            except KeyError:
+                pass
+        for path, sec_keys in rev_paths.items():
+            if len(sec_keys) > 1:
+                print('WARNING: {} all point to {}'.format(
+                    ', '.join('{}:{}'.format(sec, key) for sec, key in sec_keys),
+                    path))
         # check that output paths are in config
         warn = []
         for (rf, rule) in self.recipe.files.items():

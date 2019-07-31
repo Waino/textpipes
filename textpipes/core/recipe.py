@@ -453,6 +453,11 @@ class Recipe(object):
                       if self.files[rf] is not UNBOUND_OUTPUT)
 
     @property
+    def all_outputs(self):
+        return sorted(rf for (rf, val) in self.files.items()
+                      if val is not None)
+
+    @property
     def opt_deps(self):
         all_deps = set()
         for rule in self.files.values():
