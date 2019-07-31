@@ -14,6 +14,8 @@ from .utils import *
 
 logger = logging.getLogger('textpipes')
 
+RE_TEMPLATE = re.compile('#[^#]*#')
+
 def get_parser(recipe):
     parser = argparse.ArgumentParser(
         description='TextPipes (recipe: {})'.format(recipe.name))
@@ -195,6 +197,9 @@ class CLI(object):
         for section in self.conf.conf.sections():
             for key in self.conf.conf[section]:
                 self.conf.conf[section][key]
+                if not 'subconf' in section:
+                    for tmpl in RE_TEMPLATE.findall(self.conf.conf[section][key]):
+                        print('UNFILLED TEMPLATE: {}:{} contains {}'.format(section, key, tmpl))
         print('Config interpolations OK')
         # exp section is assumed to always exist
         if 'exp' not in self.conf.conf.sections():

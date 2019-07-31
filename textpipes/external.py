@@ -50,7 +50,7 @@ def simple_external(name, inputs, outputs, template, autolog_stdout=True, mappin
                 raise Exception('No {argstr} in template, but argstr given')
             self.argstr = argstr
             self._name = name
-            assert len(self.inputs) == len(inputs)
+            assert len(self.inputs) == len(inputs), 'got {} expecting {}'.format(len(self.inputs), len(inputs))
             assert len(self.outputs) == len(outputs) + len(extra_out)
             self.add_opt_dep(program, binary=True)
 
@@ -61,7 +61,8 @@ def simple_external(name, inputs, outputs, template, autolog_stdout=True, mappin
                 if inp_name in mapping:
                     val = mapping[inp_name](val)
                 template_values[inp_name] = val
-            for out_name, out in safe_zip(outputs, self.outputs):
+            # had to go back to unsafe zip due to extra_out
+            for out_name, out in zip(outputs, self.outputs):
                 val = out(conf, cli_args)
                 if out_name in mapping:
                     val = mapping[out_name](val)
