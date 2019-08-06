@@ -105,10 +105,11 @@ class Symmetrize(Rule):
 
 
 class WordPairs(Rule):
-    def __init__(self, alignment, src, trg, out, min_freq=2, bnd_marker=None, **kwargs):
+    def __init__(self, alignment, src, trg, out, min_freq=2, bnd_marker=None, at_most=None, **kwargs):
         super().__init__([alignment, src, trg], [out], **kwargs)
         self.min_freq = min_freq
         self.bnd_marker = bnd_marker
+        self.at_most = at_most
 
     def make(self, conf, cli_args):
         # Make a tuple of generators that reads from main_inputs
@@ -129,13 +130,25 @@ class WordPairs(Rule):
             src = src.split()
             trg = trg.split()
             for src_i, trg_i in aligns:
-                counts[(src[src_i], trg[trg_i])] += 1
+                try:
+                    counts[(src[src_i], trg[trg_i])] += 1
+                except IndexError:
+                    raise Exception('invalid alignment {}-{} "{}" "{}"'.format(
+                        src_i, trg_i, src, trg))
 
         fobj = self.outputs[0].open(conf, cli_args, mode='w')
         stream = progress(stream, self, conf, '(multi)')
+        seen_src = collections.Counter()
+        seen_trg = collections.Counter()
         for (pair, count) in counts.most_common():
             if count < self.min_freq:
                 break
+            if self.at_most is not None:
+                src, trg = pair
+                seen_src[src] += 1
+                seen_trg[trg] += 1
+                if seen_src[src] > self.at_most or seen_trg[trg] > self.at_most:
+                    continue
             fobj.write('{}\t{}\n'.format(*pair))
         fobj.close()
 
