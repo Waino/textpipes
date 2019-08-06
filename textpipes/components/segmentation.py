@@ -1,5 +1,5 @@
 from .core import RegexSubstitution, ApplyMapping, MonoPipeComponent, SingleCellComponent
-from ..core.utils import FIVEDOT
+from ..core.utils import FIVEDOT, FOURDOT
 
 class SplitHyphens(RegexSubstitution):
     def __init__(self, before=' ', after=' ', **kwargs):
@@ -189,3 +189,18 @@ class MappingToSegmentation(SingleCellComponent):
             i += 1
             j += 1
         return ''.join(out)
+
+class CharSegmentation(SingleCellComponent):
+    def __init__(self, bnd_marker=None, space_marker=FOURDOT, **kwargs):
+        self.bnd_marker = bnd_marker
+        self.space_marker = space_marker
+        super().__init__(**kwargs)
+
+    def single_cell(self, line):
+        if self.bnd_marker is not None:
+            # detokenize
+            line = line.replace(' ' + self.bnd_marker + ' ', '')
+            line = line.replace(self.bnd_marker + ' ', '')
+            line = line.replace(' ' + self.bnd_marker, '')
+        line = line.replace(' ', self.space_marker)
+        return ' '.join(list(line))

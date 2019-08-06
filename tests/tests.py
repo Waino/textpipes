@@ -1,4 +1,5 @@
 import textpipes as tp
+from textpipes.core.utils import FIVEDOT, FOURDOT
 
 recipe = tp.Recipe()
 conf = recipe.conf
@@ -104,6 +105,9 @@ dep_rules = (
         recipe.use_output('outputs', 'simple_tokenize'), {}),
     ('old_detokenize', tp.apply_component(tp.components.tokenizer.DeTokenize('fi')),
         recipe.use_output('outputs', 'old_tokenize'), {}),
+    # components/segmentation.py
+    ('char_segmentation', tp.apply_component(tp.components.segmentation.CharSegmentation(bnd_marker=FIVEDOT, space_marker=FOURDOT)),
+        recipe.use_output('outputs', 'onmt_tokenize'), {}),
     )
 
 for name, rule, inputs, kwargs in dep_rules:
