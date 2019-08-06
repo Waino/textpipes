@@ -49,6 +49,8 @@ class Train(Rule):
                  argstr='',
                  opennmt_dir='.',
                  save_every=5000,
+                 embs_src=None,
+                 embs_trg=None,
                  **kwargs):
         assert all(x % save_every == 0 for x in loop_indices)
         self.models = WildcardLoopRecipeFile.loop_output(
@@ -59,8 +61,14 @@ class Train(Rule):
         self.model_base = model_base
         self.argstr = argstr
         self.opennmt_dir = opennmt_dir
+        self.embs_src = embs_src
+        self.embs_trg = embs_trg
 
         inputs = [data_dir]
+        if embs_src is not None:
+            inputs.append(embs_src)
+        if embs_trg is not None:
+            inputs.append(embs_trg)
         outputs = self.models + [pipe_file]
         super().__init__(inputs, outputs, **kwargs)
         self.add_opt_dep(self.opennmt_dir + '/train.py', binary=True)
@@ -70,11 +78,13 @@ class Train(Rule):
         # a lot of stuff is appended to model path
         assert self.models[0](conf, cli_args).startswith(self.model_base)
         resume_str = self.resume()
+        embs_str = self.embs(conf, cli_args)
         run('{opennmt_dir}/train.py'
             ' -data {data_dir}/sharded'
             ' -save_model {model_base}'
             ' -save_checkpoint_steps {save_every}'
             ' {resume}'
+            ' {embs}'
             ' -gpu_ranks 0 '
             ' {argstr}'
             ' >> {pipe_file} 2>&1'.format(
@@ -82,6 +92,7 @@ class Train(Rule):
                 model_base=self.model_base,
                 save_every=self.save_every,
                 resume=resume_str,
+                embs=embs_str,
                 data_dir=self.data_dir(conf, cli_args),
                 argstr=self.argstr,
                 pipe_file=self.pipe_file(conf, cli_args)))
@@ -93,6 +104,14 @@ class Train(Rule):
             return '-train_from {model}'.format(model=model)
         # nothing to resume
         return ''
+    
+    def embs(self, conf, cli_args):
+        result = ''
+        if self.embs_src is not None:
+            result += '--pre_word_vecs_enc {} '.format(self.embs_src(conf, cli_args))
+        if self.embs_trg is not None:
+            result += '--pre_word_vecs_dec {}'.format(self.embs_trg(conf, cli_args))
+        return result
 
     def is_atomic(self, output):
         # all loop outputs are atomic
