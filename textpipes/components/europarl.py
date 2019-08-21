@@ -7,7 +7,7 @@ class RemoveLanguageTags(RegexSubstitution):
     def __init__(self, **kwargs):
         prefix = r'^([ \.,-])*'
         suffix = r' *([ \.,-])*\([A-Za-z][A-Za-z]\) '
-        words = ['', 'kirjallinen', 'esittelijä', 'in writing', 'rapporteur']
+        words = ['', 'kirjallinen', 'esittelijä', 'in writing', 'rapporteur', 'kirjalikult']
         patterns = [(prefix + word + suffix, '')
                     for word in words]
         super().__init__(patterns, **kwargs)

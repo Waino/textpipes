@@ -426,7 +426,8 @@ class Recipe(object):
         for out_rf in rule.outputs:
             filepath = out_rf(conf, cli_args)
             subdir, _ = os.path.split(filepath)
-            os.makedirs(subdir, exist_ok=True)
+            if subdir:
+                os.makedirs(subdir, exist_ok=True)
         return rule.make(conf, cli_args)
 
     def add_main_outputs(self, outputs=None):
