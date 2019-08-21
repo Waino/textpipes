@@ -3,7 +3,9 @@ import glob
 import itertools
 import logging
 import os
+import shutil
 import sys
+import tempfile
 
 from .utils import *
 from .configuration import GridConfig
@@ -428,7 +430,19 @@ class Recipe(object):
             subdir, _ = os.path.split(filepath)
             if subdir:
                 os.makedirs(subdir, exist_ok=True)
-        return rule.make(conf, cli_args)
+        for in_rf in rule.inputs:
+            in_rf.enter_make(is_input=True, conf=conf, cli_args=cli_args)
+        for out_rf in rule.outputs:
+            out_rf.enter_make(is_input=False, conf=conf, cli_args=cli_args)
+
+        result = rule.make(conf, cli_args)
+
+        for in_rf in rule.inputs:
+            in_rf.exit_make(is_input=True, conf=conf, cli_args=cli_args)
+        for out_rf in rule.outputs:
+            out_rf.exit_make(is_input=False, conf=conf, cli_args=cli_args)
+
+        return result
 
     def add_main_outputs(self, outputs=None):
         if outputs is None:
@@ -565,7 +579,7 @@ class RecipeFile(object):
     """A RecipeFile is a file template
     that points to a concrete file when given conf and cli_args
     """
-    def __init__(self, section, key, exact_linecount=None, allow_empty=False):
+    def __init__(self, section, key, exact_linecount=None, allow_empty=False, use_tmp=False):
         self.section = section
         self.key = key
         # set if exact expected linecount is known
@@ -576,8 +590,13 @@ class RecipeFile(object):
         self.allow_empty = allow_empty
         # can a partial result be continued by rescheduling?
         self.can_continue = False
+        # tmp location for network io saving transparent tmp
+        self.use_tmp = use_tmp
+        self._tmp_path = None
 
     def __call__(self, conf, cli_args=None):
+        if self._tmp_path is not None:
+            return self._tmp_path
         path = conf.get_path(self.section, self.key)
         if cli_args is not None:
             path = path.format(**cli_args)
@@ -617,6 +636,36 @@ class RecipeFile(object):
 
     def sec_key(self):
         return '{}:{}'.format(self.section, self.key)
+
+    def enter_make(self, is_input, conf, cli_args):
+        if not self.use_tmp:
+            return
+        real_path = self(conf, cli_args)
+        if os.path.isdir(real_path):
+            self._tmp_path = os.path.join(tempfile.mkdtemp(), 'd')
+            if is_input:
+                shutil.copytree(real_path, self._tmp_path)
+            else:
+                raise Exception('dir tmp outputs not yet supported, {}'.format(real_path))
+        else:
+            _, self._tmp_path = tempfile.mkstemp()
+            if is_input:
+                shutil.copyfile(real_path, self._tmp_path)
+
+    def exit_make(self, is_input, conf, cli_args):
+        if not self.use_tmp:
+            return
+        tmp_path = self._tmp_path
+        self._tmp_path = None
+        real_path = self(conf, cli_args)
+        if is_input:
+            # inputs can be left where they are (could also delete here)
+            pass
+        else:
+            if os.path.isdir(tmp_path):
+                raise Exception('dir tmp outputs not yet supported')
+            else:
+                shutil.copyfile(tmp_path, real_path)
 
     def __eq__(self, other):
         return (self.section, self.key) == (other.section, other.key)

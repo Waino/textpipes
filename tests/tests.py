@@ -139,4 +139,10 @@ for name, rule, inputs, kwargs in dep_rules2:
 #dep_components =
 #FilterCounts
 
+## transparent tmp files
+name = 'transparent_tmp'
+inp = recipe.add_input('inputs', name, use_tmp=True)
+out = recipe.add_output('outputs', name, main=True, use_tmp=True)
+recipe.add_rule(tp.dummy.DummyParamPrint(inp, out))
+
 recipe.main()
