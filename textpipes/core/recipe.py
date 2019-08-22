@@ -813,7 +813,17 @@ class FileStatusCache(object):
                     return FAILED
                 elif true_status == 'unknown':
                     # let's be optimistic
-                    return DONE
+                    true_status, true_length, expected_length = \
+                        rf.check_length(conf, cli_args)
+                    if true_status == TOO_SHORT:
+                        self.warn(rf, conf, cli_args, true_status,
+                                  '{} lines, shorter than expected {}'.format(
+                                        true_length, expected_length))
+                    elif expected_length is not None and true_length > expected_length:
+                        self.warn(rf, conf, cli_args, true_status,
+                                  '{} lines, longer than expected {}'.format(
+                                        true_length, expected_length))
+                    return true_status
                 elif true_status == 'not scheduled':
                     # logs contain no explanation
                     # for the existence of this file
