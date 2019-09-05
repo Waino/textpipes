@@ -304,6 +304,11 @@ class Recipe(object):
             not_yet = {}
             for cursor in needed:
                 if cursor in known:
+                    if cursor not in seen_done:
+                        job_status = self.status_of(cursor, self.conf, cli_args)
+                        if job_status != 'no file':
+                            print('{} {} has a problem: {}'.format(
+                                cursor.sec_key(), cursor(self.conf, cli_args), job_status))
                     # don't reschedule
                     continue
                 rule = self.files[cursor]

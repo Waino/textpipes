@@ -226,7 +226,11 @@ class CLI(object):
             try:
                 fname = rf(self.conf, self.cli_args)
                 if rf.exists(self.conf, self.cli_args):
-                    print('input OK:  {}'.format(fname))
+                    if os.stat(fname).st_size == 0:
+                        print('EMPTY:   {} = {}'.format(rf.sec_key(), fname))
+                        warn = True
+                    else:
+                        print('input OK:  {}'.format(fname))
                 else:
                     print('MISSING:   {} = {}'.format(rf.sec_key(), fname))
                     warn = True
