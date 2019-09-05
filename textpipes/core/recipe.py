@@ -778,6 +778,10 @@ class FileStatusCache(object):
         if rf.exists(conf, cli_args):
             if rf.atomic:
                 # if atomic file exists, it is done
+                true_status, true_length, expected_length = \
+                    rf.check_length(conf, cli_args)
+                if true_status in (EMPTY, TOO_SHORT):
+                    return true_status
                 return DONE
             else:
                 # not atomic

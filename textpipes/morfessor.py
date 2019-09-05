@@ -32,6 +32,12 @@ TrainFlatcatSemisup = simple_external(
     'flatcat-train {infile} --annotations {annots}'
     ' -s {model} --category-separator ' + FOURDOT + ' {argstr}')
 
+# argstr: lexicon_goal -p XX
+TrainFlatcatAutotune = simple_external(
+    'TrainFlatcatAutotune', ['infile', 'init_params'], ['model'],
+    'flatcat-autotune {infile} {argstr} --load-parameters {init_params}'
+    ' -s {model} --category-separator ' + FOURDOT )
+
 class ApplyMorfessor(Rule):
     def __init__(self, *args,
                  sep=FIVEDOT + ' ', fmt='{analysis}',
