@@ -34,6 +34,9 @@ def simple_external(name, inputs, outputs, template, autolog_stdout=True, mappin
         if '{' + out_name + '}' not in template:
             raise Exception('{' + out_name + '} missing from template')
     program, _ = template.split(' ', 1)
+    if autolog_stdout and '>' in template:
+        print('turning off autolog_stdout for {}'.format(name))
+        autolog_stdout = False
     if autolog_stdout:
         template += ' >> {autolog} 2>&1'
     mapping = {} if mapping is None else mapping
