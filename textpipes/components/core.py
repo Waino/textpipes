@@ -456,7 +456,9 @@ class ApplyMapping(MonoPipeComponent):
     def post_make(self, side_fobjs):
         if self.log is not None:
             fobj = side_fobjs[self.log]
-            for word, count in self.missing.most_common():
+            counts = [(count, word) for word, count in self.missing.most_common()]
+            counts = sorted(counts)
+            for count, word in counts:
                 fobj.write('{}\t{}\n'.format(count, word))
 
 
