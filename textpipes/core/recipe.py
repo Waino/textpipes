@@ -647,7 +647,7 @@ class LoopRecipeFile(RecipeFile):
     def __call__(self, conf, cli_args=None):
         path = conf.get_path(self.section, self.key)
         if '{_loop_index}' not in path and not self._silence_warn:
-            logger.warning('LoopRecipeFile without _loop_index in template')
+            logger.warning('LoopRecipeFile without _loop_index in template {}'.format(self.sec_key()))
         fmt_args = {}
         if cli_args is not None:
             fmt_args.update(cli_args)
