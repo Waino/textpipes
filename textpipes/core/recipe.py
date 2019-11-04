@@ -381,7 +381,7 @@ class Recipe(object):
                         return cursor, closure[cursor]
         return None, set()
 
-    def check_mtime_inversions(self, outputs=None, cli_args=None):
+    def check_mtime_inversions(self, outputs=None, cli_args=None, dump_paths=False):
         if not outputs:
             outputs = self.main_outputs
         else:
@@ -399,6 +399,8 @@ class Recipe(object):
             if not cursor.exists(self.conf, cli_args):
                 nonexistent.add(cursor)
                 continue
+            if dump_paths:
+                print('{} = {}'.format(cursor.sec_key(), cursor(self.conf, cli_args)))
             mtime = os.path.getmtime(cursor(self.conf, cli_args))
             mtimes[cursor] = mtime
             rule = self.files[cursor]

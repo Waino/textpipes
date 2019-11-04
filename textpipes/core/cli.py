@@ -27,7 +27,7 @@ def get_parser(recipe):
     parser.add_argument('--check', default=False, action='store_true',
                         help='Perform validity check')
     parser.add_argument('--dump-paths', default=False, action='store_true',
-                        help='Print (templated) paths when performing validity check')
+                        help='Print (templated) paths when performing validity check or mtimes')
     parser.add_argument('--status', default=False, action='store_true',
                         help='Status of ongoing experiments')
     parser.add_argument('--mtimes', default=False, action='store_true',
@@ -344,7 +344,8 @@ class CLI(object):
     def mtimes(self):
         inversions = self.recipe.check_mtime_inversions(
             outputs=self.args.output,
-            cli_args=self.cli_args)
+            cli_args=self.cli_args,
+            dump_paths=self.args.dump_paths)
         if len(inversions) == 0:
             print('Everything in order')
         else:
