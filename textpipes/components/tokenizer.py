@@ -308,7 +308,8 @@ class DeTokenize(SingleCellComponent):
         return val.strip()
 
 
-NUMONLY_RE = re.compile(r'^[0-9][0-9]*$')
+# allow leading UNDER
+NUMONLY_RE = re.compile(r'^▁?[0-9][0-9]*$')
 
 class ForceTokenizeLongNumbers(SingleCellComponent):
     def __init__(self, min_len=4, tok_len=3, bnd_marker=FIVEDOT, **kwargs):
@@ -325,14 +326,15 @@ class ForceTokenizeLongNumbers(SingleCellComponent):
         if not m:
             return token
         else:
-            if len(token) <= 4:
+            if len(token.replace('▁', '')) <= 4:
                 return token
             return self.fseg(token)
 
     def fseg(self, token):
+        token = token[::-1]
         out = []
         while len(token) > 3:
             out.append(token[:3] + self.bnd_marker)
             token = token[3:]
         out.append(token)
-        return ' '.join(out)
+        return ' '.join(out)[::-1]

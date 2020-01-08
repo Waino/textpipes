@@ -1,3 +1,4 @@
+import re
 from .core import RegexSubstitution, ApplyMapping, MonoPipeComponent, SingleCellComponent
 from ..core.utils import FIVEDOT, FOURDOT
 
@@ -204,3 +205,65 @@ class CharSegmentation(SingleCellComponent):
             line = line.replace(' ' + self.bnd_marker, '')
         line = line.replace(' ', self.space_marker)
         return ' '.join(list(line))
+
+
+class SegmentSentences(MonoPipeComponent):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.re_fullstops = re.compile(r'(?<=[\.\?\!]) ')
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        for line in stream:
+            for sentence in self.re_fullstops.split(line):
+                sentence = sentence.strip()
+                if len(sentence) > 0:
+                    yield sentence
+
+class JoinSentences(MonoPipeComponent):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.buffered = []
+
+    def _criteria(self, line, i):
+        if len(line) > 75:
+            # shorter than 75 chars
+            return 'no'
+        if len(line.split()) == 1:
+            # more than one token
+            return 'no'
+        if line[0].isupper() and i > 0:
+            # starting with upper can only be first
+            return 'no'
+        if line[-1] in '.!?':
+            # ending in punc can only be last
+            return 'last'
+        return 'yes'
+
+    def _yield_buffered(self):
+        if len(self.buffered) == 0:
+            return []
+        buffered = self.buffered
+        joined = ' ▁'.join(self.buffered)
+        self.buffered = []
+        if len(joined) > 500 or len(joined.split()) > 100:
+            # result is too long, cancel join
+            return buffered
+        else:
+            return [joined]
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        for line in stream:
+            decision = self._criteria(line, len(self.buffered))
+            if decision == 'no':
+                yield from self._yield_buffered()
+                yield line
+                continue
+            if decision == 'last':
+                self.buffered.append(line)
+                yield from self._yield_buffered()
+                continue
+            if decision == 'yes':
+                self.buffered.append(line)
+        yield from self._yield_buffered()
