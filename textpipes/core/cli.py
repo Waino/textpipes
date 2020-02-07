@@ -57,6 +57,9 @@ def get_parser(recipe):
                         'UNTESTED: if used with --recursive.')
     parser.add_argument('--grid', default=None, type=str, metavar='CONF',
                         help='Perform grid search specified by the given conf. ')
+    parser.add_argument('--patch-conf', default=[], type=str, metavar='CONF',
+                        action='append',
+                        help='Override variables specified by the given conf(s):. ')
     parser.add_argument('--blame', default=None, type=str,
                         help='When given a concrete filename, '
                         'shows which rule built it, and its inputs.')
@@ -88,6 +91,10 @@ class CLI(object):
         self.args = parser.parse_args(args=argv)
         self.conf = Config()
         self.conf.read(self.args.conf, self.args)
+        for patch_conf_file in self.args.patch_conf:
+            patch_conf = Config()
+            patch_conf.read(patch_conf_file, self.args)
+            self.conf = GridConfig.apply_override(self.conf, patch_conf)
         if self.args.grid is not None:
             self.grid_conf = GridConfig(self.args.grid, self.args)
         else:
@@ -403,7 +410,7 @@ class CLI(object):
             job_id = self.platform.schedule(
                 self.recipe, conf, step.rule, step.sec_key,
                 output_files, self.cli_args, deps=wait_for_jobs,
-                overrides=step.overrides)
+                overrides=step.overrides, patches=self.args.patch_conf)
             if job_id is None:
                 # not scheduled for some reason
                 continue
@@ -416,7 +423,7 @@ class CLI(object):
                 self.platform.post_schedule(
                     job_id, self.recipe, self.conf, step.rule, step.sec_key,
                     output_files, self.cli_args, deps=wait_for_jobs,
-                    overrides=step.overrides)
+                    overrides=step.overrides, patches=self.args.patch_conf)
             except Exception as e:
                 self.log.failed(job_id)
                 raise e

@@ -37,6 +37,11 @@ def passthrough_args(conf):
         result.append(' --force')
     return ''.join(result)
 
+def patch_conf_string(patch_confs):
+    if not patch_confs:
+        return ''
+    return ' '.join('--patch-conf {}'.format(patch_conf) for patch_conf in patch_confs)
+
 class Platform(object):
     def __init__(self, name, conf):
         self.name = name
@@ -46,19 +51,20 @@ class Platform(object):
     def read_log(self, log):
         pass
 
-    def _cmd(self, recipe, conf, sec_key, overrides=None):
+    def _cmd(self, recipe, conf, sec_key, overrides=None, patches=None):
         override_str = make_override_string(overrides)
         pargs = passthrough_args(conf)
-        return 'python {recipe}.py {conf}.ini --make {sec_key} --platform {platform}{overrides}{pargs}'.format(
+        patch_str = patch_conf_string(patches)
+        return 'python {recipe}.py {conf}.ini --make {sec_key} --platform {platform}{overrides}{pargs} {patch_str}'.format(
             recipe=recipe.name, conf=conf.name, sec_key=sec_key,
             platform=self.name, overrides=override_str,
-            pargs=pargs)
+            pargs=pargs, patch_str=patch_str)
 
-    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None):
+    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None, overrides=None, patches=None):
         # -> job id (or None if not scheduled)
         raise NotImplementedError()
 
-    def post_schedule(self, job_id, recipe, conf, rule, sec_key, output_files, cli_args, deps=None, overrides=None):
+    def post_schedule(self, job_id, recipe, conf, rule, sec_key, output_files, cli_args, deps=None, overrides=None, patches=None):
         pass
 
     def check_job(self, job_id):
@@ -86,14 +92,14 @@ class Local(Platform):
     def read_log(self, log):
         self.job_id = log.last_job_id
 
-    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None, overrides=None):
+    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None, overrides=None, patches=None):
         # dummy incremental job_id
         self.job_id += 1
         return str(self.job_id)
 
-    def post_schedule(self, job_id, recipe, conf, rule, sec_key, output_files, cli_args, deps=None, overrides=None):
+    def post_schedule(self, job_id, recipe, conf, rule, sec_key, output_files, cli_args, deps=None, overrides=None, patches=None):
         """Run immediately, instead of scheduling"""
-        r = run(self._cmd(recipe, conf, sec_key, overrides=overrides))
+        r = run(self._cmd(recipe, conf, sec_key, overrides=overrides, patches=patches))
 
     def check_job(self, job_id):
         return 'local'
@@ -128,10 +134,10 @@ class Slurm(Platform):
         super().__init__(*args, **kwargs)
         self._job_status = {}
 
-    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None, overrides=None):
+    def schedule(self, recipe, conf, rule, sec_key, output_files, cli_args, deps=None, overrides=None, patches=None):
         rc_args = self.resource_class(rule.resource_class)
         assert rc_args != 'make_immediately'
-        cmd = self._cmd(recipe, conf, sec_key, overrides=overrides)
+        cmd = self._cmd(recipe, conf, sec_key, overrides=overrides, patches=patches)
         job_name = '{}:{}'.format(conf.name, sec_key)
         log_str = 'slurmlogs/{}_{}_%j.slurmout'.format(conf.name, sec_key)
         for i in range(rule.chain_schedule):
