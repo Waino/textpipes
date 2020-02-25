@@ -369,7 +369,8 @@ class FilterUsingLmScore(PipeComponent):
             # need to cache the whole list of scores
             self.scores = [float(x) for x in side_fobjs[self.scores_file]]
             sorted_scores = sorted(self.scores)
-            self.threshold = sorted_scores[self.keep]
+            keep = min(self.keep, len(sorted_scores))
+            self.threshold = sorted_scores[keep]
 
     def __call__(self, stream, side_fobjs=None, 
                  config=None, cli_args=None):
