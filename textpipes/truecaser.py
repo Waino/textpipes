@@ -98,6 +98,8 @@ class TrueCase(SingleCellComponent):
         self.counts = None
         self.words = dict()
         for (i, line) in enumerate(side_fobjs[self.model_file]):
+            if line[0] == '\t':
+                continue
             try:
                 (word, best, sure) = line.strip().split('\t')
                 sure = (sure == 'True')

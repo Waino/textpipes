@@ -306,6 +306,11 @@ class Recipe(object):
             not_yet = {}
             for cursor in needed:
                 if cursor in known:
+                    if cursor not in seen_done:
+                        job_status = self.status_of(cursor, self.conf, cli_args)
+                        if job_status != 'no file':
+                            print('{} {} has a problem: {}'.format(
+                                cursor.sec_key(), cursor(self.conf, cli_args), job_status))
                     # don't reschedule
                     continue
                 rule = self.files[cursor]
@@ -378,7 +383,7 @@ class Recipe(object):
                         return cursor, closure[cursor]
         return None, set()
 
-    def check_mtime_inversions(self, outputs=None, cli_args=None):
+    def check_mtime_inversions(self, outputs=None, cli_args=None, dump_paths=False):
         if not outputs:
             outputs = self.main_outputs
         else:
@@ -396,6 +401,8 @@ class Recipe(object):
             if not cursor.exists(self.conf, cli_args):
                 nonexistent.add(cursor)
                 continue
+            if dump_paths:
+                print('{} = {}'.format(cursor.sec_key(), cursor(self.conf, cli_args)))
             mtime = os.path.getmtime(cursor(self.conf, cli_args))
             mtimes[cursor] = mtime
             rule = self.files[cursor]
@@ -691,7 +698,7 @@ class LoopRecipeFile(RecipeFile):
     def __call__(self, conf, cli_args=None):
         path = conf.get_path(self.section, self.key)
         if '{_loop_index}' not in path and not self._silence_warn:
-            logger.warning('LoopRecipeFile without _loop_index in template')
+            logger.warning('LoopRecipeFile without _loop_index in template {}'.format(self.sec_key()))
         fmt_args = {}
         if cli_args is not None:
             fmt_args.update(cli_args)
@@ -827,6 +834,10 @@ class FileStatusCache(object):
         if rf.exists(conf, cli_args):
             if rf.atomic:
                 # if atomic file exists, it is done
+                true_status, true_length, expected_length = \
+                    rf.check_length(conf, cli_args)
+                if true_status in (EMPTY, TOO_SHORT):
+                    return true_status
                 return DONE
             else:
                 # not atomic
@@ -862,7 +873,17 @@ class FileStatusCache(object):
                     return FAILED
                 elif true_status == 'unknown':
                     # let's be optimistic
-                    return DONE
+                    true_status, true_length, expected_length = \
+                        rf.check_length(conf, cli_args)
+                    if true_status == TOO_SHORT:
+                        self.warn(rf, conf, cli_args, true_status,
+                                  '{} lines, shorter than expected {}'.format(
+                                        true_length, expected_length))
+                    elif expected_length is not None and true_length > expected_length:
+                        self.warn(rf, conf, cli_args, true_status,
+                                  '{} lines, longer than expected {}'.format(
+                                        true_length, expected_length))
+                    return true_status
                 elif true_status == 'not scheduled':
                     # logs contain no explanation
                     # for the existence of this file

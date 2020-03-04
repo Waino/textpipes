@@ -54,6 +54,8 @@ class Pipe(Rule):
             side_inputs = side_inputs + tuple(extra_side_inputs)
         if extra_side_outputs is not None:
             side_outputs = side_outputs + tuple(extra_side_outputs)
+        assert all(inp is not None for inp in main_inputs)
+        assert all(out is not None for out in main_outputs)
         inputs = tuple(main_inputs) + tuple(side_inputs)
         outputs = tuple(main_outputs) + tuple(side_outputs)
         super().__init__(inputs, outputs, **kwargs)

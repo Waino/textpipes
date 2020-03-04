@@ -35,12 +35,21 @@ def split_dataset(inputs, train_file,
                        **kwargs)
 
 def split_dataset_para(recipe,
-                       inputs, tmp_files, train_files, dev_files,
-                       dev_size=0,
+                       inputs, tmp_files, train_files,
+                       dev_files=None, test_files=None,
+                       dev_size=0, test_size=0,
                        **kwargs):
     recipe.add_rule(apply_component(Shuffle(), para=True, **kwargs)(inputs, tmp_files))
-    recipe.add_rule(apply_component(Head(dev_size), para=True, **kwargs)(tmp_files, dev_files))
-    recipe.add_rule(apply_component(Tail(dev_size), para=True, **kwargs)(tmp_files, train_files))
+    used_lines = 0
+    if dev_size:
+        assert dev_files is not None
+        recipe.add_rule(apply_component(Head(dev_size), para=True, **kwargs)(tmp_files, dev_files))
+        used_lines += dev_size
+    if test_size:
+        assert test_files is not None
+        recipe.add_rule(apply_component(Slice(used_lines, used_lines + test_size), para=True, **kwargs)(tmp_files, test_files))
+        used_lines += test_size
+    recipe.add_rule(apply_component(Tail(used_lines), para=True, **kwargs)(tmp_files, train_files))
 
 
 class Head(PipeComponent):
@@ -76,6 +85,22 @@ class Tail(PipeComponent):
             if i < self.skip:
                 continue
             yield line
+
+class Slice(PipeComponent):
+    """Yields the specified number of lines from the middle"""
+    def __init__(self, start, end):
+        super().__init__()
+        self.start = int(start)
+        self.end = int(end)
+        # does not care if the data is mono or parallel
+        self._is_mono_pipe_component = True
+        self._is_parallel_pipe_component = True
+
+    def __call__(self, stream, side_fobjs=None,
+                 config=None, cli_args=None):
+        for (i, line) in enumerate(stream):
+            if self.start <= i < self.end:
+                yield line
 
 class RealTail(PipeComponent):
     """Removes from the stream everything except for

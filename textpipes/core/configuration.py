@@ -106,6 +106,11 @@ class Config(object):
     def __getitem__(self, key):
         return self.conf[key]
 
+    def items(self):
+        for section in self.conf:
+            for key, item in self.conf[section].items():
+                yield ('{}:{}'.format(section, key), item)
+
 # use interpolation in configparser
 # '${FILE:corpus}.${resection:some}'
 # can also include dollar-free, which can be formatted from command line args
