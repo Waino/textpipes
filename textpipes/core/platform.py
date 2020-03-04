@@ -162,6 +162,8 @@ class Slurm(Platform):
         if job_id == '-':
             return 'unknown'
         if job_id not in self._job_status:
+            in_queue = self._parse_squeue(job_id)
+        if job_id not in self._job_status:
             self._parse_sacct(job_id)
         if job_id in self._job_status:
             (_, _, status, _) = self._job_status[job_id]
@@ -169,6 +171,23 @@ class Slurm(Platform):
             result = SLURM_STATUS_MAP.get(status, status)
             return result
         return 'unknown'
+
+    def _parse_squeue(self, job_id):
+        print('***************** running squeue!', job_id)
+        r = run('squeue -j "{}" -hO jobid,state'.format(job_id), allow_fail=True)
+        for (i, line) in enumerate(r.std_out.split('\n')):
+            if len(line.strip()) == 0:
+                continue
+            parts = line.split()
+            if len(parts) < 2:
+                return False
+            if parts[0] == 'slurm_load_jobs':
+                return False
+            elif parts[1] in ('PENDING', 'RUNNING'):
+                status = parts[1]
+                self._job_status[job_id] = ('0:00', '-', status, 'squeue')
+                return True
+            return False
 
     def _parse_sacct(self, job_id):
         print('***************** running sacct!', job_id)
